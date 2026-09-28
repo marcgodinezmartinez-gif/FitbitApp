@@ -2,18 +2,31 @@
 
 > **Aviso**: este documento recoge requisitos derivados de la normativa aplicable según el análisis del equipo; **no es asesoramiento jurídico**. Antes de publicar la app para terceros (fase F4) debe revisarlo un profesional (protección de datos y producto sanitario).
 
-Convención de IDs: `RL-<nn>`. Columna **Cuándo**: `F1` = obligatorio ya en uso personal; `F4` = obligatorio antes de abrir la app a otras personas o publicarla en tiendas.
+Convención de IDs: `RL-<nn>`. Columna **Cuándo**: `F1` = aplica ya en uso personal; `F4` = solo si algún día la app se abriera a otras personas o se publicara (hoy **fuera de alcance**).
 
 ---
 
-## 1. Dos escenarios con obligaciones muy distintas
+## 0. Tu caso: app personal, solo en tu iPhone
+
+| Ámbito | ¿Aplica? | Por qué |
+|---|---|---|
+| **Condiciones de la Google Health API** (RL-40 a RL-48) | **Sí** | Aplican a cualquier app que use la API, aunque la use solo su autor. En la práctica: uso solo para ti, divulgación antes de conectar, página de privacidad con la declaración de *Limited Use* (vale una página gratuita en GitHub Pages), cifrado (Llavero + protección de datos de iOS), granularidad y marca |
+| Términos de Anthropic (si activas el Coach) | **Sí** | Política de uso aceptable de la API |
+| Términos de Apple para desarrolladores (instalación personal) | **Sí** | Cuenta gratuita o de pago; sin App Store |
+| No usar protocolos propietarios de la pulsera (RL-62) | **Sí** | Términos de Google |
+| RGPD / LOPDGDD (§3) | No | Exención doméstica: tratamiento «exclusivamente personal» por una persona física (art. 2.2.c RGPD) |
+| Producto sanitario (MDR, §2) | No en la práctica | No se comercializa ni se pone a disposición de terceros; aun así se mantiene el lenguaje de bienestar (RL-01, RL-02) como buena práctica |
+| Ley de IA (§4) | No en la práctica | Uso personal no profesional (art. 2.10 del Reglamento (UE) 2024/1689) y es evidente que hablas con una IA; se mantienen la etiqueta y las salvaguardas (RL-34) |
+| Tiendas de apps, consumo, marcas (§6–§8) | No | No se publica. Si algún día se publicara, se aplicaría todo este documento |
+
+## 1. Dos escenarios con obligaciones muy distintas (referencia)
 
 | Escenario | Descripción | Consecuencia principal |
 |---|---|---|
-| **A. Uso personal** (MVP) | Solo el propietario usa la app con sus propios datos. | El RGPD no se aplica a tratamientos «efectuados por una persona física en el ejercicio de actividades exclusivamente personales o domésticas» (art. 2.2.c RGPD). Siguen aplicando las condiciones de Google (API y OAuth) —incluso sin verificar, la app puede tener hasta 100 usuarios— y de los proveedores (Anthropic, cloud). |
-| **B. Producto para terceros** | Otras personas crean cuenta y vinculan su Fitbit Air. | El desarrollador pasa a ser **responsable del tratamiento** de datos de salud (categoría especial, art. 9 RGPD) con todas las obligaciones de §3, más políticas de tiendas y verificación de Google. |
+| **A. Uso personal** (**tu caso**) | Solo el propietario usa la app con sus propios datos. | El RGPD no se aplica a tratamientos «efectuados por una persona física en el ejercicio de actividades exclusivamente personales o domésticas» (art. 2.2.c RGPD). Siguen aplicando las condiciones de Google (API y OAuth) —incluso sin verificar, la app puede tener hasta 100 usuarios— y de los proveedores (Anthropic, cloud). |
+| **B. Producto para terceros** (fuera de alcance) | Otras personas crean cuenta y vinculan su Fitbit Air. | El desarrollador pasa a ser **responsable del tratamiento** de datos de salud (categoría especial, art. 9 RGPD) con todas las obligaciones de §3, más políticas de tiendas y verificación de Google. |
 
-La arquitectura se diseña desde el principio para el escenario B (privacidad desde el diseño, art. 25 RGPD), aunque el lanzamiento sea A.
+La app se construye para el escenario A. Aun así, se aplica privacidad desde el diseño (datos en el iPhone, minimización, cifrado) y el código es reutilizable si algún día se quisiera pasar al B.
 
 ## 2. Posicionamiento regulatorio: bienestar, no producto sanitario
 
@@ -27,7 +40,7 @@ El Reglamento (UE) 2017/745 (MDR) considera producto sanitario el software desti
 | RL-04 | Descargo visible en el onboarding, en «Acerca de» y en cada pantalla de métricas de salud: «No es un producto sanitario. No sustituye el consejo médico.» | F1 |
 | RL-05 | Antes de F4: análisis documentado de calificación del software según la guía MDCG 2019-11 (rev. vigente) firmado por quien corresponda. | F4 |
 
-## 3. Protección de datos (RGPD + LOPDGDD) — escenario B
+## 3. Protección de datos (RGPD + LOPDGDD) — solo escenario B
 
 | ID | Requisito | Base | Cuándo |
 |---|---|---|---|
@@ -38,13 +51,13 @@ El Reglamento (UE) 2017/745 (MDR) considera producto sanitario el software desti
 | RL-14 | **Evaluación de impacto (EIPD/DPIA)** antes del lanzamiento: se tratan categorías especiales, se evalúa/perfila a personas y se usa IA; encaja en la lista de tratamientos que requieren EIPD publicada por la AEPD. | Art. 35 RGPD | F4 |
 | RL-15 | **Registro de actividades de tratamiento** (RAT). | Art. 30 RGPD | F4 |
 | RL-16 | **Contratos de encargado** (DPA, art. 28) con cada proveedor que trate datos: hosting/BD, proveedor de IA, notificaciones *push*, *crash reporting*, email. | Art. 28 RGPD | F4 |
-| RL-17 | **Transferencias internacionales** documentadas: datos alojados en la UE (RNF-PRI-07); para proveedores fuera del EEE, comprobar certificación en el EU-US Data Privacy Framework o firmar cláusulas contractuales tipo + evaluación de impacto de la transferencia. Preferir opciones con procesamiento en la UE cuando existan (ver doc. 06). | Cap. V RGPD | F4 |
+| RL-17 | **Transferencias internacionales** documentadas: datos alojados en la UE; para proveedores fuera del EEE, comprobar certificación en el EU-US Data Privacy Framework o firmar cláusulas contractuales tipo + evaluación de impacto de la transferencia. Preferir opciones con procesamiento en la UE cuando existan (ver doc. 06). | Cap. V RGPD | F4 |
 | RL-18 | Procedimiento de **brechas de seguridad**: notificación a la AEPD en ≤ 72 h y a los afectados cuando haya alto riesgo; registro interno de incidentes. | Arts. 33–34 RGPD | F4 |
 | RL-19 | **Edad mínima**: 18 años (recomendado; en ningún caso < 14, art. 7 LOPDGDD). Verificación declarativa en el registro. | LOPDGDD | F4 |
 | RL-20 | Las decisiones automatizadas (puntuaciones, recomendaciones) **no producen efectos jurídicos** ni afectan significativamente al usuario; se explica su lógica en la app («¿Cómo se calcula?»). | Art. 22 RGPD, transparencia | F2 |
 | RL-21 | Web pública con aviso legal y política de cookies (solo cookies técnicas salvo consentimiento). | LSSI-CE (Ley 34/2002) | F4 |
 
-## 4. Inteligencia artificial (Coach IA)
+## 4. Inteligencia artificial (Coach IA, opcional)
 
 | ID | Requisito | Base | Cuándo |
 |---|---|---|---|
@@ -56,21 +69,21 @@ El Reglamento (UE) 2017/745 (MDR) considera producto sanitario el software desti
 
 ## 5. Condiciones de Google (Google Health API, OAuth y marcas)
 
-Detalle técnico y lista de comprobación en [doc. 10 §7](10-integracion-google-health-api.md#7-cumplimiento-de-políticas-lista-de-comprobación). Fuentes: [Términos para desarrolladores de la Google Health API](https://developers.google.com/health/policies/health-api-developer-terms-and-conditions), [Política de datos de usuario de la Google Health API](https://developers.google.com/health/policies/health-api-developer-user-data-policy), [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), [verificación](https://developers.google.com/health/app-verification), [marca](https://developers.google.com/health/promote).
+Detalle técnico y lista de comprobación en [doc. 10 §7](10-integracion-google-health-api.md#7-cumplimiento-de-políticas-también-en-uso-personal). Fuentes: [Términos para desarrolladores de la Google Health API](https://developers.google.com/health/policies/health-api-developer-terms-and-conditions), [Política de datos de usuario de la Google Health API](https://developers.google.com/health/policies/health-api-developer-user-data-policy), [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), [verificación](https://developers.google.com/health/app-verification), [marca](https://developers.google.com/health/promote).
 
 | ID | Requisito | Cuándo |
 |---|---|---|
 | RL-40 | **Uso Limitado** (*Limited Use*), también para datos derivados y anonimizados: solo funciones de salud y bienestar visibles para el usuario; prohibido vender o transferir datos a plataformas publicitarias o *data brokers*, usarlos para publicidad, para decisiones de crédito o préstamo, para funciones reguladas como producto sanitario, para usos críticos para la vida o para investigación fuera de la política de investigación de Google; ninguna persona los lee salvo consentimiento, seguridad u obligación legal. | F1 |
-| RL-41 | Pantalla de consentimiento OAuth con nombre, logotipo, email de soporte, dominio verificado, página de inicio y política de privacidad **en el mismo dominio**, y condiciones de servicio. | F1 |
+| RL-41 | Pantalla de consentimiento OAuth con nombre y email de soporte y, recomendado, enlace a la página de privacidad. Dominio verificado, página de inicio y condiciones solo son obligatorios para la verificación (escenario B). | F1 |
 | RL-42 | Declaración **literal** en la web o en la política de privacidad: *«The use of information received from Google Health API and/or Developer Tools will adhere to the Google Health API Developer and User Data Policy, including the Limited Use requirements.»* | F1 |
 | RL-43 | **Divulgación destacada en la app** justo antes de pedir el consentimiento de Google, indicando qué datos se recogen y para qué funciones (texto en doc. 10 §4). | F1 |
-| RL-44 | Guardar los datos con la **misma granularidad** con la que se obtienen (doc. 10 §5.4) y cifrar datos y *tokens* en reposo con claves gestionadas en KMS/HSM. | F1 |
+| RL-44 | Guardar los datos con la **misma granularidad** con la que se obtienen (doc. 10 §5.4) y cifrar datos y *tokens* en reposo con claves protegidas por hardware (en iOS: Llavero y protección de datos, que usan el Secure Enclave). | F1 |
 | RL-45 | Todos los ámbitos de la Google Health API son **restringidos**: sin verificación, máximo 100 usuarios; para superar ese límite, verificación de marca y de ámbitos (vídeo de demostración, justificación por ámbito) y **evaluación CASA anual** por un laboratorio externo (500–4 500 $). | F4 |
 | RL-46 | Marca: «Google Health» sin traducir; sin logotipos antiguos de Fitbit/Google Fit; estado «Conectado a Google Health» con la última sincronización y «Desconectar» a 1–2 toques; referencias a «Google Fitbit Air» solo de forma nominativa («Compatible con…»), sin sugerir patrocinio. | F1 |
 | RL-47 | Al desvincular o borrar la cuenta: revocar el *token*, borrar los *tokens* revocados y preguntar si se conservan o eliminan los datos ya importados; documentación de ayuda sobre cómo borrar los datos. | F1 |
 | RL-48 | Envío de datos al proveedor de IA del Coach solo como parte de una función visible para el usuario, con consentimiento y sin entrenamiento de modelos con esos datos; la política no regula expresamente el entrenamiento de IA ⇒ **revisión jurídica antes de F4**. | F3/F4 |
 
-## 6. Tiendas de aplicaciones
+## 6. Tiendas de aplicaciones — solo escenario B
 
 | ID | Requisito | Cuándo |
 |---|---|---|
@@ -87,7 +100,7 @@ Detalle técnico y lista de comprobación en [doc. 10 §7](10-integracion-google
 | RL-62 | Los algoritmos se implementan a partir de **literatura científica pública** (doc. 05 y referencias), no de ingeniería inversa de software o firmware de terceros. No se accede al dispositivo por Bluetooth con protocolos propietarios. | F1 |
 | RL-63 | Licencias de terceros compatibles y listadas (fichero de avisos/NOTICE en la app). | F2 |
 
-## 8. Consumo y comunicación comercial (escenario B)
+## 8. Consumo y comunicación comercial — solo escenario B
 
 | ID | Requisito | Cuándo |
 |---|---|---|

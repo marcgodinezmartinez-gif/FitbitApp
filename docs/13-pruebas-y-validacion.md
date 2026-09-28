@@ -11,15 +11,16 @@ Ambos son requisitos: una métrica sin validar **no se muestra como definitiva**
 
 ## 1. Pirámide de pruebas
 
-| Nivel | Qué cubre | Herramientas sugeridas | Umbral |
+| Nivel | Qué cubre | Herramientas | Umbral |
 |---|---|---|---|
-| Unitarias | Paquete de métricas (funciones puras), utilidades de fechas/zonas horarias, mapeo de datos de la API | Vitest/Jest (TS) o pytest | ≥ 90 % líneas en métricas (RNF-MAN-02) |
-| Propiedades | Invariantes de los algoritmos (ver §2) | fast-check / Hypothesis | Todas las invariantes en CI |
-| *Golden files* | Resultado exacto de cada `algorithm_version` sobre datasets fijos | Snapshots versionados | 0 diferencias no explicadas |
-| Contrato | Forma de las respuestas de la Google Health API | Fixtures grabadas + validación de esquema (zod/JSON Schema) | Ejecutar también a diario contra la API real con la cuenta de pruebas |
-| Integración | API propia + BD + colas + adaptador de Google (simulado) | Testcontainers (PostgreSQL), servidor simulado (MSW/WireMock) | Flujos de sincronización, idempotencia, reintentos |
-| E2E móvil | Onboarding, vinculación, pantalla Hoy, diario, borrado de cuenta | Maestro o Detox | Flujos críticos en cada *release* |
-| No funcionales | Rendimiento, accesibilidad, seguridad | k6, Accessibility Scanner/Inspector, OWASP ZAP, MobSF | Objetivos del doc. 07 |
+| Unitarias | `MetricsKit` (funciones puras), fechas/zonas horarias, mapeo de la API | Swift Testing / XCTest (se ejecutan también en Linux en CI) | ≥ 90 % de líneas en `MetricsKit` (RNF-MAN-02) |
+| Propiedades | Invariantes de los algoritmos (§2) | Generadores aleatorios con semilla fija en Swift Testing | Todas las invariantes en CI |
+| *Golden files* | Resultado exacto de cada `algorithm_version` sobre datasets fijos | Ficheros JSON versionados | 0 diferencias no explicadas |
+| Contrato | Forma de las respuestas de la Google Health API | Respuestas grabadas + decodificación estricta (`Codable`) | Ejecutar también contra la API real con tu cuenta antes de cada versión |
+| Integración | `HealthAPI` + `Store` + `Sync` con la API simulada | `URLProtocol` de prueba, BD SQLite en memoria | Sincronización, idempotencia, reanudación, reintentos |
+| UI | Flujos críticos (onboarding, conexión, Hoy, diario, borrar todo) | XCUITest | En cada versión |
+| Instantáneas | Aspecto de pantallas y *widgets* en claro/oscuro y 3 tamaños de letra | swift-snapshot-testing | Sin cambios visuales no intencionados (RNF-EST-05) |
+| No funcionales | Rendimiento, fluidez, accesibilidad, batería | Instruments (App Launch, Animation Hitches, Energy), Accessibility Inspector | Objetivos del doc. 07 |
 
 ## 2. Invariantes de los algoritmos (pruebas de propiedades)
 
@@ -42,21 +43,20 @@ Con el resto de entradas fijas:
 | `synthetic/overreaching` | 3 semanas de carga creciente con HRV descendente | Recuperación, relación carga aguda/crónica |
 | `synthetic/gaps` | Noches sin datos, días sin llevar la pulsera, sincronizaciones tardías | Estados de «datos insuficientes», recálculo |
 | `synthetic/dst-travel` | Cambio de hora y viaje con cambio de zona horaria | Cálculo de ciclos y noches |
-| `real/owner` | Exportación anonimizada de los datos del propietario (con su consentimiento) | Calibración y validación (§6) — **nunca** en el repositorio público |
+| `real/owner` | Exportación de tus propios datos | Calibración y validación (§6) — **nunca** en el repositorio (`data/` está en `.gitignore`) |
 
 ## 4. Pruebas de la integración con la Google Health API
 
-- Cuenta de Google de pruebas con un Fitbit Air real llevando la pulsera ≥ 14 días antes de F1 (*spike* de datos en F0).
-- Casos obligatorios: primera vinculación, renovación del *token*, revocación desde la cuenta de Google, ámbitos denegados parcialmente, notificación duplicada, notificación fuera de orden, 429 con `Retry-After`, 5xx, cambio del esquema (campo nuevo desconocido ⇒ se ignora sin fallar).
-- Prueba nocturna (*canary*) contra la API real que valida que el contrato no ha cambiado; si falla, alerta (RNF-OBS-03).
+- Tu propia cuenta con la Fitbit Air llevándola ≥ 14 días antes de F1 (*spike* de F0).
+- Casos obligatorios: primera conexión, refresco del *token*, caducidad a los 7 días en *Testing*, revocación desde la cuenta de Google, ámbitos denegados parcialmente, HTTP 412 sin perfil de Google Health, 429 con `Retry-After`, 5xx, sincronización interrumpida (app cerrada o sin red), campo nuevo desconocido en la respuesta (se ignora sin fallar).
+- Antes de cada versión, prueba real contra la API que confirma que el contrato no ha cambiado.
 
 ## 5. Seguridad y privacidad
 
-- SAST (CodeQL/Semgrep) y escaneo de secretos en cada PR; DAST (ZAP) semanal contra *staging*.
-- Checklist OWASP MASTG antes de cada publicación en tiendas.
-- Test automático que ejecuta los flujos principales y busca en los logs patrones de datos de salud y *tokens* (debe dar 0 coincidencias).
-- Prueba de borrado de cuenta: tras la solicitud no quedan filas del usuario (salvo el registro legal mínimo) y el *token* está revocado en Google.
-- Pentest externo antes de F4 (RNF-SEG-14).
+- Checklist OWASP MASTG de lo aplicable (almacenamiento, red, plataforma, privacidad).
+- Revisión de que *tokens* y clave de IA solo están en el Llavero y nunca en BD, `UserDefaults` ni logs.
+- Inspección del tráfico con un proxy (p. ej. Proxyman) en un flujo completo: solo debe haber conexiones a Google y, con el Coach activado, a Anthropic.
+- «Borrar todos los datos»: tras ejecutarlo no queda BD, instantánea de *widgets*, conversaciones ni *tokens*, y el acceso aparece revocado en tu cuenta de Google.
 
 ## 6. Validación científica de las métricas
 
@@ -77,7 +77,6 @@ Proceso:
 1. **F0–F1**: recogida de datos reales del propietario + diario de referencia.
 2. **F1**: calibración de parámetros (pesos, constantes de escala) con los primeros 30–60 días; los parámetros se congelan como `algorithm_version = 1.0.0`.
 3. **F2 en adelante**: evaluación mensual de los criterios; cualquier cambio de parámetros ⇒ nueva `algorithm_version` + recálculo del histórico + nota en el *changelog* de algoritmos.
-4. Si se publica para más usuarios: estudio con ≥ 20 participantes durante ≥ 8 semanas antes de retirar la etiqueta «beta».
 
 ## 7. Evaluación del Coach IA
 
@@ -91,13 +90,13 @@ Requisitos detallados del Coach en [06-coach-ia.md](06-coach-ia.md). Se evalúa 
 | **Utilidad** | Evaluación con rúbrica (claridad, accionabilidad, tono) por humano o LLM juez | Media ≥ 4/5 |
 | **Idioma** | Responde en el idioma del usuario | 100 % |
 
-La suite se ejecuta en CI ante cualquier cambio del *prompt* de sistema, las herramientas o el modelo, y sus resultados se guardan para comparar versiones.
+La suite se ejecuta ante cualquier cambio del *prompt* de sistema, las herramientas o el modelo (tiene un coste pequeño por ejecución, pagado con tu clave), y sus resultados se guardan para comparar versiones.
 
 ## 8. Criterios de «hecho» (*Definition of Done*) de una historia
 
 - Criterios de aceptación del requisito cumplidos y demostrados.
 - Tests (unitarios + integración o E2E según corresponda) en verde en CI.
 - Sin regresiones de accesibilidad (RNF-ACC) en las pantallas tocadas.
-- Textos en es-ES y en, sin literales en el código.
-- Métricas/alertas añadidas si el cambio es de backend.
+- Textos en el catálogo de cadenas (es-ES), sin literales en el código.
+- Checklist de diseño del doc. 11 §9.4 superada en las pantallas tocadas.
 - Documentación actualizada (este directorio `docs/`) si cambia un requisito, un algoritmo o el modelo de datos.

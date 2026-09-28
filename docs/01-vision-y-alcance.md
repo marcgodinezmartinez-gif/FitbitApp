@@ -2,91 +2,83 @@
 
 ## 1. Visión
 
-> Convertir los datos de la **Google Fitbit Air** en tres respuestas claras cada mañana —**¿cuánto he dormido de lo que necesitaba?, ¿cómo de recuperado estoy?, ¿cuánto debería exigirme hoy?**— con la experiencia de uso de WHOOP, sin cuota obligatoria de hardware y con los datos bajo control del usuario.
+> Una app **para mi iPhone**, **gratis**, que convierta los datos de mi **Google Fitbit Air** en tres respuestas claras cada mañana —**¿cuánto he dormido de lo que necesitaba?, ¿cómo de recuperado estoy?, ¿cuánto debería exigirme hoy?**— con la experiencia de WHOOP y un diseño **mucho más cuidado** que el de la app oficial.
 
-La Fitbit Air es, como WHOOP, una pulsera **sin pantalla** pensada para llevarse 24/7. La app oficial (Google Health) ya muestra sus propias métricas, pero no ofrece el modelo mental de WHOOP: recuperación en %, carga diaria 0–21 con objetivo según la recuperación, necesidad y deuda de sueño con planificador de hora de acostarse, diario de hábitos con impacto medido sobre la recuperación, monitor de estrés y coach conversacional sobre tus propios datos. Esta app aporta esa capa de análisis y coaching.
+La Fitbit Air es, como WHOOP, una pulsera **sin pantalla** para llevar 24/7. La app oficial (Google Health) ya muestra sus métricas, pero no ofrece el modelo mental de WHOOP —recuperación en %, carga diaria 0–21 con objetivo, necesidad y deuda de sueño con planificador, diario de hábitos con impacto medido, monitor de estrés, coach sobre tus datos— y su funcionalidad avanzada (el coach con Gemini) exige **Google Health Premium** (8,99 €/mes en España). Esta app aporta todo eso **sin cuotas**: los datos brutos de la pulsera son gratuitos y todas las puntuaciones se calculan en el propio iPhone.
 
-## 2. Objetivos
+## 2. Decisiones del propietario (28/09/2026)
+
+| # | Decisión | Consecuencia |
+|---|---|---|
+| D-1 | **Solo para uso personal** | Sin cuentas, sin servidor, sin publicación; casi toda la normativa de apps publicadas no aplica (doc. 12 §0) |
+| D-2 | **Solo iPhone** | App nativa **SwiftUI** para iOS 26+ (doc. 08) |
+| D-5 | **Sin pagar Google Health Premium** | No hace falta: la API da los datos brutos gratis; las puntuaciones son propias |
+| D-6 | **Gratis** | Coste recurrente obligatorio **0 €** (RNF-COS-01); solo costes opcionales y controlados |
+| — | **Estética muy superior a la app oficial** | La estética es un requisito de primer nivel (RNF-EST, doc. 11) |
+
+## 3. Objetivos
 
 | ID | Objetivo | Indicador de éxito |
 |---|---|---|
-| OBJ-1 | Puntuaciones de sueño y recuperación disponibles cada mañana poco después de que la pulsera sincronice | ≥ 90 % de las mañanas con recuperación calculada en ≤ 10 min desde la sincronización |
-| OBJ-2 | Guía diaria de esfuerzo: carga acumulada y **carga objetivo** según la recuperación | Carga visible con retraso ≤ el de la sincronización de Google; objetivo mostrado todos los días calibrados |
-| OBJ-3 | Planificación del sueño: necesidad, deuda y hora recomendada para acostarse | Recomendación disponible cada noche a partir de la calibración |
-| OBJ-4 | Descubrir qué hábitos afectan a la recuperación del usuario | Tras ≥ 30 días de diario, informe de impacto de al menos 3 comportamientos con intervalo de confianza |
-| OBJ-5 | Coach IA fiable que responde con los datos del usuario | Umbrales de evaluación del doc. 13 §7 superados |
-| OBJ-6 | Privacidad por diseño | Datos en la UE, exportación y borrado completos, sin datos de salud en logs |
-| OBJ-7 | Métricas con base científica y validadas con los datos del propietario | Criterios del doc. 13 §6 cumplidos antes de quitar la etiqueta «beta» |
+| OBJ-1 | Sueño y recuperación listos al empezar el día | ≥ 90 % de las mañanas con recuperación calculada; ≤ 3 s al abrir la app si los datos ya están en Google |
+| OBJ-2 | Guía diaria de esfuerzo: carga acumulada y **carga objetivo** según la recuperación | Objetivo visible todos los días calibrados |
+| OBJ-3 | Planificación del sueño: necesidad, deuda y hora para acostarse | Recomendación cada noche tras la calibración |
+| OBJ-4 | Descubrir qué hábitos afectan a tu recuperación | Tras ≥ 30 días de diario, impacto de ≥ 3 hábitos con intervalo de confianza |
+| OBJ-5 | **Coste 0 €** | Ningún pago obligatorio (sin servidor, sin Premium) |
+| OBJ-6 | **Diseño excelente** | Checklist de diseño (doc. 11 §9.4) superada en todas las pantallas; animaciones sin tirones (RNF-EST-02) |
+| OBJ-7 | Privacidad | Datos solo en tu iPhone (y en Google, donde ya estaban); exportación y borrado completos |
+| OBJ-8 | Métricas con base científica y validadas con tus datos | Criterios del doc. 13 §6 cumplidos antes de quitar la etiqueta «beta» |
+| OBJ-9 | Coach IA opcional y fiable | Umbrales del doc. 13 §7 y gasto bajo tu control |
 
-## 3. Usuarios
+## 4. Usuario
 
-| Perfil | Descripción | Necesidades clave |
-|---|---|---|
-| **Propietario** (usuario principal del MVP) | Persona que lleva la Fitbit Air y quiere la experiencia WHOOP con su pulsera | Todas las del producto; control total de sus datos |
-| Deportista amateur | Entrena 3–6 días/semana (carrera, ciclismo, gimnasio, deportes de equipo) | Saber cuándo apretar y cuándo descansar; carga objetivo; zonas de FC |
-| Persona centrada en salud y hábitos | Quiere dormir mejor y reducir estrés | Necesidad/deuda de sueño, constancia, estrés, efecto de alcohol/cafeína/pantallas |
-| Persona con agenda exigente | Poco tiempo, quiere una respuesta rápida | Un vistazo de 10 s a la pantalla «Hoy» y un resumen claro |
+Un único usuario: **el propietario**, que lleva la Fitbit Air, usa iPhone y quiere la experiencia de WHOOP sin cuotas y con mejor diseño. Los requisitos se escriben pensando en su día a día (entrenar, dormir mejor, entender su cuerpo).
 
-Fuera de público objetivo: menores de 18 años, pacientes que buscan seguimiento de una enfermedad (la app no es un producto sanitario, doc. 12).
+## 5. Alcance por fases
 
-## 4. Alcance por fases
-
-Detalle y calendario en [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md); matriz completa frente a WHOOP en [02-paridad-con-whoop.md](02-paridad-con-whoop.md).
+Detalle en [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md); matriz frente a WHOOP en [02-paridad-con-whoop.md](02-paridad-con-whoop.md).
 
 | Fase | Contenido |
 |---|---|
-| **F0 · Preparación** | Cuentas, proyecto de Google Cloud, acceso a la Google Health API, *spike* de datos reales de la Fitbit Air, repositorio y CI, diseño visual base, borrador de política de privacidad |
-| **F1 · MVP** | Registro y vinculación con Google; *backfill* e ingesta incremental; calibración y líneas base; **Sueño, Recuperación y Carga diaria**; pantalla Hoy y detalles; vitales nocturnos; notificación matinal; ajustes; exportación y borrado básicos |
-| **F2 · Paridad funcional** | Entrenamientos con carga de actividad y zonas; carga objetivo; planificador de sueño; deuda y constancia del sueño; monitor de estrés; monitor de salud (rangos y avisos); diario de hábitos; tendencias y calendario; informe semanal; exportación |
-| **F3 · Inteligencia** | Coach IA; impacto de comportamientos; plan semanal; informe mensual; edad fisiológica y ritmo de envejecimiento; registro de fuerza (sRPE); Health Connect; *widgets*; FC en vivo por Bluetooth (si es viable) |
-| **F4 · Producto** (opcional) | Multiusuario abierto, verificación de Google (y CASA si aplica), publicación en tiendas, cumplimiento RGPD completo, suscripción, comunidad/equipos |
+| **F0 · Preparación** (≈ 2 sem) | Xcode y cuenta de Apple, proyecto de Google Cloud y cliente OAuth iOS, página de privacidad, *spike* de datos reales, repositorio y CI, sistema de diseño base |
+| **F1 · MVP** (≈ 6 sem) | Onboarding y conexión con Google; importación y sincronización; calibración; **Sueño, Recuperación y Carga**; pantalla Hoy y detalles; vitales nocturnos; notificación local matinal; privacidad básica |
+| **F2 · Paridad** (≈ 6 sem) | Entrenamientos y zonas; carga objetivo; planificador, deuda y constancia del sueño; estrés; monitor de salud; diario; tendencias y calendario; informe semanal; exportación; ***widgets* y pantalla de bloqueo** |
+| **F3 · Inteligencia** (≈ 6 sem) | Impacto de hábitos; plan semanal; informe mensual; edad fisiológica; fuerza (sRPE); respiración guiada; FC en vivo y Live Activity; alarma (AlarmKit); Apple Health como respaldo; **Coach IA opcional** |
 
-### Fuera de alcance (en cualquier fase, salvo decisión explícita)
+### Fuera de alcance
 
-- Funciones clínicas: ECG, notificaciones de ritmo irregular/fibrilación auricular, estimación de presión arterial, analíticas de sangre (equivalentes a *Heart Screener*, *Blood Pressure Insights* y *Advanced Labs* de WHOOP).
-- Comunicación Bluetooth con protocolos propietarios de la pulsera, *firmware* propio o control de la vibración de la pulsera (p. ej. alarma háptica en la muñeca). Solo se contempla leer la emisión **estándar** de FC por Bluetooth (RF-ENT-07).
-- Seguimiento del ciclo menstrual, comunidad/equipos e integraciones directas con otras plataformas (reconsiderar en F4).
-- Datos de otros *wearables* distintos de los que publiquen en la Google Health API (se evalúa en F4).
+- Publicar la app, cuentas de usuario, servidor propio, notificaciones *push* remotas.
+- Funciones clínicas: ECG, avisos de ritmo irregular, tensión arterial, analíticas (equivalentes a *Heart Screener*, *Blood Pressure Insights* y *Advanced Labs* de WHOOP).
+- Protocolos propietarios de la pulsera, *firmware* o su vibración (alarma en la muñeca). Solo se contempla leer la emisión **estándar** de FC por Bluetooth (RF-ENT-07).
+- Android, Apple Watch, iPad, web.
+- Ciclo menstrual, comunidad/equipos e integraciones directas con otras plataformas.
 
-## 5. Supuestos (a verificar en F0)
+## 6. Supuestos (a verificar en F0)
 
 | ID | Supuesto | Estado a 28/09/2026 | Cómo se verifica | Si resulta falso |
 |---|---|---|---|---|
-| SUP-1 | La Google Health API expone para Fitbit Air: FC intradía, HRV nocturna, sueño con fases, SpO₂, FR, temperatura cutánea, actividad y entrenamientos | **Confirmado en la documentación** (tabla de compatibilidad, doc. 03 §4) | *Spike* F0 con la cuenta del propietario (granularidad real) | Degradar las métricas afectadas (doc. 03 §6) o complementar con Health Connect |
-| SUP-2 | Un desarrollador individual puede usar la API con su propia cuenta sin un proceso de aprobación largo | **Confirmado**: sin verificación se admiten hasta 100 usuarios; en modo *Testing* el *token* caduca cada 7 días (doc. 10 §2.2) | Alta en Google Cloud en F0 | Reconexión semanal o app sin verificar en producción |
-| SUP-3 | Los datos aparecen en la API pocos minutos después de que la pulsera sincronice | Sin documentar | Medición en el *spike* | Ajustar expectativas de OBJ-1 y reforzar mensajes de «sincroniza Google Health» |
-| SUP-4 | Los datos brutos no requieren la suscripción de pago de Google | **Probable**: Premium solo cubre el Coach y contenidos (doc. 03 §2) | *Spike* sin suscripción | Documentarlo como requisito del usuario |
-| SUP-5 | El propietario lleva la pulsera también de noche ≥ 5 noches/semana | — | Uso real | Sin sueño no hay recuperación: recordatorios de uso y de carga diurna |
+| SUP-1 | La Google Health API expone para Fitbit Air: FC intradía, HRV nocturna, sueño con fases, SpO₂, FR, temperatura, actividad y entrenamientos | **Confirmado en la documentación** (doc. 03 §4) | *Spike* F0 (granularidad real) | Degradar la métrica (doc. 03 §6) |
+| SUP-2 | Se puede usar la API con tu propia cuenta sin aprobación de Google | **Confirmado**: hasta 100 usuarios sin verificar; en *Testing* el *token* caduca cada 7 días (doc. 10 §2.2) | Alta en Google Cloud en F0 | Reconexión semanal o app sin verificar en producción |
+| SUP-3 | Los datos aparecen en la API pocos minutos después de que la pulsera sincronice | Sin documentar | Medición en el *spike* | Reforzar el aviso «Abre Google Health» |
+| SUP-4 | Los datos brutos no requieren Google Health Premium | **Confirmado en la práctica**: Premium solo cubre el coach y contenidos (doc. 03 §2) | *Spike* sin suscripción | — |
+| SUP-5 | Llevas la pulsera también de noche ≥ 5 noches/semana | — | Uso real | Sin sueño no hay recuperación: recordatorios de uso y de carga diurna |
+| SUP-6 | iOS ejecuta la tarea en segundo plano de la mañana con regularidad | Depende del uso | Uso real | El refresco al abrir la app (≤ 3 s) es el camino principal |
 
-## 6. Restricciones
+## 7. Restricciones
 
-- **R-TEC-1**: Solo vías oficiales de acceso a datos (Google Health API; Health Connect/HealthKit si están disponibles).
-- **R-TEC-2**: Cuotas y límites de la Google Health API.
-- **R-LEG-1**: Posicionamiento de bienestar (no producto sanitario) y cumplimiento de las políticas de datos de Google (doc. 12).
-- **R-LEG-2**: Sin marcas ni diseño distintivo de WHOOP (RL-60, RL-61).
-- **R-ECO-1**: Coste de infraestructura personal ≤ 25 €/mes (RNF-ESC-03) + coste del Coach IA acotado.
-
-## 7. Partes interesadas
-
-| Parte | Interés |
-|---|---|
-| Propietario / *product owner* | Define prioridades y valida las métricas con sus datos |
-| Desarrollo | Implementación y operación |
-| Google (proveedor de datos y plataforma) | Cumplimiento de términos de la API, OAuth y marcas |
-| Anthropic (proveedor de IA) | Cumplimiento de términos de uso |
-| Usuarios futuros (F4) | Privacidad, utilidad, fiabilidad |
-| AEPD (autoridad de control) | Cumplimiento del RGPD en el escenario B |
+- **R-TEC-1**: Solo vías oficiales de acceso a datos (Google Health API; Apple Health como respaldo).
+- **R-TEC-2**: Sin servidor: sin *webhooks* ni *push* remotas (doc. 08 ADR 002).
+- **R-TEC-3**: iOS 26+ y un solo usuario.
+- **R-LEG-1**: Condiciones de la Google Health API (doc. 10 §7, doc. 12 §5).
+- **R-ECO-1**: 0 € de coste recurrente obligatorio (RNF-COS-01).
 
 ## 8. Decisiones abiertas para el propietario
 
-Las recomendaciones marcadas se han usado como supuesto en toda la especificación; cambiar cualquiera de ellas implica revisar los documentos indicados.
-
 | # | Decisión | Recomendación asumida | Afecta a |
 |---|---|---|---|
-| D-1 | ¿Solo uso personal o se publicará para terceros? | Personal primero, arquitectura preparada para publicar | 12, 14 |
-| D-2 | ¿iPhone, Android o ambos? | Ambos (React Native + Expo). Si es solo Android, se puede adelantar Health Connect a F1 | 03, 08 |
-| D-3 | Nombre comercial de la app | Pendiente (sin «WHOOP», «Fitbit» ni «Google») | 11, 12 |
-| D-4 | Deportes principales | Carrera, ciclismo, fuerza y caminar como tipos de actividad prioritarios | 04, 05 |
-| D-5 | ¿Tienes suscripción Google Health Premium? | No se asume ni se necesita (las puntuaciones de Google no están en la API de todos modos) | 03 |
-| D-7 | Modo de la app en Google Cloud para uso personal: *Testing* (reconectar cada 7 días) o producción sin verificar (aviso de «app no verificada», máx. 100 usuarios) | Producción sin verificar, tras comprobarlo en el *spike* | 10, 12 |
-| D-6 | Presupuesto mensual (infraestructura + IA) | ≤ 25 € de infraestructura + ≤ 25 $ de IA | 06, 08 |
+| D-3 | Nombre de la app | Pendiente (sin «WHOOP», «Fitbit» ni «Google» en el nombre) | 11 |
+| D-4 | Deportes principales | Carrera, ciclismo, fuerza y caminar | 04, 05 |
+| D-7 | Modo de la app en Google Cloud: *Testing* (reconectar cada 7 días) o producción sin verificar (aviso de «app no verificada» una vez) | Producción sin verificar, tras comprobarlo en el *spike* | 10 |
+| D-8 | ¿Tienes un **Mac**? | Sí → Xcode (recomendado). No → compilación en GitHub Actions + SideStore (doc. 08 §6) | 08, 15 |
+| D-9 | Instalación: Apple ID gratuito (reinstalar cada 7 días) o Apple Developer Program (99 $/año) | Empezar gratis | 08, 15 |
+| D-10 | ¿Quieres el **Coach IA** (pago por uso, ~2 $/mes con una pregunta al día)? | Sí, en F3 y opcional; sin él la app sigue siendo completa y gratuita | 06 |

@@ -28,7 +28,7 @@ Leyenda de viabilidad: ✅ equivalente completo · 🟡 equivalente parcial (lim
 | 11 | **Sleep Need** | Base aprendida + carga reciente + deuda − siestas | **Necesidad de sueño** (ALG-SUE-01) | Derivado | ✅ | M / F1 |
 | 12 | Deuda de sueño | Parte de la necesidad | **Deuda de sueño** (ALG-SUE-03) | Derivado | ✅ | S / F2 |
 | 13 | **Sleep Planner** | «Alcanzar necesidad» (70/85/100 %) o «Mejorar mi sueño» (cambios graduales de horario); aviso de hora de acostarse | **Planificador** (ALG-SUE-05) con ambos modos | Derivado | ✅ | S / F2 |
-| 14 | Alarma háptica | Hora exacta, objetivo de sueño o «en verde»; vibra en la muñeca | Alarma **del móvil** por necesidad cumplida | Sin API para la vibración de la pulsera | 🟡 | C / F3 |
+| 14 | Alarma háptica | Hora exacta, objetivo de sueño o «en verde»; vibra en la muñeca | Alarma **del iPhone** (AlarmKit) por necesidad cumplida | Sin API para la vibración de la pulsera | 🟡 | C / F3 |
 | 15 | **Stress Monitor** (Peak/Life) | 0–3 en vivo con FC y HRV frente a base de 14 días, descontando movimiento; respiración guiada (relajación/activación); resumen nocturno | **Estrés** (ALG-EST-01) + respiración guiada | Solo FC diurna (HRV solo nocturna) | 🟡 | S / F2 |
 | 16 | **Health Monitor** (Peak/Life) | Vitales de la noche frente a la base con indicador verde/naranja/rojo; informe PDF de 30/180 días | **Monitor de salud** (ALG-SAL-01) + informe PDF | Vitales nocturnos | ✅ | S / F2 (PDF: C / F3) |
 | 17 | **Healthspan / WHOOP Age / Pace of Aging** (Peak/Life) | Edad a partir de medias de 6 meses de 9 métricas (horas y constancia del sueño, tiempo en zonas 1–3 y 4–5, fuerza, pasos, FCR, VO₂ máx., masa magra) convertidas con razones de riesgo de mortalidad y corrección de solapamiento (Gompertz); ritmo de envejecimiento de 30 días; semanal | **Edad fisiológica** y ritmo de envejecimiento (ALG-EDA-01) | Pasos, zonas, sueño, FCR, VO₂ máx. (solo con carreras con GPS); sin masa magra | 🟡 | C / F3 |
@@ -40,23 +40,24 @@ Leyenda de viabilidad: ✅ equivalente completo · 🟡 equivalente parcial (lim
 | 23 | *Weekly Plan* | Planes predefinidos u objetivos propios (sueño, carga, minutos en zona, frecuencia, hábitos, pasos, fuerza); revisión el viernes y resumen el lunes | **Plan semanal** (RF-PLA) | Derivado | ✅ | C / F3 |
 | 24 | *Trends* | Vistas semanal/mensual/6 meses con resumen IA | **Tendencias** (RF-TEN) + resumen IA | Derivado | ✅ | S / F2 |
 | 25 | Informes | Las evaluaciones semanales/mensuales en la app se retiraron en 05/2025; ahora «Month in Review» por email y resumen anual | **Informes semanal y mensual en la app** + resumen anual | Derivado | ✅ | S / F2–F3 |
-| 26 | **WHOOP AI** | Chat con contexto de pantalla, perspectiva matinal, revisión del día con franja para acostarse, análisis de actividades, creación de entrenamientos y hábitos, gráficos, *jet lag*, avisos proactivos; memoria editable; modo «solo educativo» | **Coach IA** con Claude (doc. 06) | Derivado | ✅ | S / F3 |
-| 27 | Salud femenina | Fases del ciclo (registro + FCR + temperatura), síntomas, embarazo/posparto; ajusta recuperación y objetivos | — | La API solo permite **escribir** datos menstruales | ❌ (por ahora) | W / F4 |
-| 28 | Comunidad | Equipos, clasificaciones, chat, rachas | Rachas (C); equipos: W | — | 🟡 | C / F2; W |
-| 29 | Integraciones | Apple Health, Health Connect, Strava, Peloton, TrainingPeaks… | Google Health ya agrega datos de otras apps (Health Connect) | — | 🟡 | W / F4 |
+| 26 | **WHOOP AI** | Chat con contexto de pantalla, perspectiva matinal, revisión del día con franja para acostarse, análisis de actividades, creación de entrenamientos y hábitos, gráficos, *jet lag*, avisos proactivos; memoria editable; modo «solo educativo» | **Coach IA opcional** con Claude y tu propia clave (doc. 06); sin él, recomendaciones automáticas gratuitas | Derivado | ✅ | C / F3 |
+| 27 | Salud femenina | Fases del ciclo (registro + FCR + temperatura), síntomas, embarazo/posparto; ajusta recuperación y objetivos | — | La API solo permite **escribir** datos menstruales | ❌ (por ahora) | W |
+| 28 | Comunidad | Equipos, clasificaciones, chat, rachas | Rachas (C); equipos no (app personal) | — | 🟡 | C / F2; W |
+| 29 | Integraciones | Apple Health, Health Connect, Strava, Peloton, TrainingPeaks… | Google Health ya agrega datos de otras apps; Apple Health como respaldo de lectura (RF-CON-06) | — | 🟡 | C / F3 |
 | 30 | Emisión de FC en vivo | La pulsera emite FC por Bluetooth | La Air ya la emite; nuestra app puede mostrar FC en vivo | Perfil estándar de FC | 🟡 | C / F3+ |
-| 31 | *Widgets* y Live Activities | iOS (inicio, bloqueo, Live Activities) y Android | *Widgets* de diales | Derivado | ✅ | C / F3 |
-| 32 | Exportación | CSV por email en 24 h | Exportación JSON + CSV (RF-PRI-01) | — | ✅ | M / F2 |
+| 31 | *Widgets* y Live Activities | iOS (inicio, bloqueo, Live Activities) y Android | *Widgets* de inicio y de pantalla de bloqueo, StandBy y Live Activity de entrenamiento (RF-WID) | Derivado | ✅ | S / F2 (Live Activity F3) |
+| 32 | Exportación | CSV por email en 24 h | Exportación JSON + CSV al instante desde el iPhone (RF-PRI-01) | — | ✅ | M / F2 |
 | 33 | Calendario coloreado por recuperación | En *Home* | Calendario en Tendencias/Hoy | Derivado | ✅ | S / F2 |
 | 34 | Calibración escalonada | Color de recuperación tras 3; constancia tras 3–5; temperatura/monitor tras 7; VO₂ máx. 14 en 21 días; *Healthspan* 21 en 31 (completo a 90) | Calendario de calibración propio (doc. 05 §11) | — | ✅ | M / F1 |
 
-## 3. Qué aportamos que WHOOP no tiene
+## 3. Qué aportamos que WHOOP (y Google Health) no tienen
 
-- **Sin cuota**: Fitbit Air (pago único) + coste de operación propio (doc. 15 §6).
+- **Gratis**: la Fitbit Air se paga una vez (99,99 €) y la app no tiene cuota; WHOOP cuesta 199–359 $/año y el coach de Google exige Premium (8,99 €/mes).
+- **Diseño propio y nativo** de iPhone, pensado para ser más bonito y más claro que la app oficial.
 - **Algoritmos abiertos y explicados** con referencias científicas y versión visible (RF-PER-04).
 - **Informes semanales y mensuales dentro de la app** (WHOOP los pasó a email).
-- **Datos en la UE**, exportación completa y borrado inmediato.
-- **Coach con «Datos usados»** visible bajo cada respuesta y modo solo educativo.
+- **Tus datos en tu iPhone**, exportación completa y borrado inmediato.
+- **Coach con «Datos usados»** bajo cada respuesta, modo solo educativo y gasto visible.
 
 ## 4. Diferencias de datos que hay que asumir
 

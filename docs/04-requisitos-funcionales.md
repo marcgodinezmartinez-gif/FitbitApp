@@ -3,7 +3,7 @@
 Convenciones:
 
 - ID `RF-<MÓDULO>-<nn>`. Prioridad MoSCoW: **M** imprescindible · **S** importante · **C** deseable · **W** fuera de alcance por ahora.
-- **Fase**: F0–F4 ([doc. 14](14-plan-de-proyecto-y-riesgos.md)).
+- **Fase**: F0–F3 ([doc. 14](14-plan-de-proyecto-y-riesgos.md)).
 - **Alg.**: especificación del cálculo en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.md).
 - Los datos de entrada de cada módulo y su disponibilidad en la Fitbit Air están en [03-dispositivo-y-fuentes-de-datos.md](03-dispositivo-y-fuentes-de-datos.md).
 - Los requisitos del Coach IA (`RF-COA-*`) están en [06-coach-ia.md](06-coach-ia.md).
@@ -14,11 +14,11 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-ONB-01 | Registro e inicio de sesión con **Sign in with Google** y **Sign in with Apple** (obligatorio en iOS si hay otros inicios de sesión sociales). | M | F1 |
+| RF-ONB-01 | **Sin cuentas propias**: la app es de un solo usuario y sus datos viven en el iPhone; el único inicio de sesión es el de Google para leer los datos de la pulsera (RF-CON-01). | M | F1 |
 | RF-ONB-02 | Perfil: fecha de nacimiento, sexo (hombre/mujer/prefiero no decirlo), altura, peso, deportes principales, hora habitual de despertar. Editable en todo momento; los cambios recalculan lo que dependa de ellos (FC máx., coeficientes de carga, necesidad de sueño base). | M | F1 |
 | RF-ONB-03 | Aceptación versionada del aviso de bienestar y de la política de privacidad; si cambia la versión, se vuelve a pedir. | M | F1 |
 | RF-ONB-04 | Tutorial breve (≤ 4 pantallas, saltable) de Sueño, Recuperación y Carga. | S | F1 |
-| RF-ONB-05 | Cierre de sesión y cierre de sesión en todos los dispositivos. | S | F2 |
+| RF-ONB-05 | **Restaurar** tras reinstalar o cambiar de iPhone: volver a importar el histórico desde Google y recuperar diario, ajustes y actividades manuales desde una copia exportada (RF-PRI-01). | S | F2 |
 
 ## 2. Conexión con Google Health (CON)
 
@@ -29,7 +29,7 @@ Convenciones:
 | RF-CON-03 | «Desconectar» accesible en 1–2 toques: revoca el *token* en Google, detiene la sincronización y pregunta si se conservan o borran los datos importados (RL-47). | M | F1 |
 | RF-CON-04 | Detectar *token* revocado/caducado o ámbitos retirados ⇒ estado «Reconectar» y aviso NOT-07. | M | F1 |
 | RF-CON-05 | Solicitud **incremental** de ámbitos cuando el usuario activa una función que los necesite; si los deniega, la función queda desactivada con explicación. | S | F2 |
-| RF-CON-06 | (Android) Conexión opcional con **Health Connect** en solo lectura como fuente complementaria de baja latencia. | C | F3 |
+| RF-CON-06 | Lectura opcional de **Apple Health** (HealthKit, solo lectura) como respaldo para FC, sueño y entrenamientos si la API no responde (Google Health no escribe allí HRV ni temperatura, así que no sustituye a la API). | C | F3 |
 | RF-CON-07 | Información del dispositivo (modelo, última sincronización y batería, si la API lo expone). | C | F2 |
 | RF-CON-08 | Si la API responde que el usuario no tiene perfil de Google Health (HTTP 412), guiarle a configurarlo en la app Google Health y reintentar. | M | F1 |
 
@@ -37,8 +37,8 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-SYN-01 | Al vincular, importar el historial de **90 días** (configurable hasta el máximo que permita la API) de todos los tipos de datos autorizados, con progreso visible. | M | F1 |
-| RF-SYN-02 | Ingesta incremental disparada por los *webhooks* de la Google Health API (que solo notifican tipo e intervalos; se re-consulta cada intervalo) y por sondeo adaptativo como red de seguridad y para los tipos sin *webhook* (doc. 10 §6). | M | F1 |
+| RF-SYN-01 | Al vincular, importar el historial de **90 días** (configurable hasta el máximo que permita la API) de todos los tipos de datos autorizados, con progreso visible; si se cierra la app, la importación continúa en segundo plano. | M | F1 |
+| RF-SYN-02 | Sincronización incremental al abrir la app, en segundo plano (`BGAppRefreshTask` programada para la hora habitual de despertar y `BGProcessingTask` nocturna) y bajo demanda, re-consultando las últimas 48 h y los huecos (doc. 08 §4.4, doc. 10 §6). | M | F1 |
 | RF-SYN-03 | *Pull-to-refresh* en la app fuerza una sincronización incremental (máx. 1/min por usuario). | M | F1 |
 | RF-SYN-04 | Normalizar todos los datos al modelo interno (doc. 09) guardando UTC + desfase horario de cada muestra. | M | F1 |
 | RF-SYN-05 | Ingesta idempotente y sin duplicados (misma muestra recibida varias veces ⇒ una fila). | M | F1 |
@@ -61,7 +61,7 @@ Convenciones:
 | RF-SUE-09 | Recordatorio de hora de acostarse (NOT-02). | S | F2 | — |
 | RF-SUE-10 | Las siestas se muestran aparte y reducen la necesidad de la noche siguiente. | S | F2 | SUE-01 |
 | RF-SUE-11 | Mostrar en el detalle del sueño la FR, SpO₂ y desviación de temperatura de la noche. | M | F1 | — |
-| RF-SUE-12 | «Alarma por necesidad cumplida» en el **móvil**: el usuario indica «me voy a dormir» y una ventana de despertar; la alarma suena cuando se estima cumplida la necesidad dentro de la ventana (no hay fases de sueño en tiempo real ni vibración de la pulsera). | C | F3 | SUE-05 |
+| RF-SUE-12 | «Alarma por necesidad cumplida» en el **iPhone** con AlarmKit (iOS 26, suena aunque esté en silencio; [verificar] si la capacidad exige cuenta de pago): indicas «me voy a dormir» y una ventana de despertar; suena cuando se estima cumplida la necesidad dentro de la ventana (no hay fases en tiempo real ni vibración de la pulsera). | C | F3 | SUE-05 |
 
 ## 5. Recuperación (REC)
 
@@ -93,7 +93,7 @@ Convenciones:
 | RF-ENT-04 | Crear una actividad manual (tipo, inicio, fin, RPE); su carga se calcula con la FC registrada en ese intervalo. | S | F2 | CAR-02 |
 | RF-ENT-05 | **Registro de fuerza**: ejercicios, series, repeticiones y peso (volumen) + RPE; carga muscular estimada por sRPE, mostrada junto a la cardiovascular. | C | F3 | CAR-05 |
 | RF-ENT-06 | Editar el tipo o el nombre de una actividad detectada. | C | F2 | — |
-| RF-ENT-07 | **FC en vivo** durante un entrenamiento iniciado en la app, leyendo la emisión estándar de FC por Bluetooth de la Fitbit Air (si el *spike* confirma que es viable, doc. 10 §9). | C | F3 | CAR-06 |
+| RF-ENT-07 | **FC en vivo** durante un entrenamiento iniciado en la app, leyendo la emisión estándar de FC por Bluetooth de la Fitbit Air (CoreBluetooth; si el *spike* confirma que es viable, doc. 10 §9), con Live Activity en la pantalla de bloqueo y la Dynamic Island (RF-WID-03). | C | F3 | CAR-06 |
 
 ## 7. Estrés (EST)
 
@@ -125,7 +125,7 @@ Convenciones:
 | RF-DIA-02 | Responder en ≤ 30 s (sí/no, cantidad o escala 1–5) sobre el día anterior; se puede responder hasta 3 días después. | S | F2 | — |
 | RF-DIA-03 | Autoevaluación diaria de recuperación/energía (1–5), usada también para validar las métricas (doc. 13). | S | F2 | — |
 | RF-DIA-04 | Recordatorio opcional (NOT-08). | C | F2 | — |
-| RF-DIA-05 | Notas libres por día (tratadas como datos no confiables para el Coach, RNF-SEG-12). | C | F2 | — |
+| RF-DIA-05 | Notas libres por día (tratadas como datos no confiables para el Coach, RNF-SEG-09). | C | F2 | — |
 | RF-DIA-06 | **Impacto de hábitos**: efecto estimado de cada hábito sobre la recuperación del día siguiente, con intervalo de confianza y nº de días; solo se muestra con ≥ 5 días «sí» y ≥ 5 días «no». | S | F3 | DIA-01 |
 
 ## 10. Tendencias e informes (TEN, INF)
@@ -139,7 +139,7 @@ Convenciones:
 | RF-INF-01 | **Informe semanal** automático (lunes por la mañana): medias, récords, sueño vs necesidad, distribución de zonas de recuperación, carga total, comparación con la semana anterior, 3 recomendaciones. | S | F2 |
 | RF-INF-02 | **Informe mensual** con las mismas secciones y tendencias de vitales. | C | F3 |
 | RF-INF-03 | Compartir un informe o un día como imagen sin datos identificativos. | C | F3 |
-| RF-INF-04 | **Resumen anual** (con ≥ 60 días de datos). | C | F4 |
+| RF-INF-04 | **Resumen anual** (con ≥ 60 días de datos). | C | F3 |
 
 ## 10 bis. Plan semanal (PLA)
 
@@ -160,7 +160,7 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-NOT-01 | Implementar el catálogo del [doc. 11 §7](11-ux-y-pantallas.md#7-catálogo-de-notificaciones), configurable una a una. | M | F1 (NOT-01, 06, 07) / F2–F3 (resto) |
+| RF-NOT-01 | Implementar el catálogo del [doc. 11 §8](11-ux-y-pantallas.md#8-notificaciones-locales) con **notificaciones locales** (sin servidor), configurable una a una. Las que dependen de datos nuevos (p. ej. NOT-01) se lanzan al terminar una sincronización en segundo plano o al abrir la app. | M | F1 (NOT-01, 06, 07) / F2–F3 (resto) |
 | RF-NOT-02 | Horas de silencio y límite de 3 notificaciones no críticas/día. | S | F2 |
 | RF-NOT-03 | Sin cifras de salud en la pantalla de bloqueo salvo activación expresa. | M | F1 |
 
@@ -169,6 +169,7 @@ Convenciones:
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
 | RF-PER-01 | Unidades (métrico/imperial), idioma (es/en), tema (oscuro/claro/sistema), formato horario. | M | F1 |
+| RF-PER-05 | Bloqueo opcional de la app con Face ID / código y ocultación del contenido en el selector de apps. | S | F2 |
 | RF-PER-02 | Zonas de FC y FC máx. manuales. | S | F2 |
 | RF-PER-03 | Objetivos del usuario (horas de sueño, días de entrenamiento, objetivo principal) usados por el planificador y el Coach. | S | F2 |
 | RF-PER-04 | Sección **«Cómo calculamos»**: explicación de cada métrica, referencias científicas y versión de los algoritmos en uso. | S | F1 |
@@ -177,10 +178,19 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-PRI-01 | Exportar todos los datos (brutos normalizados, puntuaciones, diario, conversaciones del Coach) en JSON + CSV (RNF-PRI-05). | M | F2 |
-| RF-PRI-02 | Borrar la cuenta y todos los datos desde la app (y desde una URL web para Google Play), con confirmación (RNF-PRI-04). | M | F1 |
-| RF-PRI-03 | Ver y revocar consentimientos (datos de salud, Coach IA, analítica). | M | F1 (básico) / F4 (completo) |
-| RF-PRI-04 | Historial de eventos de privacidad del usuario (vinculaciones, exportaciones, cambios de consentimiento). | C | F4 |
+| RF-PRI-01 | Exportar todos los datos (brutos normalizados, puntuaciones, diario, ajustes, actividades manuales, conversaciones del Coach) en JSON + CSV con la hoja de compartir de iOS (Archivos, iCloud Drive, AirDrop), y copia de seguridad del diario y ajustes restaurable (RF-ONB-05). | M | F2 |
+| RF-PRI-02 | **Borrar todos los datos** del iPhone y desconectar Google (revocando el *token*), con confirmación (RNF-PRI-04). | M | F1 |
+| RF-PRI-03 | Ajustes de privacidad: activar/desactivar el Coach IA y el envío de datos al proveedor de IA, cifras en la pantalla de bloqueo y en *widgets*, y exclusión opcional de la BD de las copias de iCloud. | M | F1 |
+| RF-PRI-04 | Registro local de eventos de privacidad (vinculaciones, exportaciones, borrados, activación del Coach). | C | F3 |
+
+## 14 bis. *Widgets*, pantalla de bloqueo y Live Activities (WID)
+
+| ID | Requisito | Prio. | Fase |
+|---|---|---|---|
+| RF-WID-01 | *Widgets* de pantalla de inicio: pequeño (tres anillos: Sueño, Recuperación, Carga) y mediano (anillos + recomendación del día); se actualizan tras cada sincronización. | S | F2 |
+| RF-WID-02 | *Widgets* de **pantalla de bloqueo** (circular de recuperación, rectangular con los tres valores) y modo StandBy. | S | F2 |
+| RF-WID-03 | **Live Activity** y Dynamic Island durante un entrenamiento iniciado en la app: tiempo, zona y FC en vivo (si RF-ENT-07 es viable) o carga acumulada. | C | F3 |
+| RF-WID-04 | Los *widgets* respetan el ajuste de privacidad de la pantalla de bloqueo (RF-PRI-03). | M | F2 |
 
 ## 15. Fuera de alcance explícito (W)
 
@@ -190,9 +200,10 @@ Convenciones:
 | RF-W-02 | *Blood Pressure Insights* | Sin sensor ni base validada; producto sanitario |
 | RF-W-03 | *Advanced Labs* (analíticas de sangre) | Fuera del ámbito de la pulsera |
 | RF-W-04 | Alarma háptica en la muñeca | Sin API para controlar la vibración de la pulsera |
-| RF-W-05 | Comunidad, equipos y clasificaciones | Reconsiderar en F4 |
-| RF-W-06 | Seguimiento del ciclo menstrual y embarazo (y su efecto en recuperación y objetivos) | La Google Health API solo permite **escribir** datos menstruales, no leerlos; reconsiderar en F4 con registro propio y revisión legal específica |
-| RF-W-07 | Integraciones directas con Strava, Peloton, TrainingPeaks, etc. | Google Health ya agrega datos de otras apps; reconsiderar en F4 |
+| RF-W-05 | Comunidad, equipos y clasificaciones | App de uso personal |
+| RF-W-06 | Seguimiento del ciclo menstrual y embarazo (y su efecto en recuperación y objetivos) | La Google Health API solo permite **escribir** datos menstruales, no leerlos; se podría añadir un registro propio en la app si se desea |
+| RF-W-07 | Integraciones directas con Strava, Peloton, TrainingPeaks, etc. | Google Health ya agrega datos de otras apps |
+| RF-W-08 | Publicación en la App Store, cuentas de usuario y servidor | App de uso personal (doc. 08 §7) |
 
 ---
 
@@ -201,12 +212,12 @@ Convenciones:
 **RF-CON-01 · Vinculación**
 
 ```gherkin
-Dado un usuario registrado sin conexión con Google Health
-Cuando pulsa «Conectar Google Health», inicia sesión y acepta los permisos
-Entonces vuelve a la app en menos de 5 s tras aceptar
-Y ve «Conectado» con la fecha y los ámbitos concedidos
+Dado que abro la app por primera vez y no he conectado Google Health
+Cuando pulso «Conectar Google Health», leo la divulgación, inicio sesión y acepto los permisos
+Entonces vuelvo a la app en menos de 5 s tras aceptar
+Y veo «Conectado a Google Health» con la última sincronización y los ámbitos concedidos
 Y comienza la importación del historial con barra de progreso
-Y los tokens se guardan solo cifrados en el backend (verificable en BD)
+Y los tokens solo existen en el Llavero del iPhone (nunca en la BD ni en logs)
 ```
 
 ```gherkin
@@ -219,10 +230,10 @@ Y las funciones que dependen de ese ámbito aparecen como «desactivadas: falta 
 **RF-SYN-02 · Ingesta incremental**
 
 ```gherkin
-Dado un usuario vinculado con datos hasta ayer
-Cuando la pulsera sincroniza la noche con Google Health y la API refleja los datos
-Entonces en ≤ 2 min (p95) la sesión de sueño y los vitales están en nuestra BD
-Y la misma notificación de cambios recibida dos veces no crea duplicados
+Dado que estoy conectado y tengo datos hasta ayer
+Cuando la pulsera ya ha sincronizado la noche con Google Health y abro la app
+Entonces en ≤ 3 s veo el sueño, los vitales y la recuperación de hoy
+Y si repito la sincronización no se crean datos duplicados
 ```
 
 **RF-REC-01 / RF-REC-03 · Recuperación y calibración**
@@ -260,14 +271,14 @@ Entonces la hora recomendada para acostarse es 07:00 − (8 h 20 min / 0,90) −
 Y puede cambiar el objetivo a 85 % o 70 % y la hora se recalcula al instante
 ```
 
-**RF-PRI-02 · Borrado de cuenta**
+**RF-PRI-02 · Borrar todos los datos**
 
 ```gherkin
-Dado un usuario con datos importados y conversaciones del Coach
-Cuando solicita borrar su cuenta y confirma
-Entonces la sesión se cierra y la cuenta deja de ser accesible de inmediato
-Y el token de Google se revoca
-Y en ≤ 30 días no queda ningún dato del usuario en BD ni copias de seguridad activas
+Dado que tengo datos importados, diario y conversaciones del Coach en el iPhone
+Cuando elijo «Borrar todos los datos» y confirmo con Face ID
+Entonces el token de Google se revoca y se elimina del Llavero
+Y la base de datos local, la instantánea de los widgets y las conversaciones se eliminan
+Y la app vuelve a la pantalla de bienvenida
 ```
 
 **RF-DIA-06 · Impacto de hábitos**

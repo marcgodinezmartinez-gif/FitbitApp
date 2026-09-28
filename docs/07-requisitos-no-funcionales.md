@@ -1,145 +1,140 @@
 # 07 · Requisitos no funcionales
 
-Convenciones: `RNF-<CATEGORÍA>-<nn>`. Prioridad MoSCoW: **M** (imprescindible), **S** (importante), **C** (deseable). Fase: F0–F4 (ver [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md)).
+Contexto: app **personal**, **solo iPhone**, **sin servidor** y **gratuita** (doc. 08). Convenciones: `RNF-<CATEGORÍA>-<nn>`; prioridad **M/S/C**; fase F0–F3 ([doc. 14](14-plan-de-proyecto-y-riesgos.md)).
 
-Los valores numéricos son **objetivos verificables**: cada uno indica cómo se mide. Si durante la implementación un objetivo resulta irreal, se cambia aquí (con fecha y motivo), no se ignora en silencio.
+Los valores numéricos son **objetivos verificables**: cada uno indica cómo se mide. Si un objetivo resulta irreal, se cambia aquí (con fecha y motivo), no se ignora.
 
 ---
 
-## 1. Rendimiento (REN)
+## 1. Estética y calidad visual (EST)
 
-| ID | Requisito | Medición | Prioridad | Fase |
+La estética es un objetivo de primer nivel (el motivo principal para no usar la app oficial). Detalle de diseño en el [doc. 11](11-ux-y-pantallas.md).
+
+| ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-REN-01 | Arranque en frío de la app ≤ 2,5 s hasta la pantalla «Hoy» con datos en caché, en un móvil de gama media (p. ej. Pixel 7a / iPhone 13). | Traza de arranque en build de *release*, mediana de 10 arranques. | M | F1 |
-| RNF-REN-02 | Cambio entre pestañas y apertura de pantallas de detalle ≤ 300 ms (p95) con datos locales. | Profiler de la app (Flipper/Perfetto/Instruments). | S | F1 |
-| RNF-REN-03 | Gráficos de tendencias de 1 año (365 puntos por serie) renderizados en ≤ 500 ms y desplazamiento a ≥ 55 fps. | Profiler, dispositivo de gama media. | S | F2 |
-| RNF-REN-04 | Desde que la Google Health API expone datos nuevos (notificación o sondeo) hasta que las puntuaciones del día están recalculadas: ≤ 2 min (p95). | Métrica `sync_to_score_latency_seconds`. | M | F1 |
-| RNF-REN-05 | Cálculo completo de un ciclo diario (recuperación + carga + sueño + estrés) ≤ 2 s de CPU en el servidor. | Test de rendimiento del paquete de métricas con un día sintético de datos intradía de 1 s. | M | F1 |
-| RNF-REN-06 | Backfill inicial de 90 días de historial terminado en ≤ 15 min respetando las cuotas de la API, con progreso visible. | Log del job de backfill. | S | F1 |
-| RNF-REN-07 | Primera palabra de respuesta del Coach IA (streaming) en ≤ 4 s (p90). | Métrica `coach_ttft_seconds`. | S | F3 |
-| RNF-REN-08 | Endpoints de lectura de la API propia: p95 ≤ 300 ms, p99 ≤ 800 ms (sin contar el Coach). | APM / trazas. | S | F1 |
+| RNF-EST-01 | Todas las pantallas usan exclusivamente los **tokens del sistema de diseño** (colores, tipografía, espaciado en retícula de 4/8 pt, radios, sombras); ningún valor «mágico» en las vistas. | Revisión de código + SwiftLint con reglas propias | M | F1 |
+| RNF-EST-02 | Animaciones fluidas: **120 fps en pantallas ProMotion** (60 fps en el resto) en transiciones, llenado de anillos y desplazamiento de gráficos; ningún fotograma perdido perceptible. | Instruments (Animation Hitches) en dispositivo | M | F1 |
+| RNF-EST-03 | Diseño nativo de iOS 26 (**Liquid Glass** en barras, hojas y controles), SF Symbols, tipografía del sistema con cifras tabulares y soporte completo de modo oscuro (por defecto) y claro. | Revisión de diseño (checklist doc. 11 §9) | M | F1 |
+| RNF-EST-04 | Micro-interacciones: transición numérica de las cifras, háptica del iPhone en hitos (recuperación lista, objetivo de carga alcanzado), estados vacíos y de carga diseñados (nunca pantallas en blanco). | Revisión de diseño | S | F1 |
+| RNF-EST-05 | Tests de instantánea (*snapshot*) de las pantallas y *widgets* principales en claro/oscuro y en 3 tamaños de letra, para que ningún cambio rompa el diseño sin darse cuenta. | CI | S | F2 |
+| RNF-EST-06 | Icono de app propio, pantalla de lanzamiento y *widgets* coherentes con el sistema de diseño. | Revisión de diseño | S | F2 |
 
-## 2. Disponibilidad y fiabilidad (DIS)
+## 2. Rendimiento (REN)
 
-| ID | Requisito | Medición | Prioridad | Fase |
+| ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-DIS-01 | Disponibilidad mensual del backend ≥ 99,5 % (uso personal) y ≥ 99,9 % si se publica para terceros. | Uptime check externo cada minuto. | S | F1 |
-| RNF-DIS-02 | La app es **utilizable sin conexión**: muestra los últimos datos sincronizados, el diario se puede rellenar y se envía al recuperar la red. | Prueba E2E en modo avión. | M | F1 |
-| RNF-DIS-03 | Ningún dato se pierde si falla la sincronización: los trabajos son **idempotentes** y reintentables (clave natural por usuario + tipo + intervalo temporal). | Tests de integración que repiten el mismo lote 3 veces sin duplicados. | M | F1 |
-| RNF-DIS-04 | Reintentos con *backoff* exponencial y *jitter* ante 429/5xx de la Google Health API; respeto de `Retry-After`. Tras N fallos, el usuario ve el estado «sincronización con problemas». | Test con API simulada que devuelve 429/503. | M | F1 |
-| RNF-DIS-05 | Si un proveedor externo (Google Health API, Anthropic) no está disponible, el resto de la app sigue funcionando (degradación elegante). | *Chaos test* desactivando cada proveedor. | M | F1 |
-| RNF-DIS-06 | Copias de seguridad diarias de la base de datos, retención 30 días, cifradas; **RPO ≤ 24 h, RTO ≤ 4 h**. Restauración probada al menos una vez por trimestre. | Registro de la prueba de restauración. | S | F1 |
-| RNF-DIS-07 | Los recálculos son **deterministas**: mismos datos de entrada + misma `algorithm_version` ⇒ mismo resultado bit a bit. | Test de regresión con *golden files*. | M | F1 |
+| RNF-REN-01 | Arranque en frío ≤ 1,5 s hasta la pantalla «Hoy» con datos locales (iPhone 13 o posterior). | Instruments (App Launch), mediana de 10 | M | F1 |
+| RNF-REN-02 | Apertura de pantallas de detalle ≤ 200 ms (p95) con datos locales. | Instruments | S | F1 |
+| RNF-REN-03 | Gráficos de 1 año (365 puntos por serie) en ≤ 300 ms y desplazamiento sin tirones (RNF-EST-02). | Instruments | S | F2 |
+| RNF-REN-04 | Refresco al abrir la app: ≤ 3 s desde que se abre hasta ver las puntuaciones del día, si los datos ya están en la API. | Registro local de tiempos | M | F1 |
+| RNF-REN-05 | Cálculo completo de un ciclo (recuperación, carga, sueño, estrés) ≤ 200 ms en el iPhone. | Test de rendimiento de `MetricsKit` | M | F1 |
+| RNF-REN-06 | Importación inicial de 90 días ≤ 5 min con la app abierta (continúa en segundo plano si se cierra). | Registro local | S | F1 |
+| RNF-REN-07 | Primera palabra del Coach IA (*streaming*) ≤ 4 s (p90). | Registro local | S | F3 |
 
-## 3. Seguridad (SEG)
+## 3. Fiabilidad (DIS)
 
-| ID | Requisito | Medición | Prioridad | Fase |
+| ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-SEG-01 | App móvil conforme a **OWASP MASVS v2** (controles STORAGE, CRYPTO, AUTH, NETWORK, PLATFORM, CODE, PRIVACY) con el perfil para datos sensibles. | Checklist MASTG antes de cada publicación. | M | F1 |
-| RNF-SEG-02 | Backend conforme a **OWASP ASVS 5.0 nivel 2**. | Checklist + SAST/DAST en CI. | M | F1 |
-| RNF-SEG-03 | Todo el tráfico con TLS ≥ 1.2 (preferible 1.3), HSTS en dominios web. Sin excepciones de ATS (iOS) ni `cleartextTrafficPermitted` (Android). | Escaneo TLS + revisión de configuración. | M | F1 |
-| RNF-SEG-04 | Los *tokens* OAuth de Google (acceso y refresco) se guardan **solo en el backend**, cifrados con cifrado de sobre (DEK por registro, KEK en Cloud KMS/HSM, como exige la política de la Google Health API). Nunca en la app ni en logs. La base de datos entera está cifrada en reposo. | Revisión de código + test que busca patrones de token en logs. | M | F1 |
-| RNF-SEG-05 | Flujo OAuth 2.0 *authorization code* con **PKCE** y parámetro `state` anti-CSRF; `redirect_uri` exactas registradas. | Test E2E del flujo de vinculación. | M | F1 |
-| RNF-SEG-06 | Autenticación de usuarios de la app mediante proveedor gestionado (Sign in with Google / Apple / passkeys). Sesiones con *access token* corto (≤ 15 min) y *refresh token* rotatorio almacenado en Keychain / Android Keystore. | Revisión + test. | M | F1 |
-| RNF-SEG-07 | Bloqueo opcional de la app con biometría (Face ID / huella) y ocultación del contenido en el selector de apps. | Prueba manual en ambos SO. | S | F2 |
-| RNF-SEG-08 | Aislamiento por usuario en la base de datos (*row-level security* o filtro obligatorio por `user_id` verificado en tests). | Tests que intentan leer datos de otro usuario (deben fallar). | M | F1 |
-| RNF-SEG-09 | Secretos (claves de API, credenciales OAuth, claves de firma de webhooks) en un gestor de secretos, nunca en el repositorio. Escaneo de secretos en CI (p. ej. gitleaks) y *push protection* en GitHub. | CI verde + alerta en PR. | M | F0 |
-| RNF-SEG-10 | Verificación de autenticidad de las notificaciones entrantes (*webhooks*): secreto en la cabecera `Authorization` **y** firma `GOOGLE-HEALTH-API-SIGNATURE` verificada con Tink contra el conjunto de claves públicas de Google (doc. 10 §6.2); procesamiento idempotente frente a duplicados y reintentos. | Test con notificación falsificada o con firma inválida (debe rechazarse). | M | F1 |
-| RNF-SEG-11 | Dependencias con escaneo de vulnerabilidades (Dependabot/Renovate + `npm audit`/OSV) y política de parches: críticas ≤ 7 días, altas ≤ 30 días. | Informe semanal. | S | F1 |
-| RNF-SEG-12 | Protección del Coach IA frente a *prompt injection*: los datos del usuario y los textos libres del diario se tratan como datos, no como instrucciones; las herramientas del Coach son de **solo lectura** sobre los datos del propio usuario. | Suite de pruebas adversarias del Coach (ver doc. 13). | M | F3 |
-| RNF-SEG-13 | Registro de auditoría inmutable de accesos administrativos y de operaciones sensibles (exportación, borrado, vinculación/desvinculación). | Revisión de la tabla `audit_log`. | S | F1 |
-| RNF-SEG-14 | Prueba de penetración externa antes de abrir la app a usuarios distintos del propietario (y, si aplica, evaluación **CASA** exigida por Google para ámbitos restringidos). | Informe del pentest / carta de validación CASA. | M | F4 |
+| RNF-DIS-01 | La app funciona **sin conexión** con los últimos datos; el diario y las actividades manuales se guardan en local sin depender de la red. | Prueba en modo avión | M | F1 |
+| RNF-DIS-02 | La sincronización es **reanudable**: si se interrumpe (app cerrada, sin red, límite de tiempo en segundo plano), continúa donde se quedó. | Test de integración con interrupciones | M | F1 |
+| RNF-DIS-03 | Ingesta **idempotente**: la misma muestra descargada varias veces produce una sola fila (claves únicas por tipo e instante/intervalo). | Test repitiendo el mismo lote 3 veces | M | F1 |
+| RNF-DIS-04 | Reintentos con *backoff* exponencial y *jitter* ante 429/5xx, respetando `Retry-After`; tras varios fallos, estado visible «Sincronización con problemas». | Test con API simulada | M | F1 |
+| RNF-DIS-05 | Si Google o Anthropic no responden, el resto de la app sigue funcionando. | Prueba desactivando cada servicio | M | F1 |
+| RNF-DIS-06 | Recuperación ante pérdida del iPhone: todo lo procedente de Google se vuelve a descargar; diario, ajustes y actividades manuales se restauran desde la copia exportada (RF-ONB-05). | Prueba de restauración en otro dispositivo o tras reinstalar | S | F2 |
+| RNF-DIS-07 | Cálculos **deterministas**: mismas entradas + misma `algorithm_version` ⇒ mismo resultado. | *Golden files* | M | F1 |
+| RNF-DIS-08 | Migraciones de la BD local versionadas, probadas y sin pérdida de datos. | Test de migración desde cada versión anterior | M | F1 |
 
-## 4. Privacidad (PRI)
+## 4. Seguridad (SEG)
 
-| ID | Requisito | Medición | Prioridad | Fase |
+| ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-PRI-01 | **Minimización**: solo se solicitan los ámbitos (*scopes*) de la Google Health API estrictamente necesarios para las funciones activas; los ámbitos opcionales se piden de forma incremental cuando el usuario activa la función. | Revisión de la pantalla de consentimiento. | M | F1 |
-| RNF-PRI-02 | Ningún dato de salud en logs, trazas, analítica de producto ni informes de errores (Sentry/Crashlytics con *scrubbing*). | Test automático de *scrubbing* + revisión. | M | F1 |
-| RNF-PRI-03 | Retención configurable: datos intradía (FC por minuto, FC de 1 s en entrenamientos, pasos por minuto, muestras de HRV) 24 meses por defecto; datos diarios y puntuaciones mientras la cuenta exista; conversaciones del Coach 12 meses (borrables en cualquier momento). Al vencer se borra el dato, **nunca se sustituye por un agregado** (RL-44). | Job de purga + test. | S | F2 |
-| RNF-PRI-04 | Borrado completo de la cuenta (datos, tokens revocados en Google, conversaciones, copias) en ≤ 30 días; eliminación de la vista del usuario inmediata. | Test E2E de borrado + verificación en BD. | M | F1 |
-| RNF-PRI-05 | Exportación de todos los datos del usuario en formato abierto (JSON + CSV) en ≤ 24 h. | Test E2E. | M | F2 |
-| RNF-PRI-06 | La analítica de producto (si existe) es opcional (*opt-in*), seudonimizada y sin datos de salud. | Revisión del plan de eventos. | S | F2 |
-| RNF-PRI-07 | Alojamiento de datos en la **UE** (p. ej. región `europe-southwest1` Madrid o `europe-west1`). Las transferencias fuera del EEE (p. ej. al proveedor del LLM) quedan documentadas con su base legal. | Revisión de infraestructura + registro de actividades. | M | F1 |
-| RNF-PRI-08 | Al Coach IA solo se envían los datos necesarios para responder, seudonimizados (sin nombre, email ni identificadores de Google). | Revisión de las funciones de herramientas y test de contenido. | M | F3 |
+| RNF-SEG-01 | App conforme a **OWASP MASVS v2** en lo aplicable (STORAGE, CRYPTO, AUTH, NETWORK, PLATFORM, CODE, PRIVACY). | Checklist MASTG | M | F2 |
+| RNF-SEG-02 | *Tokens* de Google y clave de la API de IA **solo en el Llavero** (accesibles tras el primer desbloqueo, sin sincronizar con iCloud); nunca en la BD, en `UserDefaults` ni en logs. | Revisión + test que busca patrones de *token* en logs | M | F1 |
+| RNF-SEG-03 | BD y ficheros con **protección de datos de iOS** (clase «completa hasta el primer desbloqueo» para permitir el refresco en segundo plano), cifrados por hardware. | Revisión de configuración | M | F1 |
+| RNF-SEG-04 | OAuth 2.0 con PKCE en el navegador del sistema (`ASWebAuthenticationSession`), nunca en un WebView; `state` anti-CSRF. | Revisión + prueba del flujo | M | F1 |
+| RNF-SEG-05 | Solo HTTPS con TLS ≥ 1.2 y sin excepciones de App Transport Security. | Revisión de `Info.plist` | M | F1 |
+| RNF-SEG-06 | Bloqueo opcional con Face ID / código y contenido oculto en el selector de apps (RF-PER-05). | Prueba manual | S | F2 |
+| RNF-SEG-07 | Ningún secreto en el repositorio: la configuración usa `Config/Secrets.xcconfig` ignorado por Git; escaneo de secretos (gitleaks) en CI y *push protection* en GitHub. | CI | M | F0 |
+| RNF-SEG-08 | Dependencias mínimas y revisadas (sin SDK de analítica ni publicidad); actualizaciones de seguridad aplicadas en ≤ 30 días. | Revisión de `Package.resolved` | M | F1 |
+| RNF-SEG-09 | Coach IA protegido frente a *prompt injection*: los textos libres del diario se tratan como datos; las herramientas del Coach son **de solo lectura** sobre la BD local. | Suite de pruebas adversarias (doc. 13 §7) | M | F3 |
 
-## 5. Usabilidad y accesibilidad (ACC)
+## 5. Privacidad (PRI)
 
-| ID | Requisito | Medición | Prioridad | Fase |
+| ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-ACC-01 | Cumplir **WCAG 2.2 nivel AA** en la app y la web. | Auditoría con Accessibility Scanner (Android), Accessibility Inspector (iOS) y revisión manual. | M | F2 |
-| RNF-ACC-02 | El color **nunca** es el único portador de información: las zonas verde/amarilla/roja van siempre acompañadas de texto («Alta», «Media», «Baja») e iconografía; paleta segura para daltonismo. | Revisión con simulador de daltonismo. | M | F1 |
-| RNF-ACC-03 | Contraste ≥ 4,5:1 en texto y ≥ 3:1 en elementos gráficos significativos, en tema claro y oscuro. | Herramienta de contraste. | M | F1 |
-| RNF-ACC-04 | Soporte de tamaño de letra dinámico hasta 200 % sin pérdida de contenido; objetivos táctiles ≥ 44×44 pt. | Prueba manual. | M | F2 |
-| RNF-ACC-05 | Lectores de pantalla (VoiceOver/TalkBack): los diales y gráficos tienen descripción textual equivalente (p. ej. «Recuperación 72 %, zona alta, 8 puntos por encima de tu media semanal»). | Prueba manual con lector. | M | F2 |
-| RNF-ACC-06 | Un usuario nuevo completa la vinculación con su cuenta de Google y ve su primer dato en ≤ 3 min sin ayuda. | Prueba de usabilidad con 5 personas. | S | F1 |
-| RNF-ACC-07 | Toda métrica tiene una explicación accesible en ≤ 2 toques («¿Qué es esto?» / «¿Cómo se calcula?»). | Revisión de pantallas. | S | F1 |
+| RNF-PRI-01 | **Minimización**: solo los ámbitos de Google imprescindibles (doc. 10 §3); los opcionales se piden al activar la función. | Revisión de la pantalla de consentimiento | M | F1 |
+| RNF-PRI-02 | **Sin telemetría ni analítica** de terceros. Los registros de diagnóstico son locales y sin datos de salud. | Revisión de dependencias y tráfico de red | M | F1 |
+| RNF-PRI-03 | Los datos de salud solo salen del iPhone hacia Google (lectura) y, si el Coach está activado, hacia el proveedor de IA con lo mínimo necesario (doc. 06 §7). | Inspección del tráfico (proxy) | M | F1 |
+| RNF-PRI-04 | «Borrar todos los datos» elimina BD, instantánea de *widgets*, conversaciones y *tokens*, y revoca el acceso en Google (RF-PRI-02). | Test E2E | M | F1 |
+| RNF-PRI-05 | Exportación completa en formato abierto (JSON + CSV) (RF-PRI-01). | Test E2E | M | F2 |
+| RNF-PRI-06 | Retención configurable de datos intradía (24 meses por defecto); al vencer se **borra** el dato, nunca se sustituye por un agregado (RL-44). | Test del purgado | S | F2 |
 
-## 6. Internacionalización (I18N)
+## 6. Accesibilidad (ACC)
 
-| ID | Requisito | Prioridad | Fase |
+| ID | Requisito | Medición | Prio. | Fase |
+|---|---|---|---|---|
+| RNF-ACC-01 | Pautas **WCAG 2.2 AA** y guías de accesibilidad de Apple. | Accessibility Inspector + revisión manual | S | F2 |
+| RNF-ACC-02 | El color **nunca** es el único portador de información: zonas con texto («Alta/Media/Baja») e icono; paleta segura para daltonismo. | Simulador de daltonismo | M | F1 |
+| RNF-ACC-03 | Contraste ≥ 4,5:1 en texto y ≥ 3:1 en gráficos significativos, en claro y oscuro. | Herramienta de contraste | M | F1 |
+| RNF-ACC-04 | Tipo dinámico hasta los tamaños de accesibilidad sin perder contenido; objetivos táctiles ≥ 44×44 pt. | Prueba manual | S | F2 |
+| RNF-ACC-05 | VoiceOver: anillos y gráficos con descripción equivalente («Recuperación 72 %, zona alta, 8 puntos sobre tu media semanal»); Swift Charts con *audio graphs*. | Prueba con VoiceOver | S | F2 |
+| RNF-ACC-06 | Respeta «Reducir movimiento» y «Reducir transparencia». | Prueba manual | S | F2 |
+| RNF-ACC-07 | Toda métrica tiene explicación a ≤ 2 toques («¿Qué es?» / «¿Por qué hoy es así?»). | Revisión de pantallas | S | F1 |
+| RNF-ACC-08 | El onboarding completo (incluida la conexión con Google) se hace en ≤ 3 min. | Prueba cronometrada | S | F1 |
+
+## 7. Internacionalización (I18N)
+
+| ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-I18N-01 | Idioma por defecto **español (es-ES)**; inglés (en) como segundo idioma. Todos los textos en ficheros de traducción (ningún literal en el código). | M | F1 |
-| RNF-I18N-02 | Sistema métrico por defecto (kg, km, °C), con opción imperial. Formato 24 h y fechas `dd/mm/aaaa` según configuración regional. | M | F1 |
-| RNF-I18N-03 | Todas las marcas de tiempo se almacenan en UTC con el **desfase horario local de cada muestra**; los «días» y ciclos se calculan en la zona horaria del usuario en ese momento (viajes, cambios de horario de verano). | M | F1 |
-| RNF-I18N-04 | Las noches que cruzan un cambio de hora (último domingo de marzo/octubre en España) se calculan con duraciones reales, no de reloj. | M | F1 |
+| RNF-I18N-01 | Español (es-ES) por defecto con catálogo de cadenas (String Catalog); inglés opcional. | M | F1 |
+| RNF-I18N-02 | Sistema métrico, 24 h y formatos según la configuración regional del iPhone. | M | F1 |
+| RNF-I18N-03 | Marcas de tiempo en UTC con el desfase de cada muestra; días y ciclos en la zona horaria vigente en cada momento (viajes, horario de verano). | M | F1 |
+| RNF-I18N-04 | Las noches con cambio de hora se calculan con duraciones reales. | M | F1 |
 
-## 7. Compatibilidad (COM)
+## 8. Compatibilidad (COM)
 
-| ID | Requisito | Prioridad | Fase |
+| ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-COM-01 | Versiones mínimas alineadas con la Fitbit Air (que exige Android 11+ o iOS 16.4+ para la app Google Health): **Android 11 (API 30)+** e **iOS 17+** (o el mínimo superior que imponga la versión de Expo/React Native usada). Health Connect: disponible desde Android 9, integrado en el sistema desde Android 14. | M | F1 |
-| RNF-COM-02 | Teléfonos y tabletas en orientación vertical; tabletas en horizontal: C. | M/C | F1 |
-| RNF-COM-03 | La app funciona con cualquier dispositivo que publique datos en la Google Health API (Fitbit Air, otros Fitbit, Pixel Watch), pero **solo se garantiza** con Fitbit Air; las funciones que dependan de datos no disponibles se ocultan en lugar de mostrar valores vacíos. | S | F2 |
+| RNF-COM-01 | **iOS 26 o posterior** (iPhone 11 o posterior); se adopta cada nueva versión mayor de iOS en ≤ 2 meses. | M | F1 |
+| RNF-COM-02 | Solo iPhone y orientación vertical. | M | F1 |
+| RNF-COM-03 | Funciona con cualquier dispositivo que publique en la Google Health API, pero solo se garantiza con la Fitbit Air; las funciones sin datos se ocultan en lugar de mostrar vacíos. | S | F2 |
 
-## 8. Calidad de datos (CAL)
+## 9. Calidad de datos (CAL)
 
-| ID | Requisito | Prioridad | Fase |
+| ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-CAL-01 | Cada puntuación indica su **confianza** (alta/media/baja) según cobertura de datos (p. ej. % de minutos con FC durante el sueño, noches disponibles para la línea base). | M | F1 |
-| RNF-CAL-02 | Con datos insuficientes no se muestra una cifra inventada: se muestra el estado «Calibrando (n/4 noches)» o «Datos insuficientes» y el motivo. | M | F1 |
-| RNF-CAL-03 | Detección y descarte de artefactos: FC fuera de [25, 230] lpm, saltos imposibles, periodos sin llevar la pulsera (*off-wrist*). | M | F1 |
-| RNF-CAL-04 | Los datos que lleguen tarde (sincronización retrasada) provocan el recálculo de los días afectados y de las líneas base dependientes, sin intervención manual. | M | F1 |
-| RNF-CAL-05 | Cada valor derivado guarda `algorithm_version` y los parámetros usados para permitir auditoría y recálculo. | M | F1 |
+| RNF-CAL-01 | Cada puntuación indica su **confianza** (alta/media/baja) según la cobertura de datos. | M | F1 |
+| RNF-CAL-02 | Sin datos suficientes no hay cifra inventada: «Calibrando (n/4 noches)» o «Datos insuficientes» con el motivo. | M | F1 |
+| RNF-CAL-03 | Detección y descarte de artefactos (FC fuera de [25, 230] lpm, saltos imposibles, sin pulsera). | M | F1 |
+| RNF-CAL-04 | Datos tardíos o editados en Google ⇒ recálculo automático de los días afectados y de las líneas base. | M | F1 |
+| RNF-CAL-05 | Cada valor derivado guarda `algorithm_version` y parámetros. | M | F1 |
 
-## 9. Mantenibilidad y calidad del código (MAN)
+## 10. Mantenibilidad (MAN)
 
-| ID | Requisito | Prioridad | Fase |
+| ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-MAN-01 | Monorepo con paquetes separados: app, API, *workers*, paquete de métricas puro (sin E/S) y cliente de la Google Health API detrás de una interfaz (*adapter*) para poder cambiar de fuente de datos. | M | F0 |
-| RNF-MAN-02 | Cobertura de tests ≥ 90 % en el paquete de métricas y ≥ 70 % en el resto del backend. | M | F1 |
-| RNF-MAN-03 | CI en cada PR: lint, formato, *typecheck*, tests, build de la app, escaneo de secretos y dependencias. Rama principal protegida. | M | F0 |
-| RNF-MAN-04 | Versionado semántico de la app y de `algorithm_version`; *changelog* de algoritmos visible para el usuario («Hemos mejorado el cálculo de…»). | S | F2 |
-| RNF-MAN-05 | *Feature flags* para activar funciones por usuario (p. ej. Coach IA, edad fisiológica) sin publicar una nueva versión. | S | F2 |
-| RNF-MAN-06 | Decisiones de arquitectura registradas como ADR en `docs/adr/`. | S | F0 |
-| RNF-MAN-07 | Infraestructura como código (Terraform/Pulumi) para todos los recursos cloud. | C | F2 |
+| RNF-MAN-01 | Paquetes Swift separados (doc. 08 §3); `MetricsKit` y `HealthAPI` sin dependencias de UI. | M | F0 |
+| RNF-MAN-02 | Cobertura de tests ≥ 90 % en `MetricsKit` y ≥ 70 % en `HealthAPI`, `Store` y `Sync`. | M | F1 |
+| RNF-MAN-03 | CI en GitHub Actions: formato, *lint*, tests de paquetes (Linux y macOS), escaneo de secretos; *build* de la app en macOS si hay minutos disponibles. | M | F0 |
+| RNF-MAN-04 | Versionado semántico de la app y de `algorithm_version`, con *changelog* de algoritmos visible en «Cómo calculamos». | S | F2 |
+| RNF-MAN-05 | Decisiones de arquitectura como ADR en `docs/adr/`. | S | F0 |
+| RNF-MAN-06 | Proyecto de Xcode generado desde un fichero legible (XcodeGen o Tuist) para evitar conflictos en `project.pbxproj`. | C | F0 |
 
-## 10. Observabilidad (OBS)
+## 11. Energía y datos (ENE)
 
-| ID | Requisito | Prioridad | Fase |
+| ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-OBS-01 | Logs estructurados (JSON) con `request_id`/`trace_id`, sin datos de salud (ver RNF-PRI-02). | M | F1 |
-| RNF-OBS-02 | Métricas técnicas mínimas: latencia de sincronización, tasa de errores por endpoint de la Google Health API, cuota consumida, *tokens* caducados/revocados, coste y latencia del Coach IA. | M | F1 |
-| RNF-OBS-03 | Alertas: fallo de sincronización > 6 h para cualquier usuario activo, tasa de 5xx > 2 % durante 10 min, cuota de API > 80 %, gasto diario del LLM > umbral. | S | F1 |
-| RNF-OBS-04 | *Crash reporting* en la app con tasa de sesiones sin fallos ≥ 99,5 %. | S | F1 |
+| RNF-ENE-01 | Sin sondeo continuo: solo sincronización al abrir, manual y en tareas en segundo plano que gestiona iOS. | M | F1 |
+| RNF-ENE-02 | Consumo en segundo plano < 1 % de batería/día (Ajustes › Batería). | S | F2 |
+| RNF-ENE-03 | Las tareas pesadas (importación, recálculo de líneas base) se ejecutan como `BGProcessingTask` cuando el iPhone está cargando. | S | F1 |
 
-## 11. Escalabilidad y coste (ESC)
+## 12. Coste (COS)
 
-| ID | Requisito | Prioridad | Fase |
+| ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-ESC-01 | Diseño multiusuario desde el primer día (aunque el MVP tenga un solo usuario): todas las tablas llevan `user_id`, sin estado en memoria entre peticiones. | M | F1 |
-| RNF-ESC-02 | Soportar 10 000 usuarios activos con un aumento lineal de coste y sin rediseño: ~1 440 filas de FC por minuto/usuario/día + FC de 1 s en entrenamientos ⇒ tablas particionadas por tiempo (o TimescaleDB). Respetar las cuotas de la Google Health API (300 peticiones/min por usuario, 120 000/min por proyecto) con limitación por usuario. | S | F4 |
-| RNF-ESC-03 | Coste de infraestructura para uso personal ≤ 25 €/mes (sin contar dispositivo ni suscripciones de tiendas). | S | F1 |
-| RNF-ESC-04 | Límite de uso del Coach IA por usuario y día configurable (mensajes y tokens) para acotar coste. | M | F3 |
+| RNF-COS-01 | **Coste recurrente obligatorio: 0 €**. Sin servidor, sin suscripciones y sin Google Health Premium. | M | F0 |
+| RNF-COS-02 | Costes opcionales explícitos y bajo control del usuario: Apple Developer Program (99 $/año, solo por comodidad de instalación) y Coach IA (pago por uso con límite de gasto en la consola de Anthropic y límite diario en la app). | M | F3 |
 
-## 12. Energía y datos móviles (ENE)
+## 13. Conformidad
 
-| ID | Requisito | Prioridad | Fase |
-|---|---|---|---|
-| RNF-ENE-01 | La app no hace sondeo continuo en segundo plano: el refresco lo dispara el backend mediante notificaciones *push* silenciosas o al abrir la app. | M | F1 |
-| RNF-ENE-02 | Consumo de la app en segundo plano < 1 % de batería/día en las herramientas del sistema. | S | F2 |
-| RNF-ENE-03 | La app descarga del backend series por minuto o por ventana según el zoom del gráfico; la FC de 1 s solo al abrir el detalle de un entrenamiento. | S | F1 |
-
-## 13. Conformidad (resumen)
-
-Los requisitos legales detallados están en [12-privacidad-seguridad-y-legal.md](12-privacidad-seguridad-y-legal.md). Como RNF transversal: **ninguna funcionalidad se publica sin haber pasado la lista de verificación legal** de ese documento (RL-*).
+Los requisitos legales están en [12-privacidad-seguridad-y-legal.md](12-privacidad-seguridad-y-legal.md). Para uso personal, lo que aplica son sobre todo las **condiciones de la Google Health API** (RL-40 a RL-48).

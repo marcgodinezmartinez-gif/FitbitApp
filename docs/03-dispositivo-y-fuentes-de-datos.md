@@ -41,18 +41,18 @@ Estado de la información: **28/09/2026**. Fuentes oficiales de Google salvo que
 
 Fuentes: [Readiness](https://support.google.com/googlehealth/answer/14236710), [Cardio Load](https://support.google.com/googlehealth/answer/15402655), [sueño](https://support.google.com/googlehealth/answer/14236513), [vitales](https://support.google.com/googlehealth/answer/14236917), [HRV](https://support.google.com/googlehealth/answer/14237938), [VO₂ máx.](https://support.google.com/googlehealth/answer/14237924), [alarmas](https://support.google.com/googlehealth/answer/14226604), [Premium](https://support.google.com/googlehealth/answer/14237941).
 
-**Conclusión**: los datos brutos que necesitamos son gratuitos y accesibles; las puntuaciones de Google no se exponen, así que **todas nuestras puntuaciones se calculan en nuestro backend** (doc. 05). La suscripción Premium no es necesaria (resuelve el supuesto SUP-4, pendiente de confirmación empírica).
+**Conclusión**: los datos brutos que necesitamos son gratuitos y accesibles; las puntuaciones de Google no se exponen, así que **todas nuestras puntuaciones se calculan en el iPhone** (doc. 05). **Google Health Premium no es necesario** (SUP-4).
 
 ## 3. Canales de acceso a los datos
 
 | Canal | Plataforma | Qué ofrece | Limitaciones | Uso en la app |
 |---|---|---|---|---|
-| **Google Health API** (REST v4) | Cualquiera (servidor) | Todos los datos de la tabla §4, histórico sin límite, notificaciones *webhook* | Ámbitos **restringidos**: > 100 usuarios exige verificación + evaluación CASA anual; cuotas | **Fuente principal** (ADR 001, doc. 10) |
-| Health Connect | Android 9+ (en el dispositivo) | Google Health escribe pasos, distancia, ejercicio, sueño con fases, FC, HRV, FC en reposo, FR, temperatura cutánea, VO₂ máx.… | **No escribe SpO₂**; sin histórico > 30 días sin permiso adicional; solo Android | Complementaria en Android (F3, ADR 002) |
-| Apple Health (HealthKit) | iOS | Google Health escribe pasos, ejercicio, sueño con fases, FC, **SpO₂**, FR, FC en reposo… | **No escribe HRV ni temperatura cutánea** ⇒ insuficiente para la recuperación | No se usa |
-| Perfil de FC de Bluetooth (GATT estándar) | iOS/Android | FC en vivo mientras la emisión está activada | Solo en vivo, sin HRV; [verificar] compatibilidad con apps de terceros no listadas | Opcional F3+: FC en vivo durante entrenamientos |
+| **Google Health API** (REST v4) | Cualquiera (se llama desde el iPhone) | Todos los datos de la tabla §4, histórico sin límite | Ámbitos **restringidos**: sin verificar, máx. 100 usuarios (de sobra para uso personal) | **Fuente principal** (ADR 001, doc. 10) |
+| Health Connect | Android | Google Health escribe pasos, sueño, FC, HRV, temperatura… (no SpO₂) | Solo Android | No aplica (solo iPhone) |
+| Apple Health (HealthKit) | iPhone (local) | Google Health escribe pasos, ejercicio, sueño con fases, FC, **SpO₂**, FR, FC en reposo, VO₂ máx.… | **No escribe HRV ni temperatura cutánea** ⇒ insuficiente para la recuperación | Respaldo opcional para FC, sueño y entrenamientos (F3, RF-CON-06) |
+| Perfil de FC de Bluetooth (GATT estándar) | iPhone (CoreBluetooth) | FC en vivo mientras la emisión está activada | Solo en vivo, sin HRV; [verificar] compatibilidad con apps de terceros no listadas | Opcional F3: FC en vivo y Live Activity en entrenamientos |
 | Google Takeout | Manual | Exportación completa de la cuenta | Manual, formato propio | Solo para análisis/calibración puntual |
-| Agregadores (p. ej. Junction, que ya lista `google_health`; Open Wearables, *open source* MIT y autoalojado) | Servidor | Abstracción multi-dispositivo | Coste (p. ej. Junction desde 300 $/mes) o mantenimiento propio | Plan B (RSK-02) |
+| Agregadores (p. ej. Junction, que ya lista `google_health`; Open Wearables, *open source* MIT y autoalojado) | Servidor | Abstracción multi-dispositivo | Coste (p. ej. Junction desde 300 $/mes) o servidor propio | No se usan (coste y servidor) |
 | Fitbit Web API (antigua) | — | — | **Se apaga el 30/09/2026**; sin altas nuevas | No se usa |
 
 Fuentes: [Health Connect](https://support.google.com/googlehealth/answer/14506680), [Apple Health](https://support.google.com/googlehealth/answer/17037331), [FC por Bluetooth](https://support.google.com/googlehealth/answer/14236705), [exportación](https://support.google.com/googlehealth/answer/14236615), [Junction](https://docs.junction.com/wearables/providers/introduction), [Open Wearables](https://github.com/the-momentum/open-wearables), [fin de la Fitbit Web API](https://support.google.com/googlehealth/thread/439040688).
@@ -84,13 +84,13 @@ No disponibles en la API: *Readiness*, *Sleep Score*, *Cardio Load*, *Resilience
 | Brecha | Impacto | Solución en la app |
 |---|---|---|
 | HRV **solo nocturna** (no hay HRV diurna) | No se puede estimar el estrés diurno por HRV como hacen algunos dispositivos | Estrés basado en FC + movimiento, etiquetado «beta» (ALG-EST-01) |
-| Sin datos en tiempo real desde la nube: dependen de que la pulsera sincronice con la app Google Health | La recuperación puede llegar tarde si no se abre Google Health | Sondeo en ventana matinal + *webhooks* + atajo «Abrir Google Health» (doc. 11 §6) |
+| Sin datos en tiempo real desde la nube: dependen de que la pulsera sincronice con la app Google Health | La recuperación puede llegar tarde si no se abre Google Health | Refresco al abrir + tarea matinal en segundo plano + atajo «Abrir Google Health» (doc. 11 §7) |
 | Batería de 7 días (WHOOP ≈ 14) y carga fuera de la muñeca | Huecos de datos | Recordatorio de cargar de día (p. ej. durante la ducha); tratamiento explícito de huecos |
 | Sin acelerómetro bruto ni detección de series | No hay «carga muscular» automática | sRPE y registro manual de fuerza (ALG-CAR-05) |
 | Detección automática de 7 tipos de ejercicio (WHOOP 45+) | Entrenamientos mal etiquetados | Edición del tipo y creación manual (RF-ENT-04/06) |
-| VO₂ máx. solo con carreras al aire libre y GPS del móvil | Edad fisiológica incompleta para quien no corre | Estimación sin ejercicio a partir de perfil y FCR como alternativa marcada (ALG-EDA-01) [verificar referencia] |
+| VO₂ máx. solo con carreras al aire libre y GPS del móvil | Edad fisiológica incompleta para quien no corre | Modelo sin ejercicio del estudio HUNT con perímetro de cintura y cuestionario de actividad opcionales (ALG-EDA-02) |
 | Precisión de FC variable en algunos entrenamientos (reseñas: picos de +20–40 lpm) y HRV que lee más baja que otros dispositivos | Carga inflada puntualmente; valores absolutos no comparables con WHOOP | Filtros de artefactos (ALG-VAL); todo relativo a la línea base propia; edición de actividades |
-| Alarma con vibración solo desde la app oficial | Sin alarma háptica propia | Alarma del móvil por necesidad de sueño (RF-SUE-12, «C») |
+| Alarma con vibración solo desde la app oficial | Sin alarma háptica propia | Alarma del iPhone por necesidad de sueño con AlarmKit (RF-SUE-12, «C») |
 
 Reseñas: [DC Rainmaker, Fitbit Air vs WHOOP](https://www.dcrainmaker.com/2026/05/fitbit-review-vs-whoop.html), [comparativa de precisión (ago. 2026)](https://www.dcrainmaker.com/2026/08/accuracy-deep-dive-garmin-cirqa-whoop-fitbit-air-amazfit-helio-polar-loop-testing.html), [Android Authority](https://www.androidauthority.com/google-fitbit-air-review-3671325/).
 
@@ -114,5 +114,5 @@ Reseñas: [DC Rainmaker, Fitbit Air vs WHOOP](https://www.dcrainmaker.com/2026/0
 4. Estructura de `sleep` (fases, despertares breves, sueño principal vs siestas) y si incluye latencia de inicio.
 5. Campos de `daily-sleep-temperature-derivations`, `daily-respiratory-rate` y `daily-oxygen-saturation`.
 6. Qué ocurre con los datos durante la carga de la batería y con sincronizaciones tras varios días sin conexión.
-7. Comportamiento del *token* en modo *Testing* (caducidad de 7 días) frente a app sin verificar en producción (doc. 10 §2).
+7. Comportamiento del *token* en modo *Testing* (caducidad de 7 días) frente a app sin verificar en producción, y qué librería OAuth de Google para iOS funciona mejor con los ámbitos restringidos (doc. 10 §2 y §4).
 8. Si la emisión de FC por Bluetooth es accesible desde una app propia.

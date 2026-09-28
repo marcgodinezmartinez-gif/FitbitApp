@@ -1,20 +1,28 @@
-# Secretos y configuración local
+# Configuración local con valores reales (nunca al repositorio)
+Config/Secrets.xcconfig
 .env
 .env.*
-!.env.example
 
-# Datos personales exportados durante el spike (nunca al repositorio)
+# Datos personales exportados durante el spike o la calibración
 data/
 spike-output/
 *.local.json
 
-# Dependencias y builds
-node_modules/
-dist/
+# Xcode / Swift
+DerivedData/
 build/
-.expo/
-.turbo/
-coverage/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+.build/
+*.ipa
+*.dSYM.zip
+*.xcresult
+
+# Python (análisis opcional)
+__pycache__/
+.ipynb_checkpoints/
+.venv/
 
 # Sistema / editores
 .DS_Store

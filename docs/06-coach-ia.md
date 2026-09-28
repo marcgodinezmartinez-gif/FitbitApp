@@ -2,7 +2,7 @@
 
 Equivalente funcional de «WHOOP Coach»: un asistente que conoce los datos del usuario, responde preguntas en lenguaje natural, explica las puntuaciones y ayuda a planificar entrenamiento y sueño. Se implementa con la **API de Claude (Anthropic)**.
 
-Fase: **F3** (requiere que las métricas de F1–F2 estén estables). Requisitos legales asociados: RL-30 a RL-34 y RL-48 ([doc. 12](12-privacidad-seguridad-y-legal.md)).
+Fase: **F3** (requiere que las métricas de F1–F2 estén estables). **Opcional y de pago por uso** con tu propia clave de API: la app es gratuita sin él. Requisitos legales asociados: RL-34 y RL-48 ([doc. 12](12-privacidad-seguridad-y-legal.md)).
 
 ---
 
@@ -22,53 +22,51 @@ Fase: **F3** (requiere que las métricas de F1–F2 estén estables). Requisitos
 | ID | Requisito | Prioridad |
 |---|---|---|
 | RF-COA-01 | Chat en la app con respuestas en *streaming* y conversación persistente (historial por hilos). | M |
-| RF-COA-02 | El Coach obtiene los datos **solo mediante herramientas** de lectura del backend (§4); nunca se le pasan volcados completos de la base de datos. | M |
+| RF-COA-02 | El Coach obtiene los datos **solo mediante herramientas** de lectura sobre la BD local (§4); nunca se le pasan volcados completos de la base de datos. | M |
 | RF-COA-03 | Cada cifra que el Coach menciona procede de una herramienta; la respuesta muestra debajo «Datos usados» (métricas y fechas consultadas). | M |
 | RF-COA-04 | Responde en el idioma del usuario (es por defecto), con unidades y formatos de su configuración. | M |
 | RF-COA-05 | **Resumen matinal**: tras calcularse la recuperación, se genera una tarjeta breve (título, 2–3 frases, recomendación de carga objetivo y hora de acostarse) en formato estructurado (JSON validado contra esquema). | S |
 | RF-COA-06 | **Informe semanal** (y mensual en F3+) generado automáticamente con salida estructurada: resumen, 3 logros, 3 áreas de mejora, comparativa con la semana anterior. | S |
-| RF-COA-07 | Memoria explícita: objetivos, preferencias y restricciones del usuario se guardan como datos estructurados en nuestra BD (editables y borrables por el usuario en Ajustes), y se inyectan en el contexto. No se depende de memoria implícita del modelo. | S |
+| RF-COA-07 | Memoria explícita: objetivos, preferencias y restricciones del usuario se guardan como datos estructurados en nuestra BD (editables y borrables en Ajustes), y se inyectan en el contexto. No se depende de memoria implícita del modelo. | S |
 | RF-COA-08 | Preguntas sugeridas contextuales (p. ej. en rojo: «¿Qué hago hoy con recuperación baja?»). | C |
-| RF-COA-09 | El usuario puede valorar cada respuesta (👍/👎 + motivo) para la mejora del *prompt* y la suite de evaluación. | S |
+| RF-COA-09 | Puedes valorar cada respuesta (👍/👎 + motivo) para mejorar el *prompt* y la suite de evaluación. | C |
 | RF-COA-10 | Acciones con confirmación: el Coach puede **proponer** guardar un objetivo o un plan; se guarda solo si el usuario pulsa «Guardar». | C |
-| RF-COA-11 | Etiqueta permanente «Respuesta generada por IA» y enlace a «Cómo funciona el Coach» (RL-30). | M |
+| RF-COA-11 | Etiqueta «Respuesta generada por IA» y enlace a «Cómo funciona el Coach». | S |
 | RF-COA-12 | Protocolo de seguridad (§6): detección de urgencias, derivación a profesionales, negativa a diagnosticar. | M |
-| RF-COA-13 | Límite diario de mensajes y *tokens* por usuario, configurable (RNF-ESC-04); al alcanzarlo, mensaje claro. | M |
-| RF-COA-14 | El usuario puede borrar un hilo o todo su historial del Coach; el borrado es efectivo en ≤ 24 h en nuestros sistemas. | M |
-| RF-COA-15 | El Coach se puede desactivar por completo (y no se envía ningún dato al proveedor de IA si está desactivado o sin consentimiento). | M |
+| RF-COA-13 | Límite diario de preguntas y de gasto estimado, configurable (RNF-COS-02); al alcanzarlo, mensaje claro. | M |
+| RF-COA-14 | Puedes borrar un hilo o todo el historial del Coach del iPhone al instante. | M |
+| RF-COA-15 | El Coach está desactivado por defecto y se puede desactivar en cualquier momento; desactivado, no se envía ningún dato al proveedor de IA. | M |
 | RF-COA-16 | **Modo solo educativo**: el Coach responde sobre sueño, entrenamiento y recuperación en general **sin acceder a los datos del usuario** (sin herramientas). Alternativa al modo «personalizado con mis datos». | S |
 | RF-COA-17 | **Contexto de pantalla**: al abrir el Coach desde una pantalla (p. ej. detalle de Recuperación de un día) se le pasa esa fecha y métrica como contexto inicial. | S |
 | RF-COA-18 | **Revisión del día** (tarde-noche, opcional): resumen de carga y estrés del día y franja recomendada para acostarse. | C |
 | RF-COA-19 | Memoria por categorías (objetivos, estilo de vida, preferencias, eventos, historial de salud declarado por el usuario) visible, editable y desactivable (RF-COA-07). | S |
 | RF-COA-20 | Consejos de *jet lag* al detectar un cambio de zona horaria (a partir de `settings.timeZone` de Google o del móvil). | C |
 
-## 3. Arquitectura
+## 3. Arquitectura (sin servidor)
 
 ```mermaid
 sequenceDiagram
-    participant App as App móvil
-    participant API as Backend /coach (SSE)
+    participant U as Tú
+    participant App as App (iPhone)
+    participant DB as SQLite local
     participant LLM as API de Claude
-    participant T as Ejecutor de herramientas
-    participant DB as PostgreSQL
 
-    App->>API: mensaje del usuario (+ id de hilo)
-    API->>API: filtro previo de urgencias / límites / consentimiento
-    API->>LLM: system + herramientas (cacheados) + historial + mensaje
-    LLM-->>API: tool_use (p. ej. get_daily_metrics)
-    API->>T: ejecutar con user_id de la sesión (no del modelo)
-    T->>DB: consulta de solo lectura
-    DB-->>T: filas
-    T-->>API: resultado (JSON compacto, seudonimizado)
-    API->>LLM: tool_result
-    LLM-->>API: texto en streaming
-    API->>API: filtro posterior (expresiones prohibidas RL-02)
-    API-->>App: streaming de la respuesta + «Datos usados»
+    U->>App: pregunta
+    App->>App: filtro previo de urgencias, límites y ajuste «Coach activado»
+    App->>LLM: system + herramientas (cacheados) + historial + pregunta (HTTPS, tu clave)
+    LLM-->>App: tool_use (p. ej. get_daily_metrics)
+    App->>DB: consulta de solo lectura
+    DB-->>App: filas
+    App->>LLM: tool_result (JSON compacto, sin identificadores)
+    LLM-->>App: respuesta en streaming
+    App->>App: filtro posterior (expresiones prohibidas, RL-02) y registro de coste
+    App-->>U: respuesta + «Datos usados»
 ```
 
-- La clave de la API de Anthropic **solo existe en el backend** (gestor de secretos). La app nunca llama a Anthropic directamente.
-- El `user_id` que usan las herramientas sale de la sesión autenticada, **nunca** de los argumentos generados por el modelo (evita que una inyección de *prompt* acceda a otros usuarios).
-- Implementación con el SDK oficial de Anthropic del lenguaje del backend (p. ej. `@anthropic-ai/sdk` en TypeScript), usando su *tool runner* o un bucle manual de herramientas.
+- **Opcional y de pago por uso**: el Coach viene desactivado. Para usarlo, creas una cuenta en la consola de Anthropic, pones un **límite de gasto** y pegas **tu clave de API** en Ajustes; se guarda en el Llavero del iPhone (RNF-SEG-02) y nunca en el código ni en el repositorio.
+- Las herramientas se ejecutan **en el propio iPhone** contra la BD local; solo viaja a Anthropic lo que el modelo pide para responder.
+- No hay SDK oficial de Anthropic para Swift: la app llama a la **Messages API por HTTPS** (`URLSession`, con *streaming* SSE) siguiendo la referencia HTTP oficial; el bucle de herramientas es propio (petición → `tool_use` → ejecutar → `tool_result` → repetir).
+- Sin el Coach, la app sigue ofreciendo recomendaciones e informes **deterministas y gratuitos** (módulo `Insights`).
 
 ## 4. Herramientas (todas de solo lectura salvo indicación)
 
@@ -90,7 +88,7 @@ Los resultados se devuelven en JSON compacto, redondeado y con fechas locales, y
 
 | Parámetro | Valor | Motivo |
 |---|---|---|
-| Modelo | `claude-opus-5` (configurable con `ANTHROPIC_MODEL`) | Modelo por defecto recomendado a 09/2026; contexto de 1M *tokens*, 128K de salida máx. Precio publicado: 5 $/MTok entrada, 25 $/MTok salida |
+| Modelo | `claude-opus-5` (configurable en Ajustes) | Modelo por defecto recomendado a 09/2026; contexto de 1M *tokens*, 128K de salida máx. Precio publicado: 5 $/MTok entrada, 25 $/MTok salida |
 | Razonamiento | `thinking: {type: "adaptive"}` | El modelo decide cuánto razonar según la pregunta |
 | Esfuerzo | `output_config.effort` configurable; inicio en `high` y ajustar por ruta (chat, resumen matinal, informe) con la suite de evaluación | Equilibrio calidad/coste medido, no supuesto |
 | *Streaming* | Sí en el chat | Latencia percibida (RNF-REN-07) |
@@ -98,7 +96,7 @@ Los resultados se devuelven en JSON compacto, redondeado y con fechas locales, y
 | Salida estructurada | `output_config.format` con esquema JSON para resumen matinal e informes | La app renderiza tarjetas sin *parsing* frágil |
 | *Prompt caching* | Prefijo estable: herramientas → *prompt* de sistema → perfil/objetivos; contenido variable (fecha, pregunta) después del último punto de caché | Reduce coste y latencia; verificar `usage.cache_read_input_tokens` > 0 |
 | Negativas del modelo | Comprobar `stop_reason` antes de leer el contenido; en la API de Anthropic activar el *fallback* del servidor (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) | Robustez ante negativas por clasificadores de seguridad |
-| Informes semanales | *Message Batches API* (50 % de coste, asíncrono) en la noche del domingo | No requieren inmediatez |
+| Informes semanales | *Message Batches API* (50 % de coste, asíncrono): se envía el domingo y se recoge al abrir la app | No requieren inmediatez |
 
 > Los IDs de modelo, precios y opciones de la API cambian con frecuencia: **verificar en la documentación oficial de Anthropic** al empezar F3 y actualizar esta tabla.
 
@@ -110,27 +108,26 @@ Los resultados se devuelven en JSON compacto, redondeado y con fechas locales, y
 4. **Filtro posterior**: detección de expresiones prohibidas (RL-02) ⇒ se regenera o se sustituye por un mensaje seguro, y se registra el caso (sin datos de salud) para revisión.
 5. **Evaluación continua**: suite de pruebas del doc. 13 §7 en CI.
 
-## 7. Privacidad y ubicación del procesamiento
+## 7. Privacidad
 
 | Aspecto | Requisito |
 |---|---|
-| Consentimiento | Sin consentimiento específico (RL-32) el Coach está desactivado y no se envía nada. En el modo solo educativo (RF-COA-16) no se envían datos de salud. |
-| Políticas de Google | Los datos obtenidos de la Google Health API (y sus derivados) solo se envían al proveedor de IA como parte de esta función visible para el usuario, nunca para entrenar modelos (RL-40, RL-48). |
-| Minimización | Solo se envían los resultados de las herramientas que el modelo pide; sin nombre, email, IDs de Google ni ubicación. El `user_id` interno se sustituye por un seudónimo por conversación. |
-| Retención en el proveedor | Configurar la organización de Anthropic con la retención mínima disponible; valorar un acuerdo de **retención cero (ZDR)**, disponible para `claude-opus-5` según la documentación de Anthropic. Confirmar en los términos vigentes que los datos de la API no se usan para entrenar. |
-| Región | La API de Anthropic permite fijar la geografía de inferencia (`inference_geo`) a `us` o `global`; **no ofrece una opción UE** a 09/2026. Si se requiere procesamiento en la UE (escenario B), usar Claude a través de **Google Cloud Vertex AI** en una región europea (comprobar la disponibilidad del modelo en esa región y que algunas funciones —*fallbacks* del servidor, Batches— no están disponibles allí). |
-| Transferencias | Documentar la transferencia internacional (RL-17) y firmar el DPA del proveedor (RL-16). |
+| Activación | El Coach está **desactivado** por defecto; al activarlo se explica qué datos se enviarán y a quién (Anthropic). Sin activarlo no sale ningún dato hacia la IA. En el modo solo educativo (RF-COA-16) no se envían datos de salud. |
+| Políticas de Google | Los datos de la Google Health API (y sus derivados) solo se envían al proveedor de IA como parte de esta función y nunca para entrenar modelos (RL-40, RL-48). |
+| Minimización | Solo los resultados de las herramientas que el modelo pide; sin nombre, email, identificadores de Google ni ubicación. |
+| Retención en el proveedor | Según los términos comerciales de Anthropic, los datos de la API no se usan para entrenar por defecto y se conservan un tiempo limitado; revisar la configuración de retención de tu organización en la consola. |
+| Región | La API de Anthropic permite fijar la geografía de inferencia a `us` o `global`; no hay opción UE a 09/2026. Para uso personal no es un requisito legal (doc. 12 §0). |
 
-## 8. Coste estimado (uso personal)
+## 8. Coste estimado (uso personal, pago por uso)
 
-Supuestos por turno de chat: *prompt* de sistema + herramientas ≈ 6 000 *tokens* cacheados; ≈ 4 000 *tokens* sin caché (historial, pregunta y resultados de herramientas); ≈ 800 *tokens* de respuesta + ≈ 1 200 de razonamiento (se facturan como salida). Precios de `claude-opus-5` publicados a 09/2026: 5 $/MTok entrada, 25 $/MTok salida, lectura de caché 0,50 $/MTok.
+Supuestos por pregunta: *prompt* de sistema + herramientas ≈ 6 000 *tokens* cacheados; ≈ 4 000 sin caché (historial, pregunta y resultados de herramientas); ≈ 800 de respuesta + ≈ 1 200 de razonamiento (se facturan como salida). Precios de `claude-opus-5` a 09/2026: 5 $/MTok entrada, 25 $/MTok salida, lectura de caché 0,50 $/MTok.
 
 | Uso | Estimación |
 |---|---|
-| 1 turno de chat | ≈ 0,07 $ (0,003 caché + 0,02 entrada + 0,05 salida) |
-| Uso moderado: 3 turnos/día | ≈ 6–7 $/mes |
-| Uso intensivo: 10 turnos/día | ≈ 21 $/mes |
-| Resumen matinal diario | ≈ 1,5 $/mes |
+| 1 pregunta | ≈ 0,07 $ |
+| Uso ligero: 1 pregunta/día | ≈ 2 $/mes |
+| Uso moderado: 3 preguntas/día | ≈ 6–7 $/mes |
+| Resumen matinal redactado por IA (opcional) | ≈ 1,5 $/mes |
 | Informe semanal por lotes (−50 %) | < 0,50 $/mes |
 
-Total orientativo: **8–25 $/mes** según el uso. El coste real se mide con `usage` de cada respuesta (RNF-OBS-02), se ajusta con el nivel de esfuerzo medido en la evaluación y se acota con RF-COA-13.
+Sin Coach, el coste es **0 €**. Con él, pagas solo lo que uses: la app muestra el gasto estimado del mes (a partir de `usage` de cada respuesta) y aplica el límite diario de RF-COA-13, además del límite de gasto que fijes en la consola de Anthropic (RNF-COS-02).
