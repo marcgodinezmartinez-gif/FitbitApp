@@ -90,7 +90,7 @@ Los nombres exactos de los campos de origen se fijan tras el *spike* de F0.
 | `behavior_impacts` | `question_id`, `effect`, `ci_low`, `ci_high`, `n_yes`, `n_no`, `computed_at` |
 | `reports` | `id`, `type` (`weekly`/`monthly`), `period_start`, `period_end`, `content` (JSON), `ai_content` (JSON, opcional) |
 | `goals` | `id`, `kind`, `target`, `period`, `created_at`, `active` (objetivos y plan semanal) |
-| `coach_threads` / `coach_messages` | `id`, `title`, `provider` (`anthropic`/`gemini`), `model`, `created_at` / `thread_id`, `role`, `content` (JSON con los bloques **tal como los devolvió el proveedor**, incluidos los de razonamiento, para reenviarlos sin cambios), `tool_calls` (JSON), `input_tokens`, `output_tokens`, `cache_read_tokens`, `cost_usd_est`, `rating`, `created_at` — un hilo pertenece a un único proveedor (RF-COA-22) |
+| `coach_threads` / `coach_messages` | `id`, `title`, `provider` (`anthropic`/`gemini`), `model`, `created_at` / `thread_id`, `role`, `model` (el que respondió, por si hubo *fallback*), `content` (JSON con los bloques **tal como los devolvió el proveedor**, incluidos los de razonamiento, para reenviarlos sin cambios), `tool_calls` (JSON), `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd_est`, `rating`, `created_at` — un hilo pertenece a un único proveedor y a un único modelo elegido (RF-COA-22) |
 | `coach_memory` | `category` (objetivos, estilo de vida, preferencias, eventos, salud declarada), `key`, `value`, `updated_at` |
 | `privacy_events` | `at`, `action` (vinculación, desvinculación, exportación, borrado, Coach activado/desactivado) |
 

@@ -83,5 +83,5 @@ Dependencias Swift previstas (licencia permisiva, a confirmar en F0): **GRDB** (
 | Google Cloud y Google Health API | 0 € |
 | Apple Developer Program (TestFlight) | 99 $/año (ya lo tienes) |
 | GitHub Actions | 0 € dentro del cupo gratuito (≈ 200 min/mes de macOS); si no llega, ver D-11 |
-| Coach IA | Pago por uso: con Gemini ≈ 0,35–0,70 $/mes y con Claude ≈ 2 $/mes haciendo una pregunta al día (doc. 06 §8) |
+| Coach IA | Pago por uso: con Gemini ≈ 0,5–1 $/mes y con Claude Opus 5.5 ≈ 2,7 $/mes haciendo una pregunta al día (doc. 06 §8) |
 | **Coste nuevo obligatorio** | **0 €/mes** |

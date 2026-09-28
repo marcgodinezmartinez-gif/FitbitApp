@@ -44,7 +44,7 @@ Equivalente funcional de «WHOOP Coach»: un asistente que conoce tus datos, res
 | RF-COA-19 | Memoria por categorías (objetivos, estilo de vida, preferencias, eventos, salud declarada) visible, editable y desactivable. | S |
 | RF-COA-20 | Consejos de *jet lag* al detectar un cambio de zona horaria. | C |
 | RF-COA-21 | **Selector de proveedor y modelo** (Claude o Gemini) con una clave por proveedor guardada en el Llavero, botón «Probar conexión» y coste estimado por pregunta de cada opción. | M |
-| RF-COA-22 | Misma experiencia con ambos proveedores: mismas herramientas, mismas salvaguardas y mismo formato de resumen e informe. Cambiar de proveedor abre un hilo nuevo (el razonamiento interno de un proveedor no es reutilizable en el otro). | M |
+| RF-COA-22 | Misma experiencia con ambos proveedores: mismas herramientas, mismas salvaguardas y mismo formato de resumen e informe. Cambiar de proveedor o de modelo abre un hilo nuevo (el razonamiento guardado está ligado al modelo que lo generó y, en general, otro modelo no puede reutilizarlo). | M |
 | RF-COA-23 | Con **Gemini**, la app exige confirmar que la clave pertenece a un proyecto con **facturación activada** (nivel de pago), porque en el nivel gratuito Google puede usar y revisar el contenido (§7). | M |
 
 ## 3. Arquitectura (sin servidor, multiproveedor)
@@ -63,7 +63,7 @@ flowchart LR
 - `CoachEngine` es independiente del proveedor: historial, filtro de urgencias, límites, bucle de herramientas (petición → llamada a herramienta → ejecutar en local → devolver resultado → repetir) y filtro posterior.
 - `LLMProvider` es un protocolo con dos implementaciones que traducen el mismo contrato a cada API: herramientas (JSON Schema común), llamadas y resultados de herramientas, *streaming* por SSE, salida estructurada, uso de *tokens* y errores.
 - Ambas APIs se llaman por **HTTPS directamente desde el iPhone** con `URLSession` (no hay SDK oficial de Anthropic para Swift; para Gemini se evita añadir Firebase): menos dependencias y control total de lo que se envía.
-- **Historial solo-anexado**: nunca se reescriben mensajes anteriores de un hilo; los bloques de razonamiento que devuelva cada proveedor se guardan y se reenvían **sin modificar** (en Claude, los bloques de *thinking*; en Gemini 3, los pasos de pensamiento con su firma, necesarios en conversaciones con herramientas).
+- **Historial solo-anexado**: nunca se reescriben mensajes anteriores de un hilo; los bloques de razonamiento que devuelva cada proveedor se guardan y se reenvían **sin modificar** (en Claude, los bloques de *thinking*, aunque lleguen vacíos; en Gemini 3, los pasos de pensamiento con su firma, necesarios en conversaciones con herramientas). Única excepción: los turnos que responde un modelo de reserva de Claude (§5).
 - Sin el Coach activado, `Insights` genera recomendaciones e informes con plantillas (gratis).
 
 ## 4. Herramientas (todas de solo lectura salvo indicación)
@@ -86,18 +86,20 @@ Resultados en JSON compacto, redondeado, con fechas locales y truncado a un máx
 
 | Aspecto | Claude (Anthropic) | Gemini (Google) |
 |---|---|---|
-| Modelo por defecto | `claude-opus-5` (recomendado a 09/2026; 1M de contexto) | `gemini-3.8-flash` (modelo estable recomendado a 09/2026) |
-| Alternativas en Ajustes | Otros modelos Claude disponibles para tu clave | `gemini-3.1-pro-preview` (en *preview*) u otros disponibles |
-| Precio publicado (por millón de *tokens*) | 5 $ entrada · 25 $ salida · 0,50 $ lectura de caché | 0,75 $ entrada · 3,75 $ salida · 0,075 $ caché hasta el 31/12/2026; el doble desde el 01/01/2027 |
+| Modelo por defecto | `claude-opus-5-5` (Claude Opus 5.5, publicado el 22/09/2026; punto de partida que recomienda Anthropic; 1M de contexto) | `gemini-3.8-flash` (modelo estable recomendado a 09/2026) |
+| Alternativas en Ajustes | `claude-sonnet-5` (la mitad de precio) u otros modelos Claude disponibles para tu clave | `gemini-3.1-pro-preview` (en *preview*) u otros disponibles |
+| Precio publicado (por millón de *tokens*) | 4 $ entrada · 20 $ salida · 5 $ escritura en caché (5 min) · 0,20 $ lectura de caché | 0,75 $ entrada · 3,75 $ salida · 0,075 $ caché hasta el 31/12/2026; el doble desde el 01/01/2027 |
 | API | Messages API (`POST /v1/messages`), cabecera `x-api-key` | API de Gemini en `generativelanguage.googleapis.com`, cabecera `x-goog-api-key` |
-| Razonamiento | `thinking: {type: "adaptive"}` + `output_config.effort` (empezar en `high` y ajustar con la evaluación) | Nivel de razonamiento configurable (`thinking_level`), ajustado con la evaluación |
-| Herramientas | `tools` con `input_schema` | Declaraciones de funciones con `parameters` |
-| Salida estructurada | `output_config.format` con esquema JSON | Formato de respuesta JSON con esquema |
+| Razonamiento | Adaptativo y **siempre activo**: no se envía `thinking` (o se envía `{type: "adaptive"}`; `disabled` da error 400). Profundidad y coste se regulan solo con `output_config.effort` (`low` … `max`; por defecto `medium`): empezar en `medium` y fijarlo con la evaluación | Nivel de razonamiento configurable (`thinking_level`), ajustado con la evaluación |
+| Lectura de la respuesta | Empieza con bloques de razonamiento (vacíos por defecto): leer el texto **por `type`**, nunca por posición, y reenviar esos bloques intactos (§3) | Reenviar los pasos de pensamiento con su firma (§3) |
+| Herramientas | `tools` con `input_schema`; `tool_choice` solo `auto` o `none` (forzar una herramienta da error 400) | Declaraciones de funciones con `parameters` |
+| Salida estructurada | `output_config.format` con esquema JSON (el *prefill* da error 400) | Formato de respuesta JSON con esquema |
+| Parámetros de muestreo | No enviar `temperature`, `top_p` ni `top_k` (valores distintos de los predeterminados dan error 400) | Dejar los valores por defecto |
 | Caché de *prompt* | Prefijo estable (herramientas → sistema → perfil) antes del último punto de caché; verificar `cache_read_input_tokens` > 0 | Caché del prefijo común (implícita, o explícita si compensa) |
-| Negativas y errores | Comprobar `stop_reason` antes de leer el contenido; activar el *fallback* del servidor (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) | Comprobar el motivo de finalización y los bloqueos de seguridad antes de leer el contenido |
+| Negativas y errores | Comprobar `stop_reason` antes de leer el contenido (`"refusal"` trae `stop_details.category`; la salida parcial se descarta). *Fallback* del servidor activado (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): si responde otro modelo, el hilo sigue con él, la etiqueta de RF-COA-11 lo muestra y, al reenviar ese turno, se conserva el bloque `fallback` en su sitio y se descartan el razonamiento y los `tool_use` anteriores a él | Comprobar el motivo de finalización y los bloqueos de seguridad antes de leer el contenido |
 | Informes semanales | *Message Batches* (−50 %), recogidos al abrir la app | Llamada normal |
 
-> Los IDs de modelo, precios y detalles de ambas APIs cambian a menudo (Gemini ha estrenado en 2026 una nueva *Interactions API*): **verificar la documentación oficial al empezar F3** y actualizar esta tabla. La suite de evaluación (doc. 13 §7) decide qué proveedor y modelo quedan por defecto.
+> Los IDs de modelo, precios y detalles de ambas APIs cambian a menudo (Claude Opus 5.5 llegó el 22/09/2026 con cambios incompatibles respecto a Opus 5; Gemini ha estrenado en 2026 una nueva *Interactions API*): **verificar la documentación oficial al empezar F3** y actualizar esta tabla. La suite de evaluación (doc. 13 §7) decide qué proveedor, modelo y nivel de esfuerzo quedan por defecto.
 
 ## 6. Seguridad del contenido
 
@@ -120,13 +122,13 @@ Resultados en JSON compacto, redondeado, con fechas locales y truncado a un máx
 
 ## 8. Coste estimado (pago por uso)
 
-Supuestos por pregunta: ≈ 6 000 *tokens* cacheados (sistema + herramientas), ≈ 4 000 sin caché (historial, pregunta, resultados de herramientas) y ≈ 2 000 de salida (respuesta + razonamiento, que se factura como salida). Precios del §5.
+Supuestos por pregunta (≈ 3 llamadas en el bucle de herramientas): un prefijo fijo de ≈ 6 000 *tokens* (sistema + herramientas + perfil) que la 1.ª llamada escribe en la caché (en Claude, a 1,25 × el precio de entrada; en Gemini se paga completo) y las otras dos leen de ella; ≈ 4 000 *tokens* de entrada sin caché en total (historial, pregunta, resultados de herramientas) y ≈ 2 000 de salida (respuesta, llamadas a herramientas y razonamiento, que se factura como salida). Resumen matinal: 2 llamadas, ≈ 3 000 sin caché y ≈ 1 200 de salida. Claude con esfuerzo `medium`; precios del §5. Son cifras orientativas: el gasto real se mide en cada respuesta.
 
-| Uso | Claude (`claude-opus-5`) | Gemini (`gemini-3.8-flash`, precio 2026 → 2027) |
+| Uso | Claude (`claude-opus-5-5`) | Gemini (`gemini-3.8-flash`, precio 2026 → 2027) |
 |---|---|---|
-| 1 pregunta | ≈ 0,07 $ | ≈ 0,011 $ → 0,022 $ |
-| 1 pregunta al día | ≈ 2 $/mes | ≈ 0,35 $ → 0,70 $/mes |
-| 3 preguntas al día | ≈ 6–7 $/mes | ≈ 1 $ → 2 $/mes |
-| Resumen matinal diario | ≈ 1,5 $/mes | ≈ 0,25 $ → 0,50 $/mes |
+| 1 pregunta | ≈ 0,09 $ | ≈ 0,016 $ → 0,032 $ |
+| 1 pregunta al día | ≈ 2,7 $/mes | ≈ 0,5 $ → 1 $/mes |
+| 3 preguntas al día | ≈ 8 $/mes | ≈ 1,5 $ → 3 $/mes |
+| Resumen matinal diario | ≈ 2 $/mes | ≈ 0,35 $ → 0,70 $/mes |
 
-Sin Coach, 0 €. La app muestra el gasto estimado del mes (a partir del uso de *tokens* de cada respuesta) y aplica el límite diario (RF-COA-13), además del límite que pongas en la consola de cada proveedor (RNF-COS-02).
+Con `claude-sonnet-5` el coste de Claude baja aproximadamente a la mitad (≈ 1,4 $/mes con una pregunta al día). Sin Coach, 0 €. La app muestra el gasto estimado del mes (a partir del uso de *tokens* de cada respuesta) y aplica el límite diario (RF-COA-13), además del límite que pongas en la consola de cada proveedor (RNF-COS-02).

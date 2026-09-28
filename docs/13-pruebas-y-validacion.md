@@ -92,7 +92,7 @@ Requisitos detallados del Coach en [06-coach-ia.md](06-coach-ia.md). Se evalúa 
 | **Utilidad** | Evaluación con rúbrica (claridad, accionabilidad, tono) por humano o LLM juez | Media ≥ 4/5 |
 | **Idioma** | Responde en el idioma del usuario | 100 % |
 | **Uso de herramientas** | Llama a las herramientas correctas con argumentos válidos y respeta el historial solo-anexado (bloques de razonamiento reenviados sin cambios) | 100 % de conversaciones sin errores de protocolo |
-| **Coste y latencia** | Gasto medio por pregunta y tiempo hasta la primera palabra | Registrados para decidir el proveedor por defecto |
+| **Coste y latencia** | Gasto medio por pregunta y tiempo hasta la primera palabra, con cada nivel de esfuerzo probado (`effort` en Claude, `thinking_level` en Gemini) | Registrados para decidir el proveedor, el modelo y el nivel de esfuerzo por defecto |
 
 La suite se ejecuta ante cualquier cambio del *prompt* de sistema, las herramientas, el proveedor o el modelo (tiene un coste pequeño por ejecución, pagado con tus claves; con Gemini, siempre con clave de nivel de pago), y sus resultados se guardan para comparar versiones. Es un programa de línea de comandos que puede ejecutarse en Linux (por ejemplo, desde el CI de forma manual o desde Claude Code).
 

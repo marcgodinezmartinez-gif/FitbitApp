@@ -13,7 +13,7 @@ Especificación completa de requisitos para construir una **app personal para iP
 4. **Sin servidor y sin coste mensual**: base de datos local cifrada por iOS, sincronización al abrir la app y en segundo plano, notificaciones locales.
 5. **App nativa SwiftUI (iOS 26+)** con Liquid Glass, anillos animados, Swift Charts, *widgets* de inicio y de pantalla de bloqueo y Live Activities.
 6. **Sin Mac**: el proyecto se genera con XcodeGen y **GitHub Actions** compila en macOS en la nube (Xcode 26), ejecuta los tests, adjunta **capturas de cada pantalla** a los PR para revisar el diseño y **sube la app a TestFlight**, desde donde la instalas en tu iPhone.
-7. **Coach IA con Claude o Gemini** y **tu propia clave** (pago por uso): con una pregunta al día, ≈ 2 $/mes con Claude o ≈ 0,35–0,70 $/mes con Gemini. Con Gemini, **solo clave de nivel de pago** (en el gratuito Google puede usar y revisar tus datos).
+7. **Coach IA con Claude o Gemini** y **tu propia clave** (pago por uso): con una pregunta al día, ≈ 2,7 $/mes con Claude Opus 5.5 o ≈ 0,5–1 $/mes con Gemini. Con Gemini, **solo clave de nivel de pago** (en el gratuito Google puede usar y revisar tus datos).
 8. **Para uso personal** apenas aplica normativa (RGPD, producto sanitario, tiendas); sí las **condiciones de la Google Health API** y del proveedor de IA, que se cumplen con poco esfuerzo.
 9. Plan: **F0** preparación y tubería TestFlight (2 sem) → **F1** MVP con Hoy/Sueño/Recuperación/Carga (6) → **F2** paridad con WHOOP y *widgets* (6) → **F3** hábitos, edad fisiológica y Coach (6).
 10. **Coste nuevo obligatorio: 0 €/mes** (el Apple Developer Program ya lo tienes; ≈ 200 min/mes de compilación macOS gratis en GitHub).
