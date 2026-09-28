@@ -1,6 +1,6 @@
 # 08 · Arquitectura técnica
 
-Decisiones del propietario que la condicionan: **uso personal**, **solo iPhone**, **sin pagar Google Health Premium ni cuotas**, y **estética muy superior** a la de la app oficial. De ahí sale una arquitectura **nativa y *local-first***: una app SwiftUI que habla directamente con la Google Health API y lo calcula todo en el propio iPhone. **Sin servidor y sin coste mensual.**
+Decisiones del propietario que la condicionan: **uso personal**, **solo iPhone**, **sin pagar Google Health Premium**, **estética muy superior** a la de la app oficial, **sin Mac** pero **con Apple Developer Program** (TestFlight) y **Coach IA con Claude o Gemini**. De ahí sale una arquitectura **nativa y *local-first***: una app SwiftUI que habla directamente con la Google Health API y lo calcula todo en el propio iPhone, compilada en la nube (GitHub Actions) e instalada con TestFlight. **Sin servidor y sin coste mensual obligatorio.**
 
 ## 1. Visión general
 
@@ -23,7 +23,7 @@ flowchart LR
     APP <--> DB
     APP <--> KC
     DB --> WID
-    APP -. "opcional: preguntas al Coach" .-> LLM["API de Claude"]
+    APP -. "opcional: preguntas al Coach" .-> LLM["API de Claude<br/>o de Gemini"]
     AIR -. "opcional: FC en vivo<br/>(perfil Bluetooth estándar)" .-> APP
 ```
 
@@ -47,9 +47,10 @@ Cada decisión se documentará como ADR en `docs/adr/NNN-titulo.md` (RNF-MAN-05)
 | 005 | **SQLite con GRDB** | SwiftData / Core Data | Control fino de esquema, migraciones e inserciones masivas de series temporales; consultas SQL para tendencias |
 | 006 | **OAuth con la librería oficial de Google para iOS** (Google Sign-In con ámbitos adicionales) o **AppAuth-iOS**; *tokens* en el Llavero | Implementación propia | Google solo admite sus librerías OAuth y el navegador del sistema (doc. 10 §4); se valida cuál funciona mejor con ámbitos restringidos en el *spike* |
 | 007 | **Sincronización al abrir, manual y en segundo plano** (`BGAppRefreshTask` / `BGProcessingTask`) | *Webhooks* (requieren servidor) | Suficiente para uso personal; sin coste |
-| 008 | **Notificaciones locales** (`UserNotifications`) | *Push* remotas (APNs) | Las *push* requieren servidor y cuenta de pago de Apple |
-| 009 | **Coach IA opcional** con la API de Claude llamada por HTTPS desde la app, con **tu propia clave** guardada en el Llavero; herramientas que consultan la BD local | Sin Coach; servidor intermedio | Sin servidor y sin cuota: pagas solo lo que uses (céntimos por pregunta, doc. 06 §8); no hay SDK oficial de Anthropic para Swift, así que se usa la API HTTP directamente |
-| 010 | **Instalación personal** sin App Store (§6) | Publicación en App Store | Uso personal (RL: no aplican las políticas de tiendas) |
+| 008 | **Notificaciones locales** (`UserNotifications`) | *Push* remotas (APNs) | Las *push* requieren un servidor que las envíe |
+| 009 | **Coach IA multiproveedor (Claude o Gemini)** llamado por HTTPS desde la app con **tu propia clave** en el Llavero, detrás de un protocolo `LLMProvider`; herramientas que consultan la BD local | Un solo proveedor; SDK de terceros; servidor intermedio | Libertad para usar la clave que tengas; sin servidor ni cuota; no hay SDK oficial de Anthropic para Swift y se evita añadir Firebase para Gemini (doc. 06 §3) |
+| 010 | **Compilación en GitHub Actions (`macos-26`, Xcode 26) y distribución por TestFlight** | Mac propio; Xcode Cloud; instalación con cuenta gratuita | No hay Mac; la cuenta de Apple Developer permite TestFlight: sin caducidad semanal y con *builds* válidas 90 días (§6) |
+| 011 | **Proyecto de Xcode generado con XcodeGen** desde `project.yml` | Editar el `.xcodeproj` a mano | Sin Mac no se puede usar el editor de proyectos de Xcode; un YAML legible se edita en cualquier editor y el proyecto se genera en CI |
 
 ## 3. Módulos
 
@@ -63,7 +64,7 @@ Packages/
 ├── Store/               GRDB: esquema (doc. 09), migraciones, repositorios
 ├── Sync/                motor de sincronización y recálculo; tareas en segundo plano
 ├── Insights/            textos y recomendaciones deterministas (plantillas), informes
-├── Coach/               opcional: bucle de herramientas con la API de Claude
+├── Coach/               opcional: CoachEngine + LLMProvider (Claude, Gemini)
 └── HeartRateBLE/        opcional: FC en vivo por Bluetooth (CoreBluetooth)
 Widgets (extensión)      WidgetKit (inicio, bloqueo, StandBy) + Live Activity/Dynamic Island (ActivityKit)
 ```
@@ -118,26 +119,47 @@ La API no tiene *feed* de cambios, así que se re-consultan ventanas recientes; 
 
 ```
 FitbitApp/
-├── project.yml            # XcodeGen o Tuist (proyecto reproducible y fácil de revisar en Git)
+├── project.yml            # XcodeGen: definición del proyecto (el .xcodeproj se genera en CI y no se versiona)
 ├── App/                   # Target iOS
 ├── Widgets/               # Extensión WidgetKit + Live Activity
 ├── Packages/              # MetricsKit, HealthAPI, Store, Sync, Insights, Coach, HeartRateBLE, DesignSystem
-├── Config/                # Secrets.example.xcconfig (sin secretos reales)
-├── Tests/                 # Tests de UI y snapshots
+├── Config/                # Secrets.example.xcconfig (en CI, Secrets.xcconfig se genera desde los secretos de GitHub)
+├── Tests/                 # Tests de UI e instantáneas
+├── .github/workflows/     # ci-linux.yml (tests de paquetes) · ios.yml (build, instantáneas y TestFlight)
 └── docs/                  # Esta especificación + ADR
 ```
 
-Herramientas: Xcode 26+, Swift 6 (concurrencia estricta), Swift Testing/XCTest, SwiftLint + SwiftFormat, GitHub Actions (tests de los paquetes en Linux y macOS; *build* de la app en macOS opcional).
+Herramientas: Swift 6 (concurrencia estricta), XcodeGen, Swift Testing/XCTest, swift-snapshot-testing, SwiftLint + SwiftFormat, GitHub Actions. Para editar: cualquier ordenador con VS Code/Cursor y la extensión de Swift, o Claude Code.
 
-## 6. Compilación e instalación en tu iPhone (sin App Store)
+## 6. Compilación, pruebas e instalación sin Mac (GitHub Actions + TestFlight)
 
-| Opción | Coste | Qué implica |
+```mermaid
+flowchart LR
+    DEV["Editas el código<br/>(cualquier ordenador<br/>o Claude Code)"] --> GH["GitHub"]
+    GH --> L["CI Linux · cada push<br/>tests de MetricsKit y HealthAPI"]
+    GH --> M["CI macOS (macos-26, Xcode 26)<br/>XcodeGen · build · tests ·<br/>capturas de instantáneas"]
+    M --> ART["Capturas de pantalla<br/>adjuntas al PR"]
+    M -- "merge a main<br/>o lanzamiento manual" --> TF["Firma en la nube<br/>+ subida a TestFlight"]
+    TF --> IPH["App TestFlight<br/>en tu iPhone"]
+```
+
+**Tuberías**
+
+1. **Linux, en cada *push*** (barato y rápido): `swift build` + `swift test` de los paquetes puros (`MetricsKit` y la lógica de `HealthAPI`). También se pueden ejecutar dentro de una sesión de Claude Code.
+2. **macOS (`macos-26`, Xcode 26)** en los PR que tocan la interfaz y en `main`: genera el proyecto con XcodeGen, compila, ejecuta los tests (unitarios, UI e instantáneas en el simulador) y **adjunta las capturas de pantalla** como artefactos del PR. Así se revisa el diseño desde el navegador o el móvil, en lugar de las vistas previas de Xcode.
+3. **TestFlight** (al hacer *merge* a `main` o a mano): archivo firmado en la nube con una **clave de API de App Store Connect** (firma gestionada por Xcode desde la línea de comandos) y subida a TestFlight; alternativa: fastlane [verificar el método en F0]. El número de *build* sale del número de ejecución.
+4. **Instalación**: tú eres probador interno de tu propia app ⇒ sin revisión de Apple; la *build* aparece en la app TestFlight minutos después de procesarse. Cada *build* dura 90 días.
+5. **Diagnóstico sin Mac**: informes de fallos y capturas enviadas desde TestFlight, métricas de rendimiento de MetricKit en el propio iPhone y registros locales exportables.
+
+**Configuración inicial (todo en la web, sin Mac)**: identificador de la app y capacidades (App Groups para los *widgets*, HealthKit si se usa, AlarmKit [verificar requisitos]) en *Certificates, Identifiers & Profiles*; ficha de la app en App Store Connect; tú como probador interno; clave de API de App Store Connect con el rol mínimo que permita firmar y subir [verificar si la firma en la nube exige rol Admin]; secretos en GitHub Actions (doc. 15 §4).
+
+**Minutos de CI** (el repositorio es **privado**): el plan gratuito de GitHub incluye 2 000 minutos al mes y los de macOS cuentan ×10, es decir, **≈ 200 minutos de macOS** (unas 10–15 compilaciones completas). Reglas: todo lo posible en Linux; macOS solo para PR de interfaz y `main`; caché de paquetes. Si no llega:
+
+| Opción | Coste | Nota |
 |---|---|---|
-| **A. Mac + Xcode + Apple ID gratuito** | 0 € | Instalas desde Xcode por cable o Wi-Fi. Con cuenta gratuita la app **caduca a los 7 días** y hay que reinstalarla (un clic en Xcode); límite de 3 apps propias; algunas capacidades no están disponibles en cuentas gratuitas [verificar *App Groups* para *widgets*] |
-| **B. Mac + Apple Developer Program** | 99 $/año | Sin caducidad semanal (perfiles de 1 año o TestFlight), todas las capacidades |
-| **C. Sin Mac** | 0 € (o B) | Se compila en GitHub Actions (macOS) un IPA sin firmar y se instala con **SideStore** usando tu Apple ID gratuito, que re-firma la app cada 7 días desde el propio iPhone [verificar configuración]; los tests de `MetricsKit` sí se pueden ejecutar en Linux |
-
-Recomendación: empezar con **A** (o C si no tienes Mac) y pasar a **B** solo si la reinstalación semanal resulta molesta. Aun así, B cuesta menos que Premium de Google y no depende de nadie.
+| Hacer público el repositorio | 0 € | Minutos ilimitados en los *runners* estándar; el repositorio no contiene datos personales (`.gitignore`), pero el código sería visible |
+| GitHub Pro o minutos de pago | ~4 $/mes o por minuto | Más minutos incluidos |
+| Xcode Cloud | Incluido (25 h/mes con el Apple Developer Program) | El primer flujo se crea desde Xcode: necesitarías un Mac una vez (p. ej. alquilado por horas) [verificar] |
 
 ## 7. Si algún día se quisiera publicar (fuera de alcance)
 

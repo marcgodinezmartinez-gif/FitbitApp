@@ -1,9 +1,9 @@
 # FitbitApp — tu «WHOOP» gratis para la Google Fitbit Air, en tu iPhone
 
-Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes y un Coach IA opcional— **sin pagar Google Health Premium ni ninguna cuota**, y con un diseño muy superior al de la app oficial.
+Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes y un **Coach IA con Claude o Gemini**— **sin pagar Google Health Premium ni ninguna cuota nueva**, y con un diseño muy superior al de la app oficial.
 
 > Estado: **requisitos (fase F0)** — aún no hay código. Información verificada a 28/09/2026.
-> Decisiones tomadas: uso **solo personal**, **solo iPhone**, **gratis**, **estética como prioridad**.
+> Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program) y **Coach IA con Claude o Gemini**.
 
 ## Resumen en 10 puntos
 
@@ -12,11 +12,11 @@ Especificación completa de requisitos para construir una **app personal para iP
 3. **Todas las puntuaciones se calculan en el iPhone** con algoritmos abiertos basados en literatura científica verificada: **Recuperación 0–100 %**, **Carga 0–21**, **Sueño** (necesidad, suficiencia, eficiencia, constancia, deuda, planificador) y **Estrés 0–3**.
 4. **Sin servidor y sin coste mensual**: base de datos local cifrada por iOS, sincronización al abrir la app y en segundo plano, notificaciones locales.
 5. **App nativa SwiftUI (iOS 26+)** con Liquid Glass, anillos animados, Swift Charts, *widgets* de inicio y de pantalla de bloqueo y Live Activities.
-6. **Coach IA opcional** con la API de Claude y **tu propia clave**: céntimos por pregunta (~2 $/mes con una al día); sin él, recomendaciones automáticas gratuitas.
-7. **Instalación sin App Store**: gratis con tu Apple ID (reinstalar cada 7 días) o 99 $/año si prefieres comodidad.
-8. **Para uso personal** apenas aplica normativa (RGPD, producto sanitario, tiendas); sí las **condiciones de la Google Health API**, que se cumplen con poco esfuerzo.
-9. Plan: **F0** preparación (2 sem) → **F1** MVP con Hoy/Sueño/Recuperación/Carga (6) → **F2** paridad con WHOOP y *widgets* (6) → **F3** hábitos, edad fisiológica y Coach (6).
-10. **Coste obligatorio: 0 €/mes.**
+6. **Sin Mac**: el proyecto se genera con XcodeGen y **GitHub Actions** compila en macOS en la nube (Xcode 26), ejecuta los tests, adjunta **capturas de cada pantalla** a los PR para revisar el diseño y **sube la app a TestFlight**, desde donde la instalas en tu iPhone.
+7. **Coach IA con Claude o Gemini** y **tu propia clave** (pago por uso): con una pregunta al día, ≈ 2 $/mes con Claude o ≈ 0,35–0,70 $/mes con Gemini. Con Gemini, **solo clave de nivel de pago** (en el gratuito Google puede usar y revisar tus datos).
+8. **Para uso personal** apenas aplica normativa (RGPD, producto sanitario, tiendas); sí las **condiciones de la Google Health API** y del proveedor de IA, que se cumplen con poco esfuerzo.
+9. Plan: **F0** preparación y tubería TestFlight (2 sem) → **F1** MVP con Hoy/Sueño/Recuperación/Carga (6) → **F2** paridad con WHOOP y *widgets* (6) → **F3** hábitos, edad fisiológica y Coach (6).
+10. **Coste nuevo obligatorio: 0 €/mes** (el Apple Developer Program ya lo tienes; ≈ 200 min/mes de compilación macOS gratis en GitHub).
 
 ## Documentos
 
@@ -43,17 +43,18 @@ Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.
 
 ## Qué necesitas para empezar (F0)
 
-1. Fitbit Air emparejada con la app **Google Health** y llevándola día y noche.
-2. iPhone con **iOS 26** o posterior y, a ser posible, un **Mac con Xcode** (sin Mac también se puede, ver [doc. 08 §6](docs/08-arquitectura-tecnica.md#6-compilación-e-instalación-en-tu-iphone-sin-app-store)).
-3. Proyecto gratuito de **Google Cloud** con la Google Health API y un cliente OAuth de tipo iOS ([doc. 10 §2](docs/10-integracion-google-health-api.md#2-alta-del-proyecto-f0-gratis)).
-4. Una página de privacidad sencilla (GitHub Pages, gratis).
+1. Fitbit Air emparejada con la app **Google Health** y llevándola día y noche; iPhone con **iOS 26** o posterior y la app **TestFlight**.
+2. En tu cuenta de **Apple Developer**: App ID, ficha en App Store Connect, tú como probador interno y una clave de API para el CI.
+3. **Tubería sin Mac** en GitHub Actions: un *merge* a `main` genera una *build* en TestFlight ([doc. 08 §6](docs/08-arquitectura-tecnica.md#6-compilación-pruebas-e-instalación-sin-mac-github-actions--testflight)).
+4. Proyecto gratuito de **Google Cloud** con la Google Health API y un cliente OAuth de tipo iOS ([doc. 10 §2](docs/10-integracion-google-health-api.md#2-alta-del-proyecto-f0-gratis)), y una página de privacidad sencilla (GitHub Pages).
 5. Hacer el ***spike* de datos** con tu cuenta (hito H0) antes de construir nada más.
+6. Para F3: clave de **Claude** o de **Gemini** (esta, con facturación activada) con límite de gasto.
 
 Lista completa en [docs/15-entorno-y-prerrequisitos.md](docs/15-entorno-y-prerrequisitos.md).
 
 ## Decisiones que aún debes confirmar
 
-Ver [doc. 01 §8](docs/01-vision-y-alcance.md#8-decisiones-abiertas-para-el-propietario): nombre de la app, deportes principales, modo de la app en Google Cloud, **si tienes Mac**, instalación gratuita o de pago y si quieres el Coach IA.
+Ver [doc. 01 §8](docs/01-vision-y-alcance.md#8-decisiones-abiertas-para-el-propietario): nombre de la app, deportes principales, modo de la app en Google Cloud, qué hacer si se agotan los minutos gratuitos de compilación y el proveedor por defecto del Coach (lo decidirá la evaluación).
 
 ## Convenciones
 

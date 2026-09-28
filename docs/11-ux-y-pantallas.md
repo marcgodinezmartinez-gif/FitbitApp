@@ -56,7 +56,8 @@ flowchart TB
     DIA --> IMP["Impacto de hábitos (F3)"]
     PER --> CON["Conectado a Google Health · última sincronización · Desconectar"]
     PER --> AJU["Ajustes: unidades, avisos, zonas de FC, Face ID"]
-    PER --> PRI["Privacidad: Coach IA, exportar, borrar todo"]
+    PER --> CIA["Coach IA: proveedor (Claude/Gemini), clave, modelo, límite de gasto"]
+    PER --> PRI["Privacidad: exportar, borrar todo"]
     PER --> MET["Cómo calculamos"]
 ```
 
@@ -112,7 +113,8 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 | **Plan semanal** | Objetivos, progreso, revisión del viernes | F3 |
 | **Diario** | Preguntas rápidas de ayer (sí/no, cantidad, 1–5) + autoevaluación | F2 |
 | **Impacto de hábitos** | Efecto de cada hábito en tu recuperación (± puntos, IC, días) | F3 |
-| **Coach** | Chat en *streaming*, preguntas sugeridas, «Datos usados», etiqueta de IA, coste estimado del mes | F3 |
+| **Coach** | Chat en *streaming*, preguntas sugeridas, «Datos usados», etiqueta de IA con proveedor y modelo, coste estimado del mes | F3 |
+| **Ajustes del Coach** | Proveedor (Claude o Gemini) y modelo, clave de cada uno (se guarda en el Llavero), «Probar conexión», confirmación de nivel de pago en Gemini, límite diario, modo solo educativo, memoria | F3 |
 
 ## 6. Onboarding (≤ 3 min, RNF-ACC-08)
 
@@ -178,7 +180,7 @@ Todos los pares se validan con RNF-ACC-03 antes de congelar la paleta; las zonas
 
 ### 9.3 Componentes
 
-`RingDial` (anillo con banda objetivo opcional), `MetricCard`, `VitalRow` (valor + flecha vs. base), `RangeBandChart`, `Hypnogram`, `ZoneBar`, `InsightCard`, `EmptyState`, `ConfidenceBadge`. Todos con vista previa en SwiftUI Previews en claro/oscuro y tamaños de letra, y test de instantánea (RNF-EST-05).
+`RingDial` (anillo con banda objetivo opcional), `MetricCard`, `VitalRow` (valor + flecha vs. base), `RangeBandChart`, `Hypnogram`, `ZoneBar`, `InsightCard`, `EmptyState`, `ConfidenceBadge`. Como no hay Mac (sin vistas previas de Xcode), cada componente tiene **tests de instantánea** en claro/oscuro y varios tamaños de letra cuyas capturas se revisan en el PR (RNF-EST-05), y se valida en el iPhone vía TestFlight.
 
 ### 9.4 Checklist de revisión de diseño (antes de dar por terminada una pantalla)
 

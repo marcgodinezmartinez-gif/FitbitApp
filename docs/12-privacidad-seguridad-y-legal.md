@@ -11,8 +11,8 @@ Convención de IDs: `RL-<nn>`. Columna **Cuándo**: `F1` = aplica ya en uso pers
 | Ámbito | ¿Aplica? | Por qué |
 |---|---|---|
 | **Condiciones de la Google Health API** (RL-40 a RL-48) | **Sí** | Aplican a cualquier app que use la API, aunque la use solo su autor. En la práctica: uso solo para ti, divulgación antes de conectar, página de privacidad con la declaración de *Limited Use* (vale una página gratuita en GitHub Pages), cifrado (Llavero + protección de datos de iOS), granularidad y marca |
-| Términos de Anthropic (si activas el Coach) | **Sí** | Política de uso aceptable de la API |
-| Términos de Apple para desarrolladores (instalación personal) | **Sí** | Cuenta gratuita o de pago; sin App Store |
+| Términos del proveedor de IA elegido para el Coach (RL-35) | **Sí** | Anthropic (Claude) o Google (API de Gemini). Con Gemini, **solo el nivel de pago**: en el gratuito Google puede usar y revisar el contenido, y en el EEE solo se admiten servicios de pago |
+| Términos del Apple Developer Program y TestFlight | **Sí** | Distribución a ti mismo como probador interno; sin App Store |
 | No usar protocolos propietarios de la pulsera (RL-62) | **Sí** | Términos de Google |
 | RGPD / LOPDGDD (§3) | No | Exención doméstica: tratamiento «exclusivamente personal» por una persona física (art. 2.2.c RGPD) |
 | Producto sanitario (MDR, §2) | No en la práctica | No se comercializa ni se pone a disposición de terceros; aun así se mantiene el lenguaje de bienestar (RL-01, RL-02) como buena práctica |
@@ -66,6 +66,7 @@ El Reglamento (UE) 2017/745 (MDR) considera producto sanitario el software desti
 | RL-32 | Consentimiento específico antes de enviar datos al proveedor de IA, identificando al proveedor. Apple exige además revelar y obtener permiso explícito **antes** de compartir datos personales con IA de terceros ([App Review Guideline 5.1.2(i)](https://developer.apple.com/news/?id=ey6d8onl), actualización del 13/11/2025). | RGPD art. 9; App Store | F3 (uso personal: aviso), F4 (terceros) |
 | RL-33 | Configurar el proveedor de IA para que **no entrene** con los datos y con la retención mínima disponible (valorar retención cero si se contrata). Documentar la región de procesamiento. | RGPD arts. 5, 28 | F3 |
 | RL-34 | Salvaguardas de contenido: el Coach no diagnostica, no prescribe medicación ni dietas extremas, detecta señales de urgencia y deriva (112 en España) — ver doc. 06. | Prudencia / RL-01 | F3 |
+| RL-35 | Cumplir los términos del proveedor elegido. **Gemini**: usar solo **servicios de pago** (proyecto con facturación activada): en los gratuitos Google usa el contenido para mejorar sus productos, puede ser revisado por personas y se pide no enviar información personal o sensible; además, las condiciones solo permiten servicios de pago para usuarios del EEE, Suiza o Reino Unido; edad mínima 18 años. **Claude**: política de uso aceptable de Anthropic. | [Términos de la API de Gemini](https://ai.google.dev/gemini-api/terms); términos comerciales de Anthropic | F3 |
 
 ## 5. Condiciones de Google (Google Health API, OAuth y marcas)
 

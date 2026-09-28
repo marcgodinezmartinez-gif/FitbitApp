@@ -1,71 +1,87 @@
 # 15 · Entorno de desarrollo y prerrequisitos
 
-Todo lo necesario **antes de escribir la primera línea de código** (fase F0), pensado para una app **personal para iPhone y sin coste mensual**. Marca cada casilla al completarla.
+Todo lo necesario **antes de escribir la primera línea de código** (fase F0) para tu caso: app personal para iPhone, **sin Mac**, con **Apple Developer Program** (TestFlight) y Coach IA con **Claude o Gemini**. Marca cada casilla al completarla.
 
 ## 1. Hardware
 
 - [ ] **Google Fitbit Air** emparejada con la app **Google Health** y llevándola día y noche (idealmente ≥ 14 días antes de F1 para tener historial con el que calibrar).
-- [ ] **iPhone con iOS 26 o posterior** (iPhone 11 o posterior) con la app Google Health.
-- [ ] **Mac con Apple Silicon** y Xcode para compilar y probar (recomendado). Sin Mac: ver la opción C del doc. 08 §6 (compilación en GitHub Actions + SideStore).
+- [ ] **iPhone con iOS 26 o posterior** con las apps Google Health y **TestFlight**.
+- [ ] **Cualquier ordenador** (Windows, Linux o Mac) con navegador y editor de código. No hace falta Mac: la compilación de iOS se hace en GitHub Actions (doc. 08 §6).
 
 ## 2. Cuentas y servicios
 
 | # | Cuenta / servicio | Para qué | Coste | Cuándo |
 |---|---|---|---|---|
 | 1 | Cuenta de Google (la de la Fitbit Air) | Fuente de datos | 0 € | F0 |
-| 2 | **Proyecto de Google Cloud** con la Google Health API habilitada, *Branding*/*Audience*/*Data Access* configurados y **cliente OAuth de tipo iOS** | Leer los datos de la pulsera desde la app (doc. 10 §2) | 0 € (en principio sin facturación [verificar]) | F0 |
-| 3 | Página de privacidad (p. ej. GitHub Pages) | Enlace en la pantalla de consentimiento y declaración de *Limited Use* (RL-42) | 0 € | F0 |
-| 4 | **Apple ID** (gratuito) **o Apple Developer Program** | Instalar la app en tu iPhone: gratis con reinstalación cada 7 días, o 99 $/año sin caducidad semanal (doc. 08 §6) | 0 € o 99 $/año | F0 |
-| 5 | GitHub (este repositorio) | Código, CI (Actions), tablero | 0 € | F0 |
-| 6 | Anthropic Console + clave de API + límite de gasto | Coach IA (**opcional**) | Pago por uso (~2 $/mes con 1 pregunta al día, doc. 06 §8) | F3 |
+| 2 | **Apple Developer Program** ✅ (ya lo tienes) | App ID y capacidades, App Store Connect, **TestFlight**, clave de API para firmar y subir desde CI | 99 $/año (ya pagado) | F0 |
+| 3 | **GitHub** (este repositorio, privado) | Código, PR, **GitHub Actions** (Linux y `macos-26` con Xcode 26) | 0 € con ≈ 200 min/mes de macOS (doc. 08 §6) | F0 |
+| 4 | **Proyecto de Google Cloud** con la Google Health API, *Branding*/*Audience*/*Data Access* y **cliente OAuth de tipo iOS** | Leer los datos de la pulsera (doc. 10 §2) | 0 € (en principio sin facturación [verificar]) | F0 |
+| 5 | Página de privacidad (p. ej. GitHub Pages) | Consentimiento de Google y declaración de *Limited Use* (RL-42) | 0 € | F0 |
+| 6a | **Consola de Anthropic** (Claude): clave de API + límite de gasto | Coach IA con Claude | Pago por uso (doc. 06 §8) | F3 |
+| 6b | **Google AI Studio / Google Cloud**: clave de la API de Gemini en un proyecto **con facturación activada** (nivel de pago) + límite de gasto + restricción de la clave a la API de Gemini | Coach IA con Gemini | Pago por uso (doc. 06 §8) | F3 |
 
-**No hace falta**: Google Health Premium, servidores, bases de datos en la nube, dominio de pago ni cuentas de analítica.
+Basta con una de las dos claves de IA (6a o 6b); con las dos puedes compararlas con la suite de evaluación. **No uses una clave de Gemini del nivel gratuito**: Google podría usar y revisar tus datos de salud (doc. 06 §7, RL-35).
+
+**No hace falta**: Mac, Google Health Premium, servidores, bases de datos en la nube, dominio de pago ni analítica.
 
 ## 3. Herramientas
 
-| Herramienta | Versión | Uso |
+| Herramienta | Dónde | Uso |
 |---|---|---|
-| **Xcode** | 26 o posterior | Compilar, simulador, SwiftUI Previews, Instruments |
-| Swift | 6 (concurrencia estricta) | Lenguaje |
-| XcodeGen o Tuist | reciente (opcional) | Generar el proyecto desde `project.yml` (RNF-MAN-06) |
-| SwiftLint + SwiftFormat | reciente | Estilo y reglas del sistema de diseño (RNF-EST-01) |
-| App **SF Symbols** | reciente | Iconografía |
-| Git + gitleaks + pre-commit | reciente | Control de versiones y escaneo de secretos (RNF-SEG-07) |
-| Python + Jupyter + pandas | 3.12+ (opcional) | Análisis de tus datos exportados para calibrar algoritmos |
+| VS Code o Cursor + extensión de Swift (o Claude Code) | Tu ordenador / la nube | Editar código; compilar y probar los paquetes puros (`MetricsKit`, lógica de `HealthAPI`) en Linux o Windows |
+| Swift 6 (toolchain) | Tu ordenador (opcional) y CI | Tests de paquetes fuera de macOS |
+| **XcodeGen** | CI de macOS | Generar el proyecto de Xcode desde `project.yml` (RNF-MAN-06) |
+| Xcode 26 | Solo en el CI (`macos-26`) | Compilar, simulador, tests de UI e instantáneas, archivo y subida a TestFlight |
+| SwiftLint + SwiftFormat | CI | Estilo y reglas del sistema de diseño (RNF-EST-01) |
+| gitleaks | CI | Escaneo de secretos (RNF-SEG-07) |
+| fastlane (opcional) | CI | Alternativa para firmar y subir a TestFlight si la vía con `xcodebuild` da problemas (RSK-15) |
+| Python + Jupyter + pandas (opcional) | Tu ordenador | Analizar tus datos exportados para calibrar algoritmos |
 
-Dependencias Swift previstas (todas con licencia permisiva, a confirmar en F0): **GRDB** (SQLite), **Google Sign-In para iOS** o **AppAuth-iOS** (OAuth), y para tests **swift-snapshot-testing**. Nada de SDK de analítica o publicidad (RNF-PRI-02).
+Dependencias Swift previstas (licencia permisiva, a confirmar en F0): **GRDB** (SQLite), **Google Sign-In para iOS** o **AppAuth-iOS** (OAuth) y, para tests, **swift-snapshot-testing**. Sin SDK de analítica ni publicidad (RNF-PRI-02).
 
 ## 4. Configuración y secretos
 
-Plantilla en [`Config/Secrets.example.xcconfig`](../Config/Secrets.example.xcconfig); la copia real `Config/Secrets.xcconfig` está en `.gitignore`.
+**En la app** — plantilla [`Config/Secrets.example.xcconfig`](../Config/Secrets.example.xcconfig). En CI se genera `Config/Secrets.xcconfig` a partir de los secretos de GitHub; nunca se versiona.
 
-| Clave | Descripción | ¿Secreta? |
-|---|---|---|
-| `APP_BUNDLE_ID` | Identificador de la app (p. ej. `com.tunombre.recupera`) | No |
-| `DEVELOPMENT_TEAM` | *Team ID* de tu cuenta de Apple | No |
-| `GOOGLE_IOS_CLIENT_ID` | *Client ID* del cliente OAuth de tipo iOS | No (los clientes iOS son públicos), pero no se sube por limpieza |
-| `GOOGLE_REVERSED_CLIENT_ID` | Esquema de URL para la redirección OAuth | No |
+| Clave | Descripción |
+|---|---|
+| `APP_BUNDLE_ID` | Identificador de la app (p. ej. `com.tunombre.recupera`) |
+| `DEVELOPMENT_TEAM` | *Team ID* de tu cuenta de Apple Developer |
+| `GOOGLE_IOS_CLIENT_ID` | *Client ID* del cliente OAuth de tipo iOS |
+| `GOOGLE_REVERSED_CLIENT_ID` | Esquema de URL para la redirección OAuth |
 
-La **clave de la API de Anthropic** no va en ningún fichero: la pegas en Ajustes de la app y se guarda en el Llavero (doc. 06 §3). Los *tokens* de Google también viven solo en el Llavero.
+**En GitHub Actions** — *Settings › Secrets and variables › Actions* (RNF-SEG-10):
+
+| Secreto | Descripción |
+|---|---|
+| `ASC_KEY_ID` | ID de la clave de API de App Store Connect |
+| `ASC_ISSUER_ID` | ID del emisor de la clave |
+| `ASC_KEY_P8_BASE64` | Contenido de la clave `.p8` en base64 |
+| `APPLE_TEAM_ID` | *Team ID* |
+| `APP_BUNDLE_ID`, `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_REVERSED_CLIENT_ID` | Para generar `Secrets.xcconfig` |
+
+**Claves de IA**: no van en ningún fichero ni secreto de CI. Las pegas en Ajustes de la app (Claude, Gemini o ambas) y se guardan en el Llavero (doc. 06 §3). Para la suite de evaluación (doc. 13 §7) se leen de variables de entorno locales o de secretos de CI solo al lanzarla a mano. Los *tokens* de Google viven solo en el Llavero.
 
 ## 5. Lista de tareas de F0 (en orden)
 
 1. [ ] Llevar la Fitbit Air 24/7 y comprobar en Google Health que aparecen sueño con fases, VFC, FC en reposo, SpO₂, frecuencia respiratoria y temperatura.
-2. [ ] Instalar Xcode (o preparar la opción sin Mac) y comprobar que puedes instalar una app de prueba en tu iPhone con tu Apple ID.
-3. [ ] Publicar la página de privacidad mínima (con la declaración de *Limited Use*, RL-42).
-4. [ ] Crear el proyecto de Google Cloud, habilitar `health.googleapis.com`, completar *Branding*, *Audience* (*External*, *Testing*, tu cuenta como usuaria de prueba) y *Data Access* (ámbitos del doc. 10 §3), y crear el cliente OAuth **iOS** con tu *bundle ID*.
-5. [ ] ***Spike* de datos**: prototipo mínimo en el iPhone que haga el OAuth, descargue 30 días de cada tipo y los guarde en local; medir granularidad, latencia y huecos y responder a las preguntas del doc. 03 §7. Probar el modo *In production* sin verificar (D-7) y la librería OAuth (doc. 10 §4). **Hito H0.**
-6. [ ] Crear la estructura del repositorio (doc. 08 §5), CI con tests de `MetricsKit` y gitleaks, y plantilla de PR con referencias a requisitos.
-7. [ ] Escribir los ADR 001–010 (doc. 08 §2) confirmando o ajustando cada decisión tras el *spike*.
-8. [ ] Construir el sistema de diseño base (tokens, anillos animados, tarjetas) y validarlo con la checklist del doc. 11 §9.4.
-9. [ ] Resolver las decisiones abiertas (doc. 01 §8).
+2. [ ] En **developer.apple.com**: crear el App ID con su *bundle ID* y las capacidades (App Groups; HealthKit y AlarmKit si se usan [verificar requisitos de AlarmKit]).
+3. [ ] En **App Store Connect**: crear la ficha de la app, añadirte como **probador interno** y crear una **clave de API** (rol mínimo que permita firmar y subir [verificar]); instalar la app **TestFlight** en el iPhone.
+4. [ ] En **GitHub**: guardar los secretos del §4 y crear los *workflows* `ci-linux.yml` e `ios.yml` (doc. 08 §6) con una app mínima generada por XcodeGen. **Criterio**: un *merge* a `main` produce una *build* instalable en TestFlight.
+5. [ ] Publicar la página de privacidad mínima (declaración de *Limited Use*, RL-42).
+6. [ ] En **Google Cloud**: habilitar `health.googleapis.com`; completar *Branding*, *Audience* (*External*, *Testing*, tu cuenta como usuaria de prueba) y *Data Access* (ámbitos del doc. 10 §3); crear el cliente OAuth **iOS** con tu *bundle ID*.
+7. [ ] ***Spike* de datos** en el iPhone (vía TestFlight): OAuth, descarga de 30 días de cada tipo, guardado local y exportación de un informe; responder a las preguntas del doc. 03 §7; probar el modo *In production* sin verificar (D-7) y la librería OAuth (doc. 10 §4). **Hito H0.**
+8. [ ] Escribir los ADR 001–011 (doc. 08 §2) confirmando o ajustando cada decisión tras el *spike*.
+9. [ ] Sistema de diseño base (tokens, anillos animados, tarjetas) con sus capturas automáticas revisadas con la checklist del doc. 11 §9.4.
+10. [ ] Resolver las decisiones abiertas (doc. 01 §8).
 
 ## 6. Coste
 
 | Concepto | Coste |
 |---|---|
 | Servidor, base de datos, Google Health Premium | **0 €** (no se usan) |
-| Proyecto de Google Cloud y Google Health API | 0 € |
-| Instalación en tu iPhone | 0 € (reinstalar cada 7 días) **o** 99 $/año (Apple Developer Program) |
-| Coach IA (opcional) | Pago por uso: ~2 $/mes con 1 pregunta al día; 0 € si no se activa |
-| **Total obligatorio** | **0 €/mes** |
+| Google Cloud y Google Health API | 0 € |
+| Apple Developer Program (TestFlight) | 99 $/año (ya lo tienes) |
+| GitHub Actions | 0 € dentro del cupo gratuito (≈ 200 min/mes de macOS); si no llega, ver D-11 |
+| Coach IA | Pago por uso: con Gemini ≈ 0,35–0,70 $/mes y con Claude ≈ 2 $/mes haciendo una pregunta al día (doc. 06 §8) |
+| **Coste nuevo obligatorio** | **0 €/mes** |

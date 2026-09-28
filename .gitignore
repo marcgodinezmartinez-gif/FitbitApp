@@ -8,6 +8,10 @@ data/
 spike-output/
 *.local.json
 
+# Proyecto generado con XcodeGen desde project.yml (no se versiona, ADR 011)
+*.xcodeproj/
+*.xcworkspace/
+
 # Xcode / Swift
 DerivedData/
 build/

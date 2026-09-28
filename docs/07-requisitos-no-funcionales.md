@@ -1,6 +1,6 @@
 # 07 · Requisitos no funcionales
 
-Contexto: app **personal**, **solo iPhone**, **sin servidor** y **gratuita** (doc. 08). Convenciones: `RNF-<CATEGORÍA>-<nn>`; prioridad **M/S/C**; fase F0–F3 ([doc. 14](14-plan-de-proyecto-y-riesgos.md)).
+Contexto: app **personal**, **solo iPhone**, **sin servidor**, sin cuotas nuevas, **compilada en la nube sin Mac** e instalada por **TestFlight** (doc. 08). Como no hay Mac, las mediciones se hacen con tests automáticos en CI y con MetricKit en el iPhone en lugar de Instruments. Convenciones: `RNF-<CATEGORÍA>-<nn>`; prioridad **M/S/C**; fase F0–F3 ([doc. 14](14-plan-de-proyecto-y-riesgos.md)).
 
 Los valores numéricos son **objetivos verificables**: cada uno indica cómo se mide. Si un objetivo resulta irreal, se cambia aquí (con fecha y motivo), no se ignora.
 
@@ -13,19 +13,19 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 | ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
 | RNF-EST-01 | Todas las pantallas usan exclusivamente los **tokens del sistema de diseño** (colores, tipografía, espaciado en retícula de 4/8 pt, radios, sombras); ningún valor «mágico» en las vistas. | Revisión de código + SwiftLint con reglas propias | M | F1 |
-| RNF-EST-02 | Animaciones fluidas: **120 fps en pantallas ProMotion** (60 fps en el resto) en transiciones, llenado de anillos y desplazamiento de gráficos; ningún fotograma perdido perceptible. | Instruments (Animation Hitches) en dispositivo | M | F1 |
+| RNF-EST-02 | Animaciones fluidas: **120 fps en pantallas ProMotion** (60 fps en el resto) en transiciones, llenado de anillos y desplazamiento de gráficos; ningún fotograma perdido perceptible. | Sin Mac: tests de rendimiento XCTest (métricas de *signpost* de animación) en CI + tasa de tirones que reporta MetricKit en tu iPhone | M | F1 |
 | RNF-EST-03 | Diseño nativo de iOS 26 (**Liquid Glass** en barras, hojas y controles), SF Symbols, tipografía del sistema con cifras tabulares y soporte completo de modo oscuro (por defecto) y claro. | Revisión de diseño (checklist doc. 11 §9) | M | F1 |
 | RNF-EST-04 | Micro-interacciones: transición numérica de las cifras, háptica del iPhone en hitos (recuperación lista, objetivo de carga alcanzado), estados vacíos y de carga diseñados (nunca pantallas en blanco). | Revisión de diseño | S | F1 |
-| RNF-EST-05 | Tests de instantánea (*snapshot*) de las pantallas y *widgets* principales en claro/oscuro y en 3 tamaños de letra, para que ningún cambio rompa el diseño sin darse cuenta. | CI | S | F2 |
+| RNF-EST-05 | Tests de instantánea (*snapshot*) de las pantallas y *widgets* principales en claro/oscuro y en 3 tamaños de letra. Sin Mac son la forma de **ver el diseño sin compilar en el iPhone**: el CI adjunta las capturas a cada PR de interfaz y señala las diferencias. | CI de macOS | M | F1 |
 | RNF-EST-06 | Icono de app propio, pantalla de lanzamiento y *widgets* coherentes con el sistema de diseño. | Revisión de diseño | S | F2 |
 
 ## 2. Rendimiento (REN)
 
 | ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-REN-01 | Arranque en frío ≤ 1,5 s hasta la pantalla «Hoy» con datos locales (iPhone 13 o posterior). | Instruments (App Launch), mediana de 10 | M | F1 |
-| RNF-REN-02 | Apertura de pantallas de detalle ≤ 200 ms (p95) con datos locales. | Instruments | S | F1 |
-| RNF-REN-03 | Gráficos de 1 año (365 puntos por serie) en ≤ 300 ms y desplazamiento sin tirones (RNF-EST-02). | Instruments | S | F2 |
+| RNF-REN-01 | Arranque en frío ≤ 1,5 s hasta la pantalla «Hoy» con datos locales (iPhone 13 o posterior). | MetricKit en tu iPhone + test de arranque XCTest en CI | M | F1 |
+| RNF-REN-02 | Apertura de pantallas de detalle ≤ 200 ms (p95) con datos locales. | Tests de rendimiento XCTest en CI + registro local | S | F1 |
+| RNF-REN-03 | Gráficos de 1 año (365 puntos por serie) en ≤ 300 ms y desplazamiento sin tirones (RNF-EST-02). | Tests de rendimiento XCTest en CI + MetricKit | S | F2 |
 | RNF-REN-04 | Refresco al abrir la app: ≤ 3 s desde que se abre hasta ver las puntuaciones del día, si los datos ya están en la API. | Registro local de tiempos | M | F1 |
 | RNF-REN-05 | Cálculo completo de un ciclo (recuperación, carga, sueño, estrés) ≤ 200 ms en el iPhone. | Test de rendimiento de `MetricsKit` | M | F1 |
 | RNF-REN-06 | Importación inicial de 90 días ≤ 5 min con la app abierta (continúa en segundo plano si se cierra). | Registro local | S | F1 |
@@ -39,7 +39,7 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 | RNF-DIS-02 | La sincronización es **reanudable**: si se interrumpe (app cerrada, sin red, límite de tiempo en segundo plano), continúa donde se quedó. | Test de integración con interrupciones | M | F1 |
 | RNF-DIS-03 | Ingesta **idempotente**: la misma muestra descargada varias veces produce una sola fila (claves únicas por tipo e instante/intervalo). | Test repitiendo el mismo lote 3 veces | M | F1 |
 | RNF-DIS-04 | Reintentos con *backoff* exponencial y *jitter* ante 429/5xx, respetando `Retry-After`; tras varios fallos, estado visible «Sincronización con problemas». | Test con API simulada | M | F1 |
-| RNF-DIS-05 | Si Google o Anthropic no responden, el resto de la app sigue funcionando. | Prueba desactivando cada servicio | M | F1 |
+| RNF-DIS-05 | Si Google o el proveedor de IA (Anthropic o Google Gemini) no responden, el resto de la app sigue funcionando. | Prueba desactivando cada servicio | M | F1 |
 | RNF-DIS-06 | Recuperación ante pérdida del iPhone: todo lo procedente de Google se vuelve a descargar; diario, ajustes y actividades manuales se restauran desde la copia exportada (RF-ONB-05). | Prueba de restauración en otro dispositivo o tras reinstalar | S | F2 |
 | RNF-DIS-07 | Cálculos **deterministas**: mismas entradas + misma `algorithm_version` ⇒ mismo resultado. | *Golden files* | M | F1 |
 | RNF-DIS-08 | Migraciones de la BD local versionadas, probadas y sin pérdida de datos. | Test de migración desde cada versión anterior | M | F1 |
@@ -57,6 +57,8 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 | RNF-SEG-07 | Ningún secreto en el repositorio: la configuración usa `Config/Secrets.xcconfig` ignorado por Git; escaneo de secretos (gitleaks) en CI y *push protection* en GitHub. | CI | M | F0 |
 | RNF-SEG-08 | Dependencias mínimas y revisadas (sin SDK de analítica ni publicidad); actualizaciones de seguridad aplicadas en ≤ 30 días. | Revisión de `Package.resolved` | M | F1 |
 | RNF-SEG-09 | Coach IA protegido frente a *prompt injection*: los textos libres del diario se tratan como datos; las herramientas del Coach son **de solo lectura** sobre la BD local. | Suite de pruebas adversarias (doc. 13 §7) | M | F3 |
+| RNF-SEG-10 | Secretos de CI (clave de API de App Store Connect, *Team ID*, *client ID* de Google) solo como **secretos cifrados de GitHub Actions**, nunca impresos en los registros; la clave de App Store Connect con el rol mínimo necesario y rotada si se expone. | Revisión de los *workflows* y registros | M | F0 |
+| RNF-SEG-11 | Claves de IA con **límite de gasto** en la consola del proveedor; la de Gemini, además, restringida en Google Cloud a la API de Gemini. | Revisión de la configuración | M | F3 |
 
 ## 5. Privacidad (PRI)
 
@@ -73,7 +75,7 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 
 | ID | Requisito | Medición | Prio. | Fase |
 |---|---|---|---|---|
-| RNF-ACC-01 | Pautas **WCAG 2.2 AA** y guías de accesibilidad de Apple. | Accessibility Inspector + revisión manual | S | F2 |
+| RNF-ACC-01 | Pautas **WCAG 2.2 AA** y guías de accesibilidad de Apple. | Auditoría de accesibilidad automatizada en los tests de UI (CI) + revisión manual en el iPhone | S | F2 |
 | RNF-ACC-02 | El color **nunca** es el único portador de información: zonas con texto («Alta/Media/Baja») e icono; paleta segura para daltonismo. | Simulador de daltonismo | M | F1 |
 | RNF-ACC-03 | Contraste ≥ 4,5:1 en texto y ≥ 3:1 en gráficos significativos, en claro y oscuro. | Herramienta de contraste | M | F1 |
 | RNF-ACC-04 | Tipo dinámico hasta los tamaños de accesibilidad sin perder contenido; objetivos táctiles ≥ 44×44 pt. | Prueba manual | S | F2 |
@@ -115,10 +117,11 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 |---|---|---|---|
 | RNF-MAN-01 | Paquetes Swift separados (doc. 08 §3); `MetricsKit` y `HealthAPI` sin dependencias de UI. | M | F0 |
 | RNF-MAN-02 | Cobertura de tests ≥ 90 % en `MetricsKit` y ≥ 70 % en `HealthAPI`, `Store` y `Sync`. | M | F1 |
-| RNF-MAN-03 | CI en GitHub Actions: formato, *lint*, tests de paquetes (Linux y macOS), escaneo de secretos; *build* de la app en macOS si hay minutos disponibles. | M | F0 |
-| RNF-MAN-04 | Versionado semántico de la app y de `algorithm_version`, con *changelog* de algoritmos visible en «Cómo calculamos». | S | F2 |
+| RNF-MAN-03 | **CI/CD sin Mac** en GitHub Actions (doc. 08 §6): en Linux, formato, *lint*, tests de paquetes y escaneo de secretos en cada *push*; en macOS (`macos-26`), *build*, tests, instantáneas y **subida a TestFlight** al integrar en `main` o a mano. | M | F0 |
+| RNF-MAN-04 | Versionado semántico de la app y de `algorithm_version`, con *changelog* de algoritmos visible en «Cómo calculamos»; número de *build* automático en CI. | S | F2 |
 | RNF-MAN-05 | Decisiones de arquitectura como ADR en `docs/adr/`. | S | F0 |
-| RNF-MAN-06 | Proyecto de Xcode generado desde un fichero legible (XcodeGen o Tuist) para evitar conflictos en `project.pbxproj`. | C | F0 |
+| RNF-MAN-06 | Proyecto de Xcode **generado con XcodeGen** desde `project.yml` (sin Mac no se puede editar el proyecto en Xcode); el `.xcodeproj` no se versiona. | M | F0 |
+| RNF-MAN-07 | Uso eficiente de los ≈ 200 minutos mensuales de macOS del plan gratuito: todo lo posible en Linux, caché de dependencias y macOS solo para PR de interfaz, `main` y lanzamientos manuales; aviso cuando quede < 25 % del cupo. | S | F0 |
 
 ## 11. Energía y datos (ENE)
 
@@ -132,8 +135,8 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RNF-COS-01 | **Coste recurrente obligatorio: 0 €**. Sin servidor, sin suscripciones y sin Google Health Premium. | M | F0 |
-| RNF-COS-02 | Costes opcionales explícitos y bajo control del usuario: Apple Developer Program (99 $/año, solo por comodidad de instalación) y Coach IA (pago por uso con límite de gasto en la consola de Anthropic y límite diario en la app). | M | F3 |
+| RNF-COS-01 | **Ningún coste recurrente nuevo**: sin servidor, sin suscripciones y sin Google Health Premium. El Apple Developer Program (99 $/año) ya lo tienes. | M | F0 |
+| RNF-COS-02 | Costes variables explícitos y bajo tu control: Coach IA (pago por uso con Claude o Gemini, límite de gasto en la consola del proveedor y límite diario en la app) y, solo si se agotan, minutos extra de CI (doc. 08 §6). | M | F3 |
 
 ## 13. Conformidad
 

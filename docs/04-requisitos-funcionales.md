@@ -61,7 +61,7 @@ Convenciones:
 | RF-SUE-09 | Recordatorio de hora de acostarse (NOT-02). | S | F2 | — |
 | RF-SUE-10 | Las siestas se muestran aparte y reducen la necesidad de la noche siguiente. | S | F2 | SUE-01 |
 | RF-SUE-11 | Mostrar en el detalle del sueño la FR, SpO₂ y desviación de temperatura de la noche. | M | F1 | — |
-| RF-SUE-12 | «Alarma por necesidad cumplida» en el **iPhone** con AlarmKit (iOS 26, suena aunque esté en silencio; [verificar] si la capacidad exige cuenta de pago): indicas «me voy a dormir» y una ventana de despertar; suena cuando se estima cumplida la necesidad dentro de la ventana (no hay fases en tiempo real ni vibración de la pulsera). | C | F3 | SUE-05 |
+| RF-SUE-12 | «Alarma por necesidad cumplida» en el **iPhone** con AlarmKit (iOS 26, suena aunque esté en silencio; [verificar] si Apple exige solicitar la capacidad): indicas «me voy a dormir» y una ventana de despertar; suena cuando se estima cumplida la necesidad dentro de la ventana (no hay fases en tiempo real ni vibración de la pulsera). | C | F3 | SUE-05 |
 
 ## 5. Recuperación (REC)
 

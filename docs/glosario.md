@@ -4,6 +4,8 @@
 |---|---|
 | **ACWR** | *Acute:Chronic Workload Ratio*. Cociente entre la carga reciente (≈7 días) y la carga crónica (≈28 días). Útil como indicador de cambios bruscos de carga; su valor predictivo de lesiones es discutido. |
 | **AlarmKit** | Marco de iOS 26 que permite a una app programar alarmas que suenan aunque el iPhone esté en silencio. |
+| **API de Gemini** | API de Google para usar los modelos Gemini (alternativa a la de Claude para el Coach). Para datos de salud, solo con el nivel de pago. |
+| **App Store Connect** | Portal web de Apple para gestionar la app, sus *builds* de TestFlight y las claves de API que usa el CI. |
 | **AZM** | *Active Zone Minutes* (Minutos en Zona Activa) de Google/Fitbit: minutos en zonas de FC moderada o alta, con doble valor en zonas altas. |
 | **Backfill** | Importación inicial del historial de datos al conectar Google Health. |
 | **Calibración** | Periodo inicial (≥ 4 noches válidas) antes de mostrar la recuperación; la línea base se considera estable a partir de 14 noches. Calendario completo en el doc. 05 §11. |
@@ -21,6 +23,7 @@
 | **FCR / RHR** | Frecuencia cardiaca en reposo. |
 | **FCRes / HRR** | Frecuencia cardiaca de reserva: FC máx. − FC en reposo (método de Karvonen). |
 | **FR / RR** | Frecuencia respiratoria nocturna, en respiraciones por minuto (rpm). |
+| **GitHub Actions** | Servicio de integración continua de GitHub; aquí compila la app en máquinas macOS en la nube (sin Mac propio) y la sube a TestFlight. |
 | **Google Health (app)** | App oficial de Google con la que se empareja y sincroniza la Fitbit Air. |
 | **Google Health API** | API REST de Google para que apps de terceros lean (y en algunos casos escriban) datos de salud y actividad de los usuarios; sustituye a la Fitbit Web API. |
 | **Health Connect** | Almacén de datos de salud en el propio dispositivo Android, compartido entre apps con permiso del usuario. |
@@ -43,17 +46,19 @@
 | **Ritmo de envejecimiento** | Velocidad a la que cambia la edad fisiológica respecto al calendario (1,0 = normal; negativo = disminuye). |
 | **RMSSD** | Raíz cuadrática media de las diferencias sucesivas entre intervalos RR; refleja la actividad parasimpática. |
 | **RPE / sRPE** | Esfuerzo percibido (escala CR-10) y su producto por la duración de la sesión (método de Foster). |
-| **SideStore** | Herramienta para instalar y re-firmar apps propias en el iPhone con un Apple ID gratuito, sin Mac. |
 | **SpO₂** | Saturación periférica de oxígeno. |
 | **SRI** | *Sleep Regularity Index*: probabilidad de estar en el mismo estado (dormido/despierto) en dos instantes separados 24 h (0–100). |
 | **Sueño reparador** | Tiempo en sueño profundo + REM. |
 | **Suficiencia de sueño** | Sueño real / necesidad de sueño × 100 (máx. 100 %). |
 | **Tarea en segundo plano** | `BGAppRefreshTask` / `BGProcessingTask`: trabajo que iOS ejecuta con la app cerrada cuando lo considera oportuno. |
 | **Temperatura cutánea (desviación)** | Diferencia de la temperatura de la piel durante el sueño respecto a la línea base personal. |
+| **Test de instantánea (*snapshot*)** | Test que genera una captura de una pantalla y la compara con la aprobada; sin Mac, es la forma de ver el diseño desde el PR. |
+| **TestFlight** | Servicio de Apple para instalar *builds* de prueba en el iPhone; cada *build* dura 90 días. |
 | **TRIMP** | *Training Impulse*: carga de entrenamiento basada en duración × intensidad de FC (Banister, Edwards…). |
 | **Vitales nocturnos** | HRV, FC en reposo, FR, SpO₂ y temperatura cutánea medidos durante el sueño. |
 | **VO₂ máx.** | Consumo máximo de oxígeno estimado (en Google Health se actualiza con carreras al aire libre con GPS). |
 | **Webhook** | Aviso HTTP que la Google Health API puede enviar a un servidor cuando hay datos nuevos; no se usa en la versión personal (sin servidor). |
 | **Widget** | Vista resumida de la app en la pantalla de inicio, de bloqueo o en StandBy. |
+| **XcodeGen** | Herramienta que genera el proyecto de Xcode a partir de un fichero `project.yml` legible. |
 | **z-score** | (valor − media) / desviación típica: número de desviaciones respecto a la línea base. |
 | **Zona (verde/amarilla/roja)** | Rango de recuperación: 67–100 % alta, 34–66 % media, 0–33 % baja. |

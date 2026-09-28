@@ -31,7 +31,7 @@ erDiagram
 | Tabla | Campos principales | Notas |
 |---|---|---|
 | `profile` (1 fila) | `birth_date`, `sex` (`male`/`female`/`unspecified`), `height_cm`, `weight_kg`, `waist_cm` (opcional, ALG-EDA-02), `activity_index` (opcional), `sports` | |
-| `settings` (1 fila) | `units`, `theme`, `notifications` (JSON por tipo), `quiet_hours`, `lockscreen_values`, `hr_zones`, `hr_max_override`, `sleep_goal`, `wake_times` (por día de la semana), `journal_questions_enabled`, `coach_enabled`, `coach_mode` (`personal`/`educativo`), `exclude_from_icloud_backup` | |
+| `settings` (1 fila) | `units`, `theme`, `notifications` (JSON por tipo), `quiet_hours`, `lockscreen_values`, `hr_zones`, `hr_max_override`, `sleep_goal`, `wake_times` (por día de la semana), `journal_questions_enabled`, `coach_enabled`, `coach_mode` (`personal`/`educativo`), `coach_provider` (`anthropic`/`gemini`), `coach_model`, `coach_daily_limit`, `gemini_paid_tier_confirmed`, `exclude_from_icloud_backup` | Las claves de IA no están aquí, sino en el Llavero |
 | `connection` (1 fila) | `health_user_id`, `granted_scopes`, `status` (`active`/`needs_reauth`/`revoked`), `connected_at`, `last_success_sync_at`, `device_last_sync_at`, `time_zone` (de `settings` de Google) | Sin *tokens* (están en el Llavero) |
 | `sync_state` | `data_type`, `synced_until`, `last_run_at`, `last_error` | Una fila por tipo de dato (reanudable, RNF-DIS-02) |
 | `sync_log` | `id`, `started_at`, `finished_at`, `kind` (`backfill`/`open`/`background`/`manual`/`nightly`), `status`, `records_upserted`, `error_code` | Diagnóstico local, sin datos de salud |
@@ -90,7 +90,7 @@ Los nombres exactos de los campos de origen se fijan tras el *spike* de F0.
 | `behavior_impacts` | `question_id`, `effect`, `ci_low`, `ci_high`, `n_yes`, `n_no`, `computed_at` |
 | `reports` | `id`, `type` (`weekly`/`monthly`), `period_start`, `period_end`, `content` (JSON), `ai_content` (JSON, opcional) |
 | `goals` | `id`, `kind`, `target`, `period`, `created_at`, `active` (objetivos y plan semanal) |
-| `coach_threads` / `coach_messages` | `id`, `title`, `created_at` / `thread_id`, `role`, `content` (JSON), `tool_calls` (JSON), `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cost_usd_est`, `rating`, `created_at` |
+| `coach_threads` / `coach_messages` | `id`, `title`, `provider` (`anthropic`/`gemini`), `model`, `created_at` / `thread_id`, `role`, `content` (JSON con los bloques **tal como los devolvió el proveedor**, incluidos los de razonamiento, para reenviarlos sin cambios), `tool_calls` (JSON), `input_tokens`, `output_tokens`, `cache_read_tokens`, `cost_usd_est`, `rating`, `created_at` — un hilo pertenece a un único proveedor (RF-COA-22) |
 | `coach_memory` | `category` (objetivos, estilo de vida, preferencias, eventos, salud declarada), `key`, `value`, `updated_at` |
 | `privacy_events` | `at`, `action` (vinculación, desvinculación, exportación, borrado, Coach activado/desactivado) |
 

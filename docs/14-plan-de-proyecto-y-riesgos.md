@@ -19,16 +19,16 @@ gantt
 
 | Hito | Criterio de salida |
 |---|---|
-| **H0 · Datos reales** (fin F0) | Desde el iPhone (o un prototipo) se leen por la API y se guardan en local: sueño con fases, HRV nocturna, FC en reposo, FC por minuto, SpO₂, FR, temperatura, actividad. Informe del *spike* con granularidad, latencia y huecos (actualiza docs. 03, 09 y 10). Sistema de diseño base aprobado |
+| **H0 · Datos reales** (fin F0) | La tubería GitHub Actions → TestFlight funciona y un prototipo instalado en tu iPhone lee por la API y guarda en local: sueño con fases, HRV nocturna, FC en reposo, FC por minuto, SpO₂, FR, temperatura, actividad. Informe del *spike* con granularidad, latencia y huecos (actualiza docs. 03, 09 y 10). Sistema de diseño base aprobado con sus capturas |
 | **H1 · Primera mañana** (fin F1) | Durante 7 días seguidos, al abrir la app ves Sueño, Recuperación y Carga calculados en ≤ 3 s, con sus detalles y el aspecto definido en el doc. 11 |
 | **H2 · Paridad** (fin F2) | Funciones M y S de F2 del doc. 04 terminadas, incluidos *widgets*; algoritmos `1.0.0` calibrados con ≥ 30 días de tus datos (doc. 13 §6) |
-| **H3 · Inteligencia** (fin F3) | Impacto de hábitos, edad fisiológica y, si lo quieres, Coach IA superando su evaluación (doc. 13 §7) |
+| **H3 · Inteligencia** (fin F3) | Impacto de hábitos, edad fisiológica y Coach IA (Claude y Gemini) superando su evaluación (doc. 13 §7) |
 
 ## 2. Backlog por épicas
 
 | Épica | Contenido (requisitos) | Fase | Esfuerzo |
 |---|---|---|---|
-| E0 · Preparación | Apple ID / cuenta de desarrollador, Xcode, proyecto de Google Cloud y cliente OAuth iOS, página de privacidad, *spike* de datos, repositorio y CI, ADR (doc. 15) | F0 | 1,5 sem |
+| E0 · Preparación y tubería sin Mac | App ID, capacidades y ficha en App Store Connect; clave de API de App Store Connect; `project.yml` de XcodeGen; CI Linux + macOS; subida automática a **TestFlight** con una app «Hola mundo»; proyecto de Google Cloud y cliente OAuth iOS; página de privacidad; *spike* de datos; ADR (doc. 15) | F0 | 2 sem |
 | E1 · Sistema de diseño | Tokens, anillos animados, tarjetas, gráficos, icono, estados especiales (doc. 11 §2, §9; RNF-EST) | F0–F1 | 1,5 sem |
 | E2 · Conexión y sincronización | RF-CON-01..05/08, RF-SYN-01..07, Llavero, tareas en segundo plano | F1 | 1,5 sem |
 | E3 · Motor de métricas v0 | `MetricsKit`: líneas base, sueño principal, necesidad, suficiencia y rendimiento de sueño, recuperación, carga diaria, zonas (ALG-BAS, SUE-00..02/06/07, REC-01, CAR-01/06) + tests | F1 | 1,5 sem |
@@ -41,7 +41,7 @@ gantt
 | E10 · *Widgets* y pantalla de bloqueo | RF-WID-01/02/04 | F2 | 1 sem |
 | E11 · Hábitos, plan semanal e informes | RF-DIA-06, RF-PLA-01..03, RF-INF-02/03 | F3 | 1,5 sem |
 | E12 · Edad fisiológica, fuerza y respiración | RF-EDA-01/02, RF-ENT-05, RF-EST-05, RF-SAL-06 | F3 | 1,5 sem |
-| E13 · Coach IA (opcional) | RF-COA-01..20, suite de evaluación | F3 | 2 sem |
+| E13 · Coach IA (Claude y Gemini) | RF-COA-01..23: `CoachEngine`, proveedores Anthropic y Gemini, herramientas, seguridad, suite de evaluación con ambos | F3 | 2,5 sem |
 | E14 · FC en vivo, Live Activity, alarma y Apple Health | RF-ENT-07, RF-WID-03, RF-SUE-12, RF-CON-06 | F3 | 1 sem |
 
 ### Historias de usuario representativas
@@ -55,8 +55,9 @@ gantt
 
 ## 3. Organización del trabajo
 
-- Iteraciones de 2 semanas; al final de cada una, la app instalada en tu iPhone con tus datos reales.
-- *Diseño primero*: cada pantalla se maqueta en SwiftUI Previews con datos de ejemplo y pasa la checklist del doc. 11 §9.4 antes de conectarla a datos reales.
+- Iteraciones de 2 semanas; al final de cada una, una *build* nueva en **TestFlight** con tus datos reales.
+- *Diseño primero* sin Mac: cada pantalla se construye con datos de ejemplo y sus **capturas automáticas** (tests de instantánea del CI, en claro/oscuro y varios tamaños de letra) se revisan en el PR con la checklist del doc. 11 §9.4; después se prueba en el iPhone vía TestFlight antes de conectarla a datos reales.
+- Flujo diario: editas (en cualquier ordenador o con Claude Code) → PR → CI Linux (siempre) y macOS (si toca interfaz) → *merge* a `main` → TestFlight.
 - Tablero (GitHub Projects) con una tarjeta por requisito; cada PR referencia sus IDs.
 - *Definition of Done* en doc. 13 §8. Los cambios de requisitos se hacen en estos documentos en la misma PR.
 
@@ -68,15 +69,17 @@ Probabilidad (P) e impacto (I): A alta, M media, B baja.
 |---|---|---|---|---|---|
 | RSK-01 | La API no expone algún dato clave de la Fitbit Air o lo hace con menor granularidad | B | A | *Spike* en F0 (la documentación ya lo confirma) | Degradar la métrica (doc. 03 §6); Apple Health para FC/sueño |
 | RSK-02 | Caducidad del *refresh token* a los 7 días en modo *Testing* | A | M | Pasar la app de Google a *In production* sin verificar tras validarlo (D-7) | Reconexión guiada en 1 toque (RF-CON-04) |
-| RSK-03 | Con cuenta gratuita de Apple la app caduca cada 7 días | A | M | Reinstalar desde Xcode o re-firmar con SideStore (doc. 08 §6) | Apple Developer Program (99 $/año) |
-| RSK-04 | No tener Mac | ? | M | Compilación en GitHub Actions (macOS) + SideStore; tests de `MetricsKit` en Linux | Mac de segunda mano o Mac en la nube por horas |
+| RSK-03 | Se agotan los ≈ 200 minutos mensuales de macOS del plan gratuito de GitHub | M | M | Todo lo posible en Linux, caché, macOS solo para interfaz y `main` (RNF-MAN-07) | Repositorio público, minutos de pago o Xcode Cloud (D-11) |
+| RSK-04 | Sin Mac: ciclo de prueba de interfaz más lento y sin depurador ni Instruments | A | M | Capturas automáticas en cada PR, TestFlight en ≈ 20–30 min, registros locales, informes de TestFlight y MetricKit | Mac alquilado por horas para depuraciones puntuales |
+| RSK-15 | La firma en la nube o la subida a TestFlight desde CI falla por configuración | M | M | Montarla en F0 con una app mínima (E0) y documentarla en un ADR | fastlane como alternativa |
 | RSK-05 | iOS no ejecuta la tarea en segundo plano a tiempo | M | B | Refresco rápido al abrir (≤ 3 s) como camino principal | Abrir la app al despertar |
 | RSK-06 | Latencia: la pulsera no sincroniza hasta que se abre Google Health | M | M | Mensaje y atajo «Abrir Google Health» | — |
 | RSK-07 | API nueva con cambios de contrato | M | M | Adaptador aislado + tests de contrato (doc. 13 §4) | Parche rápido del adaptador |
 | RSK-08 | Las puntuaciones no reflejan cómo te sientes | M | A | Validación con autoevaluación (doc. 13 §6); parámetros versionados | Recalibrar; etiqueta «beta» |
 | RSK-09 | Precisión de la Fitbit Air inferior a la de WHOOP en algunos entrenamientos y en HRV absoluta | M | M | Todo relativo a tu línea base; filtros; confianza visible | Explicarlo en «Cómo calculamos» |
 | RSK-10 | El Coach IA da consejos inseguros o inventa cifras | M | A | Herramientas, verificación de cifras, filtros y evaluación (doc. 06 §6) | Desactivarlo |
-| RSK-11 | Gasto del Coach por encima de lo esperado | B | M | Límite de gasto en Anthropic + límite diario en la app + contador de gasto | Modo solo educativo o desactivarlo |
+| RSK-11 | Gasto del Coach por encima de lo esperado | B | M | Límite de gasto en la consola del proveedor + límite diario en la app + contador de gasto | Cambiar a Gemini, modo solo educativo o desactivarlo |
+| RSK-14 | Usar sin querer una clave de Gemini del nivel gratuito (Google podría usar y revisar tus datos de salud) | M | A | Confirmación obligatoria de nivel de pago (RF-COA-23) y guía de configuración (doc. 15) | Usar Claude |
 | RSK-12 | Dedicación (proyecto personal) | A | M | Fases con valor propio: F1 ya es usable | Congelar F3 |
 | RSK-13 | Google cambia sus políticas o restringe el acceso a la API para apps no verificadas | B | A | Cumplir las políticas (doc. 10 §7) | Exportación de Google Takeout + importación manual |
 
@@ -89,4 +92,5 @@ Probabilidad (P) e impacto (I): A alta, M media, B baja.
 | Rendimiento | Tiempo desde abrir la app hasta ver el día | ≤ 3 s |
 | Calidad | Cierres inesperados | 0 por semana |
 | Validez | Criterios del doc. 13 §6 | Cumplidos para quitar «beta» |
-| Coste | Gasto recurrente obligatorio | **0 €** (opcionales: Apple 99 $/año, Coach por uso) |
+| Coste | Gasto recurrente nuevo | **0 €** (Apple Developer ya pagado; Coach IA por uso) |
+| Entrega | Tiempo desde *merge* a `main` hasta tenerla en TestFlight | ≤ 30 min |

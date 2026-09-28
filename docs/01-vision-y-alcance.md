@@ -13,8 +13,11 @@ La Fitbit Air es, como WHOOP, una pulsera **sin pantalla** para llevar 24/7. La 
 | D-1 | **Solo para uso personal** | Sin cuentas, sin servidor, sin publicación; casi toda la normativa de apps publicadas no aplica (doc. 12 §0) |
 | D-2 | **Solo iPhone** | App nativa **SwiftUI** para iOS 26+ (doc. 08) |
 | D-5 | **Sin pagar Google Health Premium** | No hace falta: la API da los datos brutos gratis; las puntuaciones son propias |
-| D-6 | **Gratis** | Coste recurrente obligatorio **0 €** (RNF-COS-01); solo costes opcionales y controlados |
+| D-6 | **Gratis** | Ningún coste recurrente nuevo (RNF-COS-01); solo costes opcionales y controlados |
 | — | **Estética muy superior a la app oficial** | La estética es un requisito de primer nivel (RNF-EST, doc. 11) |
+| D-8 | **Sin Mac** | Se compila en la nube con **GitHub Actions** (macOS con Xcode 26); el proyecto se genera con XcodeGen y el diseño se revisa con capturas automáticas (doc. 08 §6) |
+| D-9 | **Ya tienes el Apple Developer Program (99 $/año)** | Instalación por **TestFlight**, sin caducidad semanal y con todas las capacidades (*widgets*, AlarmKit…) |
+| D-10 | **Sí al Coach IA, con Claude o Gemini** | Proveedor configurable con tu propia clave; con Gemini, solo clave de nivel de pago (doc. 06) |
 
 ## 3. Objetivos
 
@@ -24,7 +27,7 @@ La Fitbit Air es, como WHOOP, una pulsera **sin pantalla** para llevar 24/7. La 
 | OBJ-2 | Guía diaria de esfuerzo: carga acumulada y **carga objetivo** según la recuperación | Objetivo visible todos los días calibrados |
 | OBJ-3 | Planificación del sueño: necesidad, deuda y hora para acostarse | Recomendación cada noche tras la calibración |
 | OBJ-4 | Descubrir qué hábitos afectan a tu recuperación | Tras ≥ 30 días de diario, impacto de ≥ 3 hábitos con intervalo de confianza |
-| OBJ-5 | **Coste 0 €** | Ningún pago obligatorio (sin servidor, sin Premium) |
+| OBJ-5 | **Sin cuotas nuevas** | Ningún pago recurrente además del Apple Developer Program que ya tienes (sin servidor, sin Premium); el Coach, solo por uso |
 | OBJ-6 | **Diseño excelente** | Checklist de diseño (doc. 11 §9.4) superada en todas las pantallas; animaciones sin tirones (RNF-EST-02) |
 | OBJ-7 | Privacidad | Datos solo en tu iPhone (y en Google, donde ya estaban); exportación y borrado completos |
 | OBJ-8 | Métricas con base científica y validadas con tus datos | Criterios del doc. 13 §6 cumplidos antes de quitar la etiqueta «beta» |
@@ -40,10 +43,10 @@ Detalle en [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md);
 
 | Fase | Contenido |
 |---|---|
-| **F0 · Preparación** (≈ 2 sem) | Xcode y cuenta de Apple, proyecto de Google Cloud y cliente OAuth iOS, página de privacidad, *spike* de datos reales, repositorio y CI, sistema de diseño base |
+| **F0 · Preparación** (≈ 2 sem) | App ID y ficha en App Store Connect, tubería GitHub Actions → TestFlight, proyecto de Google Cloud y cliente OAuth iOS, página de privacidad, *spike* de datos reales, sistema de diseño base |
 | **F1 · MVP** (≈ 6 sem) | Onboarding y conexión con Google; importación y sincronización; calibración; **Sueño, Recuperación y Carga**; pantalla Hoy y detalles; vitales nocturnos; notificación local matinal; privacidad básica |
 | **F2 · Paridad** (≈ 6 sem) | Entrenamientos y zonas; carga objetivo; planificador, deuda y constancia del sueño; estrés; monitor de salud; diario; tendencias y calendario; informe semanal; exportación; ***widgets* y pantalla de bloqueo** |
-| **F3 · Inteligencia** (≈ 6 sem) | Impacto de hábitos; plan semanal; informe mensual; edad fisiológica; fuerza (sRPE); respiración guiada; FC en vivo y Live Activity; alarma (AlarmKit); Apple Health como respaldo; **Coach IA opcional** |
+| **F3 · Inteligencia** (≈ 6 sem) | Impacto de hábitos; plan semanal; informe mensual; edad fisiológica; fuerza (sRPE); respiración guiada; FC en vivo y Live Activity; alarma (AlarmKit); Apple Health como respaldo; **Coach IA con Claude o Gemini** |
 
 ### Fuera de alcance
 
@@ -70,7 +73,8 @@ Detalle en [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md);
 - **R-TEC-2**: Sin servidor: sin *webhooks* ni *push* remotas (doc. 08 ADR 002).
 - **R-TEC-3**: iOS 26+ y un solo usuario.
 - **R-LEG-1**: Condiciones de la Google Health API (doc. 10 §7, doc. 12 §5).
-- **R-ECO-1**: 0 € de coste recurrente obligatorio (RNF-COS-01).
+- **R-TEC-4**: Sin Mac: compilación, pruebas de interfaz y firma solo en CI de macOS (doc. 08 §6).
+- **R-ECO-1**: Ningún coste recurrente nuevo (RNF-COS-01).
 
 ## 8. Decisiones abiertas para el propietario
 
@@ -79,6 +83,5 @@ Detalle en [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md);
 | D-3 | Nombre de la app | Pendiente (sin «WHOOP», «Fitbit» ni «Google» en el nombre) | 11 |
 | D-4 | Deportes principales | Carrera, ciclismo, fuerza y caminar | 04, 05 |
 | D-7 | Modo de la app en Google Cloud: *Testing* (reconectar cada 7 días) o producción sin verificar (aviso de «app no verificada» una vez) | Producción sin verificar, tras comprobarlo en el *spike* | 10 |
-| D-8 | ¿Tienes un **Mac**? | Sí → Xcode (recomendado). No → compilación en GitHub Actions + SideStore (doc. 08 §6) | 08, 15 |
-| D-9 | Instalación: Apple ID gratuito (reinstalar cada 7 días) o Apple Developer Program (99 $/año) | Empezar gratis | 08, 15 |
-| D-10 | ¿Quieres el **Coach IA** (pago por uso, ~2 $/mes con una pregunta al día)? | Sí, en F3 y opcional; sin él la app sigue siendo completa y gratuita | 06 |
+| D-11 | Si los ≈ 200 minutos mensuales de macOS del plan gratuito de GitHub se quedan cortos: hacer público el repositorio, pagar minutos o pasar a Xcode Cloud | Empezar con el plan gratuito y ahorrar minutos (doc. 08 §6) | 08, 15 |
+| D-12 | Proveedor por defecto del Coach | El que gane la suite de evaluación del doc. 13 §7 con tus preguntas (Claude o Gemini) | 06 |
