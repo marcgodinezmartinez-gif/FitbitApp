@@ -2,7 +2,7 @@
 
 Equivalente funcional de «WHOOP Coach»: un asistente que conoce los datos del usuario, responde preguntas en lenguaje natural, explica las puntuaciones y ayuda a planificar entrenamiento y sueño. Se implementa con la **API de Claude (Anthropic)**.
 
-Fase: **F3** (requiere que las métricas de F1–F2 estén estables). Requisitos legales asociados: RL-30 a RL-34 ([doc. 12](12-privacidad-seguridad-y-legal.md)).
+Fase: **F3** (requiere que las métricas de F1–F2 estén estables). Requisitos legales asociados: RL-30 a RL-34 y RL-48 ([doc. 12](12-privacidad-seguridad-y-legal.md)).
 
 ---
 
