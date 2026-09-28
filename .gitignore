@@ -1,0 +1,23 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+
+# Datos personales exportados durante el spike (nunca al repositorio)
+data/
+spike-output/
+*.local.json
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+.expo/
+.turbo/
+coverage/
+
+# Sistema / editores
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
