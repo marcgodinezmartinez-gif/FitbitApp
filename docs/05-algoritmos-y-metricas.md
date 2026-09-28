@@ -47,7 +47,7 @@ Para cada métrica nocturna `m ∈ {lnRMSSD, FCR, FR, Temp, SpO₂}` y cada noch
 - Calibración: con **n < 4** noches no hay línea base (no hay recuperación); **4 ≤ n < 14** ⇒ confianza como máximo «media»; **n ≥ 14** ⇒ confianza plena.
 - Además: media móvil de 7 días de lnRMSSD y su coeficiente de variación (CV = DE₇ / media₇), útiles para tendencias y el Coach [R1][R2].
 
-Se usa **ln(RMSSD)** porque el RMSSD tiene distribución asimétrica y el logaritmo estabiliza la varianza; es la práctica habitual en monitorización con HRV [R1][R2][R3].
+Se usa **ln(RMSSD)** porque el RMSSD (índice parasimpático estándar de la HRV [R39]) tiene distribución asimétrica y el logaritmo estabiliza la varianza; es la práctica habitual en monitorización con HRV [R1][R2][R3][R40]. En la literatura de entrenamiento guiado por HRV, un cambio se considera relevante cuando la media móvil sale del rango «media ± 0,5 DE» (cambio mínimo relevante [R41]); ese criterio se usa en la extensión de tendencia (§3) y en los textos del Coach.
 
 ## 3. Recuperación (ALG-REC-01)
 
@@ -105,7 +105,7 @@ con `c₀ = −0,15` y `s = 0,8` (*parámetros*): un día «normal» (C ≈ 0) d
    y = x · a · e^(b·x)     si x ≥ x_min,   si no 0
    ```
 
-   con `(a, b) = (0,64; 1,92)` en hombres y `(0,86; 1,67)` en mujeres; sexo no indicado: `(0,75; 1,795)`. `x_min = 0,25` (*parámetro*) evita que la simple vigilia sedentaria acumule carga.
+   con `(a, b) = (0,64; 1,92)` en hombres y `(0,86; 1,67)` en mujeres; sexo no indicado: `(0,75; 1,795)`. `x_min = 0,25` (*parámetro*) evita que la simple vigilia sedentaria acumule carga. Alternativas evaluables en la calibración: TRIMP por zonas de Edwards [R8] o por umbrales de Lucía [R9].
 
 2. **Carga bruta** `L = Σ y` sobre los minutos del ciclo (unidades TRIMP), usando la FC media de cada minuto (`hr_minute`, obtenida con `rollUp` de 60 s).
 
@@ -251,7 +251,7 @@ Medias de **180 días**, recalculada **cada semana**; disponible con ≥ 21 día
 
 | Factor | Dato de la app | Relación dosis-respuesta de referencia |
 |---|---|---|
-| Forma cardiorrespiratoria | VO₂ máx. (Google o ALG-EDA-02) frente a la media de su edad y sexo | Cada MET (3,5 ml/kg/min) adicional ⇒ ≈ 13 % menos mortalidad [R28]; relación sin techo en [R27] |
+| Forma cardiorrespiratoria | VO₂ máx. (Google o ALG-EDA-02) frente a la media de su edad y sexo | Cada MET (3,5 ml/kg/min) adicional ⇒ ≈ 13 % menos mortalidad [R28]; relación sin techo en [R27]; concepto de «edad de forma física» en [R26] |
 | Pasos diarios | Media de pasos/día | Riesgo decreciente hasta 6 000–8 000 (≥ 60 años) u 8 000–10 000 (< 60) pasos/día [R29] |
 | FC en reposo | Media de FCR | ≈ +9 % de mortalidad por cada 10 lpm [R30] |
 | Actividad moderada y vigorosa | Minutos/semana en zonas 1–3 y en zonas 4–5 | Mayor beneficio al cumplir 150–300 min/semana moderados o 75–150 vigorosos, y más [R32] |

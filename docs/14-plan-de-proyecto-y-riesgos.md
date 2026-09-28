@@ -94,5 +94,5 @@ Probabilidad (P) e impacto (I): A alta, M media, B baja.
 | Datos | Latencia sincronización → puntuación (p95) | ≤ 2 min tras disponibilidad en la API |
 | Calidad | Sesiones sin fallos | ≥ 99,5 % |
 | Validez | Criterios del doc. 13 §6 | Todos cumplidos para quitar «beta» |
-| Coste | Infraestructura + IA mensual | ≤ 25 € + ≤ 15 $ |
+| Coste | Infraestructura + IA mensual | ≤ 25 € + ≤ 25 $ |
 | Producto (F4) | Retención D30 / D90 | ≥ 40 % / ≥ 25 % (referencia inicial a revisar) |

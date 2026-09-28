@@ -123,13 +123,14 @@ Los resultados se devuelven en JSON compacto, redondeado y con fechas locales, y
 
 ## 8. Coste estimado (uso personal)
 
-Supuestos: *prompt* de sistema + herramientas ≈ 6 000 *tokens* cacheados; ≈ 3 000 *tokens* de resultados de herramientas y ≈ 800 de salida por turno; precios de `claude-opus-5` publicados a 09/2026 (5 $/MTok entrada, 25 $/MTok salida, lectura de caché ≈ 0,1× la entrada).
+Supuestos por turno de chat: *prompt* de sistema + herramientas ≈ 6 000 *tokens* cacheados; ≈ 4 000 *tokens* sin caché (historial, pregunta y resultados de herramientas); ≈ 800 *tokens* de respuesta + ≈ 1 200 de razonamiento (se facturan como salida). Precios de `claude-opus-5` publicados a 09/2026: 5 $/MTok entrada, 25 $/MTok salida, lectura de caché 0,50 $/MTok.
 
 | Uso | Estimación |
 |---|---|
-| 1 turno de chat | ≈ 0,04 $ |
-| 10 turnos/día | ≈ 0,40 $/día ≈ 12 $/mes |
-| Resumen matinal diario | ≈ 1 $/mes |
-| Informe semanal por lotes | < 0,50 $/mes |
+| 1 turno de chat | ≈ 0,07 $ (0,003 caché + 0,02 entrada + 0,05 salida) |
+| Uso moderado: 3 turnos/día | ≈ 6–7 $/mes |
+| Uso intensivo: 10 turnos/día | ≈ 21 $/mes |
+| Resumen matinal diario | ≈ 1,5 $/mes |
+| Informe semanal por lotes (−50 %) | < 0,50 $/mes |
 
-Total orientativo: **5–15 $/mes** para un usuario intensivo. El coste real se mide con `usage` de cada respuesta (RNF-OBS-02) y se acota con RF-COA-13.
+Total orientativo: **8–25 $/mes** según el uso. El coste real se mide con `usage` de cada respuesta (RNF-OBS-02), se ajusta con el nivel de esfuerzo medido en la evaluación y se acota con RF-COA-13.

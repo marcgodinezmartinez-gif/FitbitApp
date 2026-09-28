@@ -16,7 +16,7 @@ Especificación completa de requisitos para construir una app que ofrezca con la
 7. **Coach IA** con la API de Claude (`claude-opus-5`), con herramientas de solo lectura sobre tus datos, salvaguardas clínicas y modo «solo educativo».
 8. Posicionamiento de **bienestar, no producto sanitario** (MDR); privacidad por diseño (RGPD, datos en la UE, exportación y borrado).
 9. Plan por fases: **F0** preparación (2 sem) → **F1** MVP (8) → **F2** paridad (8) → **F3** inteligencia (8) → **F4** publicación opcional.
-10. Coste orientativo de uso personal: **~20–45 €/mes** con Coach IA (~10–20 € sin él), además de la pulsera (99,99 €).
+10. Coste orientativo de uso personal: **~25–60 €/mes** con Coach IA y cuenta de Apple Developer (~12–30 € sin ellos), además de la pulsera (99,99 €).
 
 ## Documentos
 

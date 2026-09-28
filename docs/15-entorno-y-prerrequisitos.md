@@ -16,7 +16,7 @@ Todo lo que hay que tener **antes de escribir la primera línea de código** (fa
 | 2 | **Proyecto de Google Cloud** con facturación activada | Habilitar la Google Health API, credenciales OAuth, alojamiento (Cloud Run, Cloud SQL, KMS…) | Uso personal: nivel gratuito + ~10–25 €/mes por Cloud SQL | F0 |
 | 3 | **Google Health API** (`health.googleapis.com`) habilitada + Google Auth Platform (*Branding*, *Audience*, *Data Access*) + cliente OAuth web + cuenta de servicio para *webhooks* | Leer los datos de la pulsera (detalle en [doc. 10](10-integracion-google-health-api.md)). Sin verificación: máx. 100 usuarios | 0 € (la verificación CASA para publicar cuesta 500–4 500 $/año, solo F4) | F0 |
 | 4 | Dominio propio (p. ej. `miapp.es`) + web estática | Dominio autorizado de OAuth, página de inicio, política de privacidad y condiciones (Google las exige en la pantalla de consentimiento) | ~10–15 €/año; hosting estático gratuito (GitHub Pages, Cloudflare Pages, Firebase Hosting) | F0 |
-| 5 | **Anthropic Console** (organización + clave de API + límite de gasto) | Coach IA | Pago por uso (~5–15 $/mes personal, doc. 06 §8) | F3 |
+| 5 | **Anthropic Console** (organización + clave de API + límite de gasto) | Coach IA | Pago por uso (~8–25 $/mes personal, doc. 06 §8) | F3 |
 | 6 | **Apple Developer Program** | TestFlight, App Store, Sign in with Apple, instalar la app en el iPhone sin caducidad de 7 días | 99 $/año | F1 si se usa iPhone |
 | 7 | **Google Play Console** | Pista de pruebas internas y publicación | 25 $ pago único (para uso personal basta instalar el APK) | F1 (opcional) / F4 |
 | 8 | Cuenta de **Expo** (EAS) | Builds en la nube, actualizaciones, notificaciones *push* | Plan gratuito suficiente al inicio | F1 |
@@ -91,9 +91,9 @@ Plantilla en [`.env.example`](../.env.example). Nunca se suben valores reales al
 | Cloud Run (API + workers, escala a cero) | 0–3 € (nivel gratuito) |
 | Cloud SQL PostgreSQL (instancia mínima) | ~10–25 € |
 | Cloud Scheduler, Tasks, KMS, Secret Manager | < 2 € |
-| Coach IA (F3) | ~5–15 $ |
+| Coach IA (F3) | ~8–25 $ |
 | Dominio | ~1 € (prorrateado) |
 | Apple Developer (si iPhone) | ~8 $ (prorrateado) |
-| **Total** | **~20–45 €/mes** (≈ 10–20 € sin Coach IA ni Apple) |
+| **Total** | **~25–60 €/mes** (≈ 12–30 € sin Coach IA ni Apple) |
 
 Alternativa más barata para la BD: PostgreSQL gestionado con nivel gratuito en la UE (p. ej. Supabase o Neon) — comprobar límites de almacenamiento frente al volumen de FC intradía (doc. 09 §6).

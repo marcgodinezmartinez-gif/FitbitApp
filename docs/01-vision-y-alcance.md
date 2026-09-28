@@ -89,4 +89,4 @@ Las recomendaciones marcadas se han usado como supuesto en toda la especificaci�
 | D-4 | Deportes principales | Carrera, ciclismo, fuerza y caminar como tipos de actividad prioritarios | 04, 05 |
 | D-5 | ¿Tienes suscripción Google Health Premium? | No se asume ni se necesita (las puntuaciones de Google no están en la API de todos modos) | 03 |
 | D-7 | Modo de la app en Google Cloud para uso personal: *Testing* (reconectar cada 7 días) o producción sin verificar (aviso de «app no verificada», máx. 100 usuarios) | Producción sin verificar, tras comprobarlo en el *spike* | 10, 12 |
-| D-6 | Presupuesto mensual (infraestructura + IA) | ≤ 25 € + ≤ 15 $ de IA | 06, 08 |
+| D-6 | Presupuesto mensual (infraestructura + IA) | ≤ 25 € de infraestructura + ≤ 25 $ de IA | 06, 08 |
