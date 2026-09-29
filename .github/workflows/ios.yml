@@ -22,7 +22,8 @@ on:
       - ".github/workflows/ios.yml"
 
 concurrency:
-  group: ios-${{ github.ref }}
+  # Por tipo de evento: un push sin [macos] no cancela una compilación lanzada a mano.
+  group: ios-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 env:
@@ -86,6 +87,15 @@ jobs:
       - name: Resumen de errores
         if: failure()
         run: grep -E "error:" build.log | sort -u | head -150 || true
+
+      - name: Guardar el registro de compilación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registro-compilacion
+          path: build.log
+          retention-days: 7
+          if-no-files-found: ignore
 
   testflight:
     needs: build

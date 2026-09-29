@@ -12,10 +12,11 @@ enum BackgroundSync {
 
     @MainActor
     static func register(model: AppModel) {
-        _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: refreshID, using: nil) { task in
+        // En la cola principal: el manejador hereda el aislamiento de @MainActor de esta función.
+        _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: refreshID, using: .main) { task in
             run(task, reason: .background, model: model)
         }
-        _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: nightlyID, using: nil) { task in
+        _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: nightlyID, using: .main) { task in
             run(task, reason: .nightly, model: model)
         }
     }
