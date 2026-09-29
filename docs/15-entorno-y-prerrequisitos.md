@@ -57,13 +57,17 @@ Dependencias Swift previstas (licencia permisiva, a confirmar en F0): **GRDB** (
 |---|---|
 | `ASC_KEY_ID` | ID de la clave de API de App Store Connect |
 | `ASC_ISSUER_ID` | ID del emisor de la clave |
-| `ASC_KEY_P8_BASE64` | Contenido de la clave `.p8` en base64 |
+| `ASC_KEY_P8` | Contenido de la clave `.p8` tal cual, con las líneas `BEGIN` y `END` (también vale `ASC_KEY_P8_BASE64` con el archivo en base64) |
 | `APPLE_TEAM_ID` | *Team ID* |
-| `APP_BUNDLE_ID`, `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_REVERSED_CLIENT_ID` | Para generar `Secrets.xcconfig` |
+| `APP_BUNDLE_ID`, `GOOGLE_IOS_CLIENT_ID` | Para generar `Secrets.xcconfig`; `GOOGLE_REVERSED_CLIENT_ID` es opcional (se calcula a partir del *client ID*) |
+
+El *workflow* **Comprobar configuración** (`preflight.yml`, en Linux) revisa todos estos secretos sin compilar: formato, que la clave de App Store Connect funciona, los dos App IDs con HealthKit y App Groups, la ficha de la app y el grupo de TestFlight. La guía completa, paso a paso, está en el [doc. 17](17-puesta-en-marcha.md).
 
 **Claves de IA**: no van en ningún fichero ni secreto de CI. Las pegas en Ajustes de la app (Claude, Gemini o ambas) y se guardan en el Llavero (doc. 06 §3). Para la suite de evaluación (doc. 13 §7) se leen de variables de entorno locales o de secretos de CI solo al lanzarla a mano. Los *tokens* de Google viven solo en el Llavero.
 
 ## 5. Lista de tareas de F0 (en orden)
+
+> Para instalar la app ya hecha, sigue el [doc. 17](17-puesta-en-marcha.md), que concreta los pasos 2–4 y 6 con cada pantalla y cada secreto.
 
 1. [ ] Llevar la Fitbit Air 24/7 y comprobar en Google Health que aparecen sueño con fases, VFC, FC en reposo, SpO₂, frecuencia respiratoria y temperatura.
 2. [ ] En **developer.apple.com**: crear el App ID con su *bundle ID* y las capacidades (App Groups con el grupo `group.<bundle ID>`; **HealthKit** con entrega en segundo plano, `com.apple.developer.healthkit.background-delivery`; AlarmKit si se usa [verificar requisitos de AlarmKit]), y un segundo App ID `<bundle ID>.widgets` para la extensión de *widgets* con el mismo App Group. Con la firma automática en la nube, Xcode puede crearlos solo si la clave de API tiene permisos suficientes.

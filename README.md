@@ -38,6 +38,7 @@ Especificación completa de requisitos para construir una **app personal para iP
 | 14 | [Plan de proyecto y riesgos](docs/14-plan-de-proyecto-y-riesgos.md) | Hitos, épicas, riesgos, indicadores |
 | 15 | [Entorno y prerrequisitos](docs/15-entorno-y-prerrequisitos.md) | Cuentas, herramientas, configuración y lista de tareas de F0 |
 | 16 | [Apple Watch y fusión de datos](docs/16-apple-watch-y-fusion-de-datos.md) | Carreras del Watch vía Salud, reglas para no duplicar nada, sincronización al abrir |
+| 17 | [**Puesta en marcha paso a paso**](docs/17-puesta-en-marcha.md) | Todo lo que hay que hacer para tener la app en tu iPhone con tus datos: Apple, Google Cloud, GitHub y TestFlight |
 | — | [Glosario](docs/glosario.md) · [Referencias](docs/referencias.md) | Términos y bibliografía científica |
 
 Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.example.xcconfig).
@@ -73,14 +74,15 @@ Packages/RecuperaKit/     Toda la lógica, compilable y probada también en Linu
   Insights                análisis del día, recomendaciones, informes, plan semanal, fuerza, «Mi panel» y respiración
   CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas, costes e informes redactados)
 project.yml               proyecto de Xcode generado con XcodeGen
-.github/workflows/        ci-linux.yml (tests en cada push) · ios.yml (compilación iOS y TestFlight)
+.github/workflows/        ci-linux.yml (tests en cada push) · ios.yml (compilación iOS y TestFlight) ·
+                          preflight.yml («Comprobar configuración»: revisa los secretos sin compilar)
 ```
 
 **Probar la lógica** (Linux o macOS con Swift 6): `cd Packages/RecuperaKit && swift test`.
 
-**Compilar la app sin Mac** (GitHub Actions, macOS 26 con Xcode 26):
+**Compilar la app sin Mac** (GitHub Actions, macOS 26 con Xcode 26). Guía completa, paso a paso: [doc. 17](docs/17-puesta-en-marcha.md).
 
-1. Guarda los secretos del [doc. 15 §4](docs/15-entorno-y-prerrequisitos.md#4-configuración-y-secretos) en *Settings › Secrets and variables › Actions*. Sin ellos la app compila igualmente con valores de ejemplo y funciona en **modo demostración**.
+1. Guarda los secretos del [doc. 15 §4](docs/15-entorno-y-prerrequisitos.md#4-configuración-y-secretos) en *Settings › Secrets and variables › Actions* y compruébalos con el *workflow* **Comprobar configuración** (Linux, no gasta minutos de macOS). Sin secretos la app compila igualmente con valores de ejemplo y funciona en **modo demostración**.
 2. Lanza el *workflow* **iOS** a mano (*Actions › iOS › Run workflow*) o incluye `[macos]` en el mensaje de un commit. Los minutos de macOS cuentan ×10, por eso no se ejecuta en cada *push*.
 3. Para instalarla, lanza el mismo *workflow* marcando **«Firmar y subir a TestFlight»** (necesita la clave de API de App Store Connect y el App ID con HealthKit y App Groups). La *build* aparece en la app TestFlight de tu iPhone.
 
