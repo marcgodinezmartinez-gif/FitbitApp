@@ -201,7 +201,28 @@ extension AppDatabase {
         }
     }
 
+    /// Todos los VO₂ máx. guardados (Apple Watch y Fitbit), por fecha.
+    public func vo2maxValues() throws -> [VO2MaxValue] {
+        try writer.read { db in
+            try Row.fetchAll(db, sql: "SELECT date, source, value FROM vo2max ORDER BY date").compactMap { r -> VO2MaxValue? in
+                guard let d = LocalDate(isoString: r["date"]), let source = DataSourceKind(rawValue: r["source"]) else { return nil }
+                return VO2MaxValue(date: d, value: r["value"], source: source)
+            }
+        }
+    }
+
     // Zapatillas
+
+    /// Zapatillas elegidas en cada actividad (id de la actividad → id del par).
+    public func shoeAssignments() throws -> [String: String] {
+        try writer.read { db in
+            var out: [String: String] = [:]
+            for json in try String.fetchAll(db, sql: "SELECT json FROM activity_annotation") {
+                if let a = try? Self.decode(ActivityAnnotation.self, json), let shoe = a.shoeID { out[a.activityID] = shoe }
+            }
+            return out
+        }
+    }
 
     public func shoes() throws -> [Shoe] { try readState("shoes", default: ShoeCloset()).shoes }
 

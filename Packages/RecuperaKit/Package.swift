@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "Insights", targets: ["Insights"]),
         .library(name: "CoachKit", targets: ["CoachKit"]),
         .library(name: "SyncKit", targets: ["SyncKit"]),
+        .library(name: "RunKit", targets: ["RunKit"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
@@ -23,13 +24,15 @@ let package = Package(
         .target(name: "HealthAPI"),
         .target(name: "Store", dependencies: ["MetricsKit", .product(name: "GRDB", package: "GRDB.swift")]),
         .target(name: "Insights", dependencies: ["MetricsKit"]),
-        .target(name: "CoachKit", dependencies: ["MetricsKit", "Insights", "Store"]),
+        .target(name: "CoachKit", dependencies: ["MetricsKit", "Insights", "Store", "RunKit"]),
         .target(name: "SyncKit", dependencies: ["MetricsKit", "HealthAPI", "Store", "Insights"]),
+        .target(name: "RunKit", dependencies: ["MetricsKit", "Store"]),
         .testTarget(name: "MetricsKitTests", dependencies: ["MetricsKit"]),
         .testTarget(name: "HealthAPITests", dependencies: ["HealthAPI"]),
         .testTarget(name: "StoreTests", dependencies: ["Store"]),
         .testTarget(name: "InsightsTests", dependencies: ["Insights"]),
-        .testTarget(name: "CoachKitTests", dependencies: ["CoachKit", "Store", "Insights", "MetricsKit"]),
+        .testTarget(name: "CoachKitTests", dependencies: ["CoachKit", "Store", "Insights", "MetricsKit", "RunKit"]),
         .testTarget(name: "SyncKitTests", dependencies: ["SyncKit"]),
+        .testTarget(name: "RunKitTests", dependencies: ["RunKit", "Store", "MetricsKit"]),
     ]
 )

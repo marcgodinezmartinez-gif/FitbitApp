@@ -82,6 +82,7 @@ public struct AIReport: Codable, Sendable, Hashable {
     public enum Kind: String, Codable, Sendable {
         case morning = "ai_morning"
         case weekly = "ai_weekly"
+        case run = "ai_run"
     }
 
     public var kind: Kind
@@ -94,11 +95,14 @@ public struct AIReport: Codable, Sendable, Hashable {
     public var usedFallback: Bool?
     public var morning: MorningSummary?
     public var weekly: WeeklyNarrative?
+    /// Análisis de una carrera (`periodStart` es entonces el id de la carrera).
+    public var run: RunNarrative?
     /// Recuperación con la que se redactó el resumen matinal: si cambia (llegan tarde los vitales), se rehace.
     public var recoveryScore: Int?
 
     public init(kind: Kind, periodStart: String, createdAt: Date, provider: String, model: String, costUSD: Double,
-                usedFallback: Bool? = nil, morning: MorningSummary? = nil, weekly: WeeklyNarrative? = nil, recoveryScore: Int? = nil) {
+                usedFallback: Bool? = nil, morning: MorningSummary? = nil, weekly: WeeklyNarrative? = nil, recoveryScore: Int? = nil,
+                run: RunNarrative? = nil) {
         self.kind = kind
         self.periodStart = periodStart
         self.createdAt = createdAt
@@ -109,6 +113,7 @@ public struct AIReport: Codable, Sendable, Hashable {
         self.morning = morning
         self.weekly = weekly
         self.recoveryScore = recoveryScore
+        self.run = run
     }
 }
 
