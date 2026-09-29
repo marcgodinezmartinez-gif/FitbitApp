@@ -2,7 +2,7 @@
 
 Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes, **análisis del día** y un **Coach IA con Claude o Gemini**— y que además **fusione las carreras de tu Apple Watch**, **sin pagar Google Health Premium ni ninguna cuota nueva** y con un diseño muy superior al de la app oficial.
 
-> Estado: **requisitos (fase F0)** — aún no hay código. Información verificada a 28/09/2026.
+> Estado: **v0.1 — primera versión completa del código** (app, *widgets*, lógica y CI) sobre los requisitos verificados a 28/09/2026. Pendiente: compilarla en macOS, instalarla con TestFlight y hacer el *spike* con tus datos reales.
 > Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program), **Coach IA con Claude o Gemini** y **Apple Watch para correr** con sus datos fusionados.
 
 ## Resumen en 10 puntos
@@ -41,6 +41,34 @@ Especificación completa de requisitos para construir una **app personal para iP
 | — | [Glosario](docs/glosario.md) · [Referencias](docs/referencias.md) | Términos y bibliografía científica |
 
 Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.example.xcconfig).
+
+## Código
+
+```
+App/                      App SwiftUI (Hoy, detalles, tendencias, diario, Coach, perfil, onboarding) y servicios del iPhone
+Widgets/                  Widgets de inicio y de pantalla de bloqueo
+Packages/RecuperaKit/     Toda la lógica, compilable y probada también en Linux:
+  MetricsKit              algoritmos del doc. 05 y fusión Fitbit Air + Apple Watch (doc. 16)
+  HealthAPI               cliente de la Google Health API v4 con OAuth PKCE
+  Store                   base de datos local (SQLite con GRDB)
+  SyncKit                 sincronización de las dos fuentes, avisos y widgets
+  Insights                análisis del día determinista, recomendaciones e informes
+  CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas y costes)
+project.yml               proyecto de Xcode generado con XcodeGen
+.github/workflows/        ci-linux.yml (tests en cada push) · ios.yml (compilación iOS y TestFlight)
+```
+
+**Probar la lógica** (Linux o macOS con Swift 6): `cd Packages/RecuperaKit && swift test`.
+
+**Compilar la app sin Mac** (GitHub Actions, macOS 26 con Xcode 26):
+
+1. Guarda los secretos del [doc. 15 §4](docs/15-entorno-y-prerrequisitos.md#4-configuración-y-secretos) en *Settings › Secrets and variables › Actions*. Sin ellos la app compila igualmente con valores de ejemplo y funciona en **modo demostración**.
+2. Lanza el *workflow* **iOS** a mano (*Actions › iOS › Run workflow*) o incluye `[macos]` en el mensaje de un commit. Los minutos de macOS cuentan ×10, por eso no se ejecuta en cada *push*.
+3. Para instalarla, lanza el mismo *workflow* marcando **«Firmar y subir a TestFlight»** (necesita la clave de API de App Store Connect y el App ID con HealthKit y App Groups). La *build* aparece en la app TestFlight de tu iPhone.
+
+**Compilar en un Mac** (si algún día tienes uno): `scripts/write-secrets-xcconfig.sh && xcodegen generate && open Recupera.xcodeproj`.
+
+**Primer uso**: el onboarding pide tu perfil, conecta Google Health (Fitbit Air) y, si quieres, Apple Health (Apple Watch). También puedes pulsar «Probar con datos de demostración». El Coach está desactivado por defecto: actívalo en *Perfil › Coach IA* con tu clave de Claude o de Gemini (nivel de pago).
 
 ## Qué necesitas para empezar (F0)
 

@@ -340,6 +340,8 @@ Alternativa futura: edad biológica de Klemera–Doubal [R63] (requiere regresio
 
 El Apple Watch estima el VO₂ máx. en carreras y caminatas al aire libre, y Google solo con carreras al aire libre con GPS. Si no hay valor de ninguno de los dos en 180 días (ALG-FUS-06), se puede usar el modelo sin ejercicio del estudio HUNT [R44], que necesita **perímetro de cintura** y un **índice de actividad física** autodeclarado (frecuencia, duración e intensidad) además de edad, sexo y FC en reposo. Esos dos datos son **opcionales** en el perfil (F3); si faltan, el factor de forma física se omite y se indica.
 
+> **Estado (v0.1.0):** no implementado. No se pudieron verificar los coeficientes publicados del modelo HUNT, así que, sin VO₂ máx. del Apple Watch ni de Google, la edad fisiológica omite el factor de forma física y lo indica (`omittedFitness`). Se añadirá cuando se validen los coeficientes.
+
 ### ALG-EDA-03 · Ritmo de envejecimiento
 
 ```

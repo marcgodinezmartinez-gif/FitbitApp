@@ -57,7 +57,7 @@ Google permite conceder solo algunos ámbitos: la app lee los concedidos y degra
 
 | Parámetro | Valor |
 |---|---|
-| Librería | Librería oficial de Google para iOS (**Google Sign-In** con ámbitos adicionales) o **AppAuth-iOS**; Google solo admite sus librerías OAuth [elegir en el *spike*] |
+| Librería | Implementado sin dependencias (`HealthAPI/OAuth.swift` + `GoogleAuthSession` en la app): el mismo flujo que hace **AppAuth-iOS** (navegador del sistema con `ASWebAuthenticationSession`, PKCE S256 y `state`). Si en el *spike* Google lo rechazara, se sustituye por AppAuth-iOS o Google Sign-In sin tocar el resto |
 | Flujo | Código de autorización con **PKCE (S256)** en `ASWebAuthenticationSession`; **nunca WebView** |
 | Endpoints | Autorización `https://accounts.google.com/o/oauth2/v2/auth` · *token* `https://oauth2.googleapis.com/token` · revocación `https://oauth2.googleapis.com/revoke` |
 | Redirección | Esquema de URL invertido del *client ID* de iOS (lo gestiona la librería) |

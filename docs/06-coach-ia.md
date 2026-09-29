@@ -89,10 +89,10 @@ Resultados en JSON compacto, redondeado, con fechas locales y truncado a un máx
 | Aspecto | Claude (Anthropic) | Gemini (Google) |
 |---|---|---|
 | Modelo por defecto | `claude-opus-5-5` (Claude Opus 5.5, publicado el 22/09/2026; punto de partida que recomienda Anthropic; 1M de contexto) | `gemini-3.8-flash` (modelo estable recomendado a 09/2026) |
-| Alternativas en Ajustes | `claude-sonnet-5` (la mitad de precio) u otros modelos Claude disponibles para tu clave | `gemini-3.1-pro-preview` (en *preview*) u otros disponibles |
+| Alternativas en Ajustes | `claude-sonnet-5-5` (Claude Sonnet 5.5, la mitad de precio), `claude-haiku-4-5` (el más económico) o cualquier otro ID disponible para tu clave | `gemini-3.1-pro-preview` (en *preview*) u otros disponibles |
 | Precio publicado (por millón de *tokens*) | 4 $ entrada · 20 $ salida · 5 $ escritura en caché (5 min) · 0,20 $ lectura de caché | 0,75 $ entrada · 3,75 $ salida · 0,075 $ caché hasta el 31/12/2026; el doble desde el 01/01/2027 |
-| API | Messages API (`POST /v1/messages`), cabecera `x-api-key` | API de Gemini en `generativelanguage.googleapis.com`, cabecera `x-goog-api-key` |
-| Razonamiento | Adaptativo y **siempre activo**: no se envía `thinking` (o se envía `{type: "adaptive"}`; `disabled` da error 400). Profundidad y coste se regulan solo con `output_config.effort` (`low` … `max`; por defecto `medium`): empezar en `medium` y fijarlo con la evaluación | Nivel de razonamiento configurable (`thinking_level`), ajustado con la evaluación |
+| API | Messages API (`POST /v1/messages`), cabecera `x-api-key` | API de Gemini en `generativelanguage.googleapis.com` (`streamGenerateContent` con SSE), cabecera `x-goog-api-key`. Google la considera heredada desde que publicó la *Interactions API*, pero mantiene el soporte completo |
+| Razonamiento | Adaptativo y **siempre activo**: no se envía `thinking` (o se envía `{type: "adaptive"}`; `disabled` da error 400). Profundidad y coste se regulan solo con `output_config.effort` (`low` … `max`; por defecto `medium`): empezar en `medium` y fijarlo con la evaluación. Se pide `thinking.block_binding.prefix_mismatch_behavior: "drop_block"` (beta `thinking-binding-controls-2026-08-01`) para que, si algún día cambiara el prefijo de un hilo, se descarte el bloque afectado en vez de dar 400 | `thinkingConfig.thinkingLevel` (`low`, `medium` en los modelos *flash*, `high`) según el esfuerzo elegido |
 | Lectura de la respuesta | Empieza con bloques de razonamiento (vacíos por defecto): leer el texto **por `type`**, nunca por posición, y reenviar esos bloques intactos (§3) | Reenviar los pasos de pensamiento con su firma (§3) |
 | Herramientas | `tools` con `input_schema`; `tool_choice` solo `auto` o `none` (forzar una herramienta da error 400) | Declaraciones de funciones con `parameters` |
 | Salida estructurada | `output_config.format` con esquema JSON (el *prefill* da error 400) | Formato de respuesta JSON con esquema |
@@ -134,4 +134,14 @@ Supuestos por pregunta (≈ 3 llamadas en el bucle de herramientas): un prefijo 
 | 3 preguntas al día | ≈ 8 $/mes | ≈ 1,5 $ → 3 $/mes |
 | Resumen matinal diario | ≈ 2 $/mes | ≈ 0,35 $ → 0,70 $/mes |
 
-Con `claude-sonnet-5` el coste de Claude baja aproximadamente a la mitad (≈ 1,4 $/mes con una pregunta al día). Sin Coach, 0 €. La app muestra el gasto estimado del mes (a partir del uso de *tokens* de cada respuesta) y aplica el límite diario (RF-COA-13), además del límite que pongas en la consola de cada proveedor (RNF-COS-02).
+Con `claude-sonnet-5-5` el coste de Claude baja aproximadamente a la mitad (≈ 1,4 $/mes con una pregunta al día). Sin Coach, 0 €. La app muestra el gasto estimado del mes (a partir del uso de *tokens* de cada respuesta) y aplica el límite diario (RF-COA-13), además del límite que pongas en la consola de cada proveedor (RNF-COS-02).
+
+## 9. Notas de implementación (v0.1)
+
+- Código en `Packages/RecuperaKit/Sources/CoachKit` (probado en Linux con respuestas SSE grabadas): `AnthropicProvider`, `GeminiProvider`, `CoachTools`, `CoachSafety`, `ModelCatalog` y `CoachEngine`.
+- Los turnos se guardan tal como los devuelve cada proveedor en un JSON que conserva el orden de las claves y el literal de los números, y el sistema y las herramientas se congelan al crear cada hilo: así el prefijo de cada petición es idéntico byte a byte (caché de *prompt* y razonamiento preservado).
+- Caché en Claude: punto fijo al final del sistema (herramientas + sistema) y `cache_control` automático de nivel superior para la conversación.
+- Herramientas de Claude con `eager_input_streaming`; la entrada se valida en el iPhone (JSON no válido ⇒ resultado de error `INVALID_JSON`; con `stop_reason: "max_tokens"` no se ejecuta ninguna llamada).
+- «Analizar mi día» con IA: la app incluye en el propio mensaje los mismos hechos que devolvería `get_day_detail` (una llamada menos) y pide la salida estructurada con el esquema de ALG-ANA-01. Con Gemini, esa petición va sin herramientas; los hilos siguen con ellas.
+- Un turno con herramientas que quedó sin resultados (la app se cerró a mitad) se completa al reenviar con resultados de error deterministas.
+- El gasto se acumula por día en `coach_spend` y no se pierde al borrar los hilos (límites de RF-COA-13).

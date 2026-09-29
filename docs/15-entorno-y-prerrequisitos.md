@@ -42,7 +42,7 @@ Dependencias Swift previstas (licencia permisiva, a confirmar en F0): **GRDB** (
 
 ## 4. Configuración y secretos
 
-**En la app** — plantilla [`Config/Secrets.example.xcconfig`](../Config/Secrets.example.xcconfig). En CI se genera `Config/Secrets.xcconfig` a partir de los secretos de GitHub; nunca se versiona.
+**En la app** — plantilla [`Config/Secrets.example.xcconfig`](../Config/Secrets.example.xcconfig). En CI, [`scripts/write-secrets-xcconfig.sh`](../scripts/write-secrets-xcconfig.sh) genera `Config/Secrets.xcconfig` a partir de los secretos de GitHub (sin ellos usa valores de ejemplo y la app funciona en modo demostración); nunca se versiona.
 
 | Clave | Descripción |
 |---|---|

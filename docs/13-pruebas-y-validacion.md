@@ -35,7 +35,7 @@ Con el resto de entradas fijas:
 - **Estrés** ∈ [0, 3]; minutos con actividad física detectada no suman estrés.
 - Cambiar la zona horaria de visualización no cambia ningún valor calculado (solo su presentación).
 - Los recálculos con datos repetidos (misma muestra dos veces) dan el mismo resultado (idempotencia de la ingesta).
-- **Fusión** (ALG-FUS, RNF-DIS-09): ningún minuto tiene FC, pasos o carga de dos fuentes; cada entrenamiento del Watch aparece en exactamente una actividad; sin datos del Watch, todo es idéntico al resultado con la Fitbit sola; el orden en que llegan las fuentes no cambia el resultado final; la recuperación y las líneas base no cambian al añadir o quitar datos del Watch.
+- **Fusión** (ALG-FUS, RNF-DIS-09): ningún minuto tiene FC, pasos o carga de dos fuentes; cada entrenamiento del Watch aparece en exactamente una actividad; sin datos del Watch, todo es idéntico al resultado con la Fitbit sola; el orden en que llegan las fuentes no cambia el resultado final; las líneas base nocturnas (VFC, FC en reposo, respiración, temperatura, SpO₂) no cambian al añadir o quitar datos del Watch. La recuperación sí puede variar, pero solo a través de la necesidad de sueño, que depende de la carga del día anterior (y esta usa la FC del Watch en sus entrenamientos); con el Watch quitado del todo, el resultado es idéntico al de la Fitbit sola.
 
 ## 3. Datasets de prueba
 
