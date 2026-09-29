@@ -156,8 +156,11 @@ final class AppModel {
 
     /// Sincroniza las dos fuentes a la vez (Apple Health aparece al instante; Google en cuanto llega) y recalcula.
     /// En segundo plano (`awaitReports`) espera también a los informes de la IA antes de dar la tarea por terminada.
-    func sync(_ reason: SyncReason, awaitReports: Bool = false) async {
+    func sync(_ requested: SyncReason, awaitReports: Bool = false) async {
         guard let syncEngine, !settings.demoMode else { return }
+        // Si la primera importación no llegó a terminar (un error, la app cerrada a medias…), se retoma al volver a la app.
+        let resume = (requested == .open || requested == .pull) && connection.googleStatus == .active && !connection.backfillCompleted
+        let reason = resume ? SyncReason.backfill : requested
         isSyncing = true
         defer {
             isSyncing = false
@@ -190,7 +193,7 @@ final class AppModel {
         if let e = report.google.error { problems.append("Google Health: \(e)") }
         if let e = report.apple.error { problems.append("Apple Health: \(e)") }
         syncMessage = problems.isEmpty ? nil : problems.joined(separator: "\n")
-        if reason == .pull { Haptics.soft() }
+        if requested == .pull { Haptics.soft() }
     }
 
     private func applyImportProgress(_ p: ImportProgress) {

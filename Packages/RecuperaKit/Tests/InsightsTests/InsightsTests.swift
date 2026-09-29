@@ -51,6 +51,17 @@ private func utc(_ s: String) -> Date {
         let out = MetricsEngine.run(input)
         let text = TodayRecommendation.text(for: out.current!, output: out, profile: input.profile)
         #expect(text.contains("Acuéstate a las"))
+        // Pasada la hora de acostarse, se dice que ya toca dormir.
+        let bed = SleepCalculator.bedtime(wakeMinutes: input.profile.usualWakeMinutes, needMin: out.tonightNeed!.totalMin, goal: .peak,
+                                          usualEfficiency: out.usualEfficiency, usualLatency: out.usualLatency, params: .default)
+        let late = TodayRecommendation.text(for: out.current!, output: out, profile: input.profile, nowMinutes: (bed + 73) % 1440)
+        #expect(late.contains("Lo ideal era acostarte a las \(Format.clock(minutes: bed))") && !late.contains("Acuéstate a las"))
+        let earlier = TodayRecommendation.text(for: out.current!, output: out, profile: input.profile, nowMinutes: (bed + 1440 - 90) % 1440)
+        #expect(earlier.contains("Acuéstate a las"))
+        #expect(TodayRecommendation.bedtimePassed(bed: 22 * 60 + 35, now: 23 * 60 + 48))
+        #expect(!TodayRecommendation.bedtimePassed(bed: 30, now: 23 * 60 + 48))
+        #expect(TodayRecommendation.bedtimePassed(bed: 23 * 60 + 30, now: 60))
+        #expect(!TodayRecommendation.bedtimePassed(bed: 22 * 60 + 35, now: 12 * 60))
         let report = WeeklyReportBuilder.build(output: out, weekStart: LocalDate(year: 2026, month: 9, day: 21))
         #expect(report.recommendations.count >= 1 && report.recommendations.count <= 3)
         #expect(report.runs >= 2)

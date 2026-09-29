@@ -180,6 +180,58 @@ struct ProfileEditor: View {
     }
 }
 
+/// Últimas sincronizaciones con su resultado y los avisos no fatales (datos secundarios que fallaron, puntos ilegibles).
+struct SyncLogView: View {
+    @Environment(AppModel.self) private var model
+    @State private var entries: [SyncLogEntry] = []
+
+    var body: some View {
+        List {
+            if entries.isEmpty {
+                Text("Aún no hay sincronizaciones registradas.").foregroundStyle(Palette.textSecondary)
+            }
+            ForEach(Array(entries.enumerated()), id: \.offset) { _, e in
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(Self.source(e.source)).font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(e.startedAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption).foregroundStyle(Palette.textSecondary)
+                    }
+                    Text("\(e.status == "ok" ? "Correcta" : "Con error") · \(Self.kind(e.kind)) · \(e.records) registros")
+                        .font(.caption).foregroundStyle(e.status == "ok" ? Palette.textSecondary : Palette.recoveryLow)
+                    if let text = e.error {
+                        Text(text).font(.caption2).textSelection(.enabled)
+                            .foregroundStyle(e.status == "ok" ? Palette.recoveryMedium : Palette.recoveryLow)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Registro")
+        .task { entries = (try? model.db?.recentSyncLog(limit: 40)) ?? [] }
+    }
+
+    static func source(_ s: String) -> String {
+        switch s {
+        case "google_health": return "Google Health"
+        case "apple_health": return "Apple Health"
+        default: return "Cálculo de métricas"
+        }
+    }
+
+    static func kind(_ k: String) -> String {
+        switch k {
+        case "backfill": return "importación inicial"
+        case "open": return "al abrir"
+        case "pull": return "manual"
+        case "background": return "en segundo plano"
+        case "nightly": return "nocturna"
+        case "healthKitDelivery": return "aviso de Salud"
+        default: return k
+        }
+    }
+}
+
 /// Fuentes de datos: estado de cada una, preferencia de FC y cómo se evitan duplicados (RF-FUS-07/10, RF-CON-09).
 struct SourcesView: View {
     @Environment(AppModel.self) private var model
@@ -208,6 +260,7 @@ struct SourcesView: View {
                     .disabled(working)
                 }
                 Link("Abrir Google Health", destination: URL(string: "https://www.fitbit.com/in-app/today")!)
+                NavigationLink("Registro de sincronización") { SyncLogView() }
             } header: {
                 Label("Fitbit Air · Google Health", systemImage: DataSourceKind.googleHealth.symbol)
             } footer: {

@@ -3,7 +3,8 @@ import MetricsKit
 
 /// Recomendación corta de la pantalla Hoy (plantillas deterministas, F1–F2).
 public enum TodayRecommendation {
-    public static func text(for cycle: CycleMetrics, output: MetricsOutput, profile: UserProfile,
+    /// `nowMinutes`: minuto del día local; si la hora de acostarse ya ha pasado, se dice que es hora de dormir.
+    public static func text(for cycle: CycleMetrics, output: MetricsOutput, profile: UserProfile, nowMinutes: Int? = nil,
                             params: AlgorithmParams = .default) -> String {
         var parts: [String] = []
         switch cycle.recovery.zone {
@@ -27,9 +28,20 @@ public enum TodayRecommendation {
         if let need = output.tonightNeed {
             let bed = SleepCalculator.bedtime(wakeMinutes: profile.usualWakeMinutes, needMin: need.totalMin, goal: .peak,
                                               usualEfficiency: output.usualEfficiency, usualLatency: output.usualLatency, params: params)
-            parts.append("Acuéstate a las \(Format.clock(minutes: bed)).")
+            if let nowMinutes, bedtimePassed(bed: bed, now: nowMinutes) {
+                parts.append("Lo ideal era acostarte a las \(Format.clock(minutes: bed)): acuéstate en cuanto puedas.")
+            } else {
+                parts.append("Acuéstate a las \(Format.clock(minutes: bed)).")
+            }
         }
         return parts.joined(separator: " ")
+    }
+
+    /// La hora de acostarse ya ha pasado si ahora cae en las 6 h siguientes (cruzando la medianoche: a las 23:48 la de las
+    /// 22:35 ya pasó; la de las 00:30, todavía no).
+    static func bedtimePassed(bed: Int, now: Int) -> Bool {
+        let elapsed = ((now - bed) % 1440 + 1440) % 1440
+        return elapsed < 6 * 60
     }
 
     /// Explicación en lenguaje natural de cada componente de la recuperación (RF-REC-04).

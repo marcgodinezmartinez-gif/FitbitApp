@@ -122,6 +122,32 @@ final class MockTransport: HTTPTransport, @unchecked Sendable {
         #expect(points[0].dataSource?.platform == "FITBIT")
     }
 
+    /// Google manda "NaN" (y a veces texto) en los decimales sin dato: se leen como nil y el resto del punto se conserva.
+    /// Un punto ilegible se descarta sin tirar la página entera y queda contado.
+    @Test func tolerantDecimalsAndPoints() async throws {
+        let body = """
+        {"dataPoints":[
+         {"dailySleepTemperatureDerivations":{"date":{"year":2026,"month":9,"day":27},"nightlyTemperatureCelsius":34.1,"baselineTemperatureCelsius":"NaN"}},
+         {"dailySleepTemperatureDerivations":{"date":{"year":2026,"month":9,"day":28},"nightlyTemperatureCelsius":"34.4","relativeNightlyStddev30dCelsius":"Infinity"}},
+         {"dailyRestingHeartRate":{"date":{"year":2026,"month":9,"day":28},"beatsPerMinute":"no es un número"}},
+         {"dailyRespiratoryRate":{"date":{"year":2026,"month":9,"day":28},"breathsPerMinute":null}}
+        ]}
+        """
+        let t = MockTransport { _ in (200, body, [:]) }
+        let client = GoogleHealthClient(config: config, transport: t,
+                                        tokens: InMemoryTokenStore(TokenSet(accessToken: "a", refreshToken: nil, expiresAt: .distantFuture, scope: nil)),
+                                        sleep: { _ in })
+        let points = try await client.list(.dailySleepTemperatureDerivations, filter: "x")
+        #expect(points.count == 3)
+        let first = points[0].dailySleepTemperatureDerivations
+        #expect(first?.nightlyTemperatureCelsius == 34.1 && first?.baselineTemperatureCelsius == nil)
+        let second = points[1].dailySleepTemperatureDerivations
+        #expect(second?.nightlyTemperatureCelsius == 34.4 && second?.relativeNightlyStddev30dCelsius == nil)
+        #expect(second?.baselineTemperatureCelsius == nil)
+        #expect(points[2].dailyRespiratoryRate != nil && points[2].dailyRespiratoryRate?.breathsPerMinute == nil)
+        #expect(await client.skippedPoints == 1)
+    }
+
     @Test func rollUpBodyUsesGoogleWearables() async throws {
         let t = MockTransport { _ in
             (200, #"{"rollupDataPoints":[{"startTime":"2026-09-28T10:00:00Z","endTime":"2026-09-28T10:01:00Z","heartRate":{"beatsPerMinuteAvg":72.5,"beatsPerMinuteMin":70,"beatsPerMinuteMax":75}}]}"#, [:])

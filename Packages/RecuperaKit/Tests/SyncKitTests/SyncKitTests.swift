@@ -206,4 +206,34 @@ actor ProgressLog {
         _ = await engine.sync(.pull) { p in await quiet.add(p) }
         #expect(await quiet.items.isEmpty)
     }
+
+    /// Un "NaN" en la temperatura y un dato secundario que falla (aquí el SpO₂) no impiden guardar la VFC y la FC en
+    /// reposo ni cerrar la primera importación; el fallo queda en el registro.
+    @Test func secondaryDataCannotBlockTheImport() async throws {
+        let db = try AppDatabase.inMemory()
+        let now = ISO8601DateFormatter().date(from: "2026-09-29T19:00:00Z")!
+        let day = #"{"year":2026,"month":9,"day":28}"#
+        func point(_ field: String, _ value: String) -> String {
+            #"{"dataPoints":[{"dataSource":{"platform":"FITBIT"},""# + field + #"":{"date":"# + day + "," + value + "}}]}"
+        }
+        let transport = CannedTransport([
+            "daily-heart-rate-variability/dataPoints": point("dailyHeartRateVariability", #""averageHeartRateVariabilityMilliseconds":48.2"#),
+            "daily-resting-heart-rate/dataPoints": point("dailyRestingHeartRate", #""beatsPerMinute":"52""#),
+            "daily-sleep-temperature-derivations/dataPoints":
+                point("dailySleepTemperatureDerivations", #""nightlyTemperatureCelsius":34.2,"baselineTemperatureCelsius":"NaN""#),
+            "daily-oxygen-saturation/dataPoints": "[]",
+        ])
+        let tokens = InMemoryTokenStore(TokenSet(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, scope: nil))
+        let google = GoogleHealthClient(config: OAuthConfig(clientID: "c", reversedClientID: "r"), transport: transport,
+                                        tokens: tokens, sleep: { _ in })
+        let engine = SyncEngine(db: db, google: google, apple: nil, now: { now }, utcOffset: { 7200 })
+        let report = await engine.sync(.backfill, backfillDays: 20)
+        #expect(report.google.ok && report.google.error == nil)
+        #expect(try db.connection().backfillCompleted)
+        let vitals = try db.metricsInput(now: now, utcOffsetSeconds: 7200).vitals
+        let v = try #require(vitals.first { $0.date == LocalDate(year: 2026, month: 9, day: 28) })
+        #expect(v.hrvRmssdAvg == 48.2 && v.restingHR == 52 && v.skinTempC == 34.2 && v.spo2Avg == nil)
+        let log = try #require(try db.recentSyncLog().first { $0.source == "google_health" })
+        #expect(log.status == "ok" && log.error?.contains("daily-oxygen-saturation") == true)
+    }
 }

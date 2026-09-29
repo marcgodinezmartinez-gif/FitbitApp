@@ -51,6 +51,8 @@ public actor SyncEngine {
     let utcOffset: @Sendable () -> Int
     private var lastGoogleRun: Date?
     private var inFlight: Task<SyncReport, Never>?
+    /// Avisos no fatales de la sincronización de Google en curso (datos secundarios que fallaron, puntos ilegibles).
+    private var googleWarnings: [String] = []
 
     public init(db: AppDatabase, google: GoogleHealthClient?, apple: AppleHealthProvider?,
                 now: @escaping @Sendable () -> Date = { Date() },
@@ -117,6 +119,12 @@ public actor SyncEngine {
         return out
     }
 
+    /// Minuto del día en la hora local.
+    func localMinutes() -> Int {
+        let t = Int(now().timeIntervalSince1970) + utcOffset()
+        return (t % 86_400 + 86_400) % 86_400 / 60
+    }
+
     func makeSnapshot(_ out: MetricsOutput) -> WidgetSnapshot? {
         guard let cur = out.current, let profile = try? db.profile() else { return nil }
         var bedtime: String?
@@ -128,7 +136,8 @@ public actor SyncEngine {
         return WidgetSnapshot(date: cur.date.isoString, updatedAt: now(), sleepPerformance: cur.sleep.map { Int($0.performance.rounded()) },
                               recovery: cur.recovery.score, recoveryZone: cur.recovery.zone?.rawValue, strain: cur.strain.strain,
                               targetLow: cur.target?.low, targetHigh: cur.target?.high,
-                              recommendation: TodayRecommendation.text(for: cur, output: out, profile: profile), bedtime: bedtime,
+                              recommendation: TodayRecommendation.text(for: cur, output: out, profile: profile, nowMinutes: localMinutes()),
+                              bedtime: bedtime,
                               showValuesOnLockScreen: (try? db.settings())?.lockscreenShowsValues)
     }
 
@@ -192,10 +201,14 @@ public actor SyncEngine {
             let recent = start.addingTimeInterval(-48 * 3600)
             from = min(recent, lastSynced.map { max($0.addingTimeInterval(-48 * 3600), start.addingTimeInterval(-Double(backfillDays) * 86_400)) } ?? start.addingTimeInterval(-Double(backfillDays) * 86_400))
         }
+        googleWarnings = []
+        let skippedBefore = await google.skippedPoints
         do {
             let records = reason == .backfill
                 ? try await backfillGoogle(google, from: from, to: start, utcOffset: off, progress: progress)
                 : try await importGoogle(google, from: from, to: start, utcOffset: off)
+            let skipped = await google.skippedPoints - skippedBefore
+            if skipped > 0 { googleWarnings.append("\(skipped) puntos ilegibles descartados") }
             try db.setSynced("google", until: start)
             try db.updateConnection {
                 $0.googleStatus = .active
@@ -203,7 +216,8 @@ public actor SyncEngine {
                 $0.lastError = nil
                 if reason == .backfill { $0.backfillCompleted = true }
             }
-            try? db.log(SyncLogEntry(startedAt: start, finishedAt: now(), source: "google_health", kind: reason.rawValue, status: "ok", records: records))
+            try? db.log(SyncLogEntry(startedAt: start, finishedAt: now(), source: "google_health", kind: reason.rawValue, status: "ok", records: records,
+                                     error: googleWarnings.isEmpty ? nil : googleWarnings.joined(separator: "; ")))
             return SourceResult(ok: true, records: records, error: nil, skipped: false)
         } catch let e as HealthAPIError {
             try? db.updateConnection {
@@ -214,8 +228,11 @@ public actor SyncEngine {
                                      records: 0, error: e.errorDescription))
             return SourceResult(ok: false, records: 0, error: e.errorDescription, skipped: false)
         } catch {
-            try? db.updateConnection { $0.lastError = String(describing: error) }
-            return SourceResult(ok: false, records: 0, error: String(describing: error), skipped: false)
+            let message = String(describing: error)
+            try? db.updateConnection { $0.lastError = message }
+            try? db.log(SyncLogEntry(startedAt: start, finishedAt: now(), source: "google_health", kind: reason.rawValue, status: "error",
+                                     records: 0, error: message))
+            return SourceResult(ok: false, records: 0, error: message, skipped: false)
         }
     }
 
@@ -295,19 +312,31 @@ public actor SyncEngine {
         func daily(_ t: HealthDataType) async throws -> [APIDataPoint] {
             try await g.list(t, filter: HealthFilter.make(t, from: dFrom, to: dTo, utcOffsetSeconds: off))
         }
+        /// Datos secundarios (SpO₂, temperatura y VO₂ máx.): si fallan, se sigue sin ellos y queda anotado en el registro.
+        func secondary(_ t: HealthDataType) async -> [APIDataPoint] {
+            do { return try await daily(t) } catch {
+                googleWarnings.append("\(t.rawValue): \(String(describing: error).prefix(160))")
+                return []
+            }
+        }
         let vit = GoogleMapping.vitals(hrv: try await daily(.dailyHeartRateVariability), rhr: try await daily(.dailyRestingHeartRate),
-                                       spo2: try await daily(.dailyOxygenSaturation), rr: try await daily(.dailyRespiratoryRate),
-                                       temp: try await daily(.dailySleepTemperatureDerivations))
+                                       spo2: await secondary(.dailyOxygenSaturation), rr: try await daily(.dailyRespiratoryRate),
+                                       temp: await secondary(.dailySleepTemperatureDerivations))
         try db.mergeVitals(vit)
         records += vit.count
-        try db.upsertVO2(GoogleMapping.vo2(try await daily(.dailyVo2Max)))
+        try db.upsertVO2(GoogleMapping.vo2(await secondary(.dailyVo2Max)))
 
         let a = LocalDate(dFrom, utcOffsetSeconds: off), b = LocalDate(dTo, utcOffsetSeconds: off)
         let range = ((a.year, a.month, a.day), (b.year, b.month, b.day))
-        let totals = GoogleMapping.dailyTotals(steps: try await g.dailyRollUp(.steps, from: range.0, to: range.1),
-                                               distance: try await g.dailyRollUp(.distance, from: range.0, to: range.1),
-                                               calories: try await g.dailyRollUp(.totalCalories, from: range.0, to: range.1))
-        try db.upsertDailyTotals(totals, source: .googleHealth)
+        // Totales del día (pasos, distancia, calorías): si fallan, la importación sigue con los minutos y queda anotado.
+        do {
+            let totals = GoogleMapping.dailyTotals(steps: try await g.dailyRollUp(.steps, from: range.0, to: range.1),
+                                                   distance: try await g.dailyRollUp(.distance, from: range.0, to: range.1),
+                                                   calories: try await g.dailyRollUp(.totalCalories, from: range.0, to: range.1))
+            try db.upsertDailyTotals(totals, source: .googleHealth)
+        } catch {
+            googleWarnings.append("totales diarios: \(String(describing: error).prefix(160))")
+        }
         return records
     }
 

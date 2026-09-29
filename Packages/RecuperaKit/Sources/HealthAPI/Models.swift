@@ -1,7 +1,7 @@
 import Foundation
 
 // Modelos de la Google Health API v4 (documento de descubrimiento, revisión 20260928).
-// Los int64 llegan como cadenas y las duraciones como "3600s".
+// Los int64 llegan como cadenas, las duraciones como "3600s" y los decimales sin dato como "NaN".
 
 /// Entero que puede llegar como número o como cadena (int64 en JSON de Google).
 public struct FlexInt: Codable, Sendable, Hashable {
@@ -21,6 +21,68 @@ public struct FlexInt: Codable, Sendable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var c = encoder.singleValueContainer()
         try c.encode(String(value))
+    }
+}
+
+/// Decimal tolerante: número, número en texto o los valores especiales de JSON de Google ("NaN", "Infinity"), que llegan
+/// como cadena cuando no hay dato (p. ej. la temperatura de referencia de las primeras noches). Lo que no es un número
+/// finito se lee como `nil` en lugar de invalidar toda la respuesta.
+@propertyWrapper
+public struct FlexDouble: Codable, Sendable, Hashable {
+    public var wrappedValue: Double?
+
+    public init(wrappedValue: Double?) { self.wrappedValue = wrappedValue }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if let d = try? c.decode(Double.self) {
+            wrappedValue = d.isFinite ? d : nil
+        } else if let s = try? c.decode(String.self), let d = Double(s.trimmingCharacters(in: .whitespaces)), d.isFinite {
+            wrappedValue = d
+        } else {
+            wrappedValue = nil
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        if let wrappedValue { try c.encode(wrappedValue) } else { try c.encodeNil() }
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// Un `@FlexDouble` que no viene en el JSON vale `nil` (la conformidad sintetizada llama a `decode`, no a `decodeIfPresent`).
+    public func decode(_ type: FlexDouble.Type, forKey key: Key) throws -> FlexDouble {
+        try decodeIfPresent(type, forKey: key) ?? FlexDouble(wrappedValue: nil)
+    }
+}
+
+extension KeyedEncodingContainer {
+    public mutating func encode(_ value: FlexDouble, forKey key: Key) throws {
+        try encodeIfPresent(value.wrappedValue, forKey: key)
+    }
+}
+
+/// Lista que descarta los elementos ilegibles en lugar de fallar entera: un punto raro no bloquea la importación.
+struct LossyList<Element: Decodable>: Decodable {
+    var elements: [Element] = []
+    var skipped = 0
+
+    private struct Skip: Decodable {
+        init(from decoder: Decoder) throws {}
+    }
+
+    init(from decoder: Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        while !c.isAtEnd {
+            if let e = try? c.decode(Element.self) {
+                elements.append(e)
+                continue
+            }
+            skipped += 1
+            // Se salta el elemento; si ni así avanza, se para para no quedarse en bucle.
+            if (try? c.decode(Skip.self)) == nil { break }
+        }
     }
 }
 
@@ -122,10 +184,10 @@ public struct HeartRatePoint: Codable, Sendable, Hashable {
 
 public struct DailyHRVPoint: Codable, Sendable, Hashable {
     public var date: APIDate?
-    public var averageHeartRateVariabilityMilliseconds: Double?
-    public var deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds: Double?
+    @FlexDouble public var averageHeartRateVariabilityMilliseconds: Double?
+    @FlexDouble public var deepSleepRootMeanSquareOfSuccessiveDifferencesMilliseconds: Double?
     public var nonRemHeartRateBeatsPerMinute: FlexInt?
-    public var entropy: Double?
+    @FlexDouble public var entropy: Double?
 }
 
 public struct DailyRestingHRPoint: Codable, Sendable, Hashable {
@@ -135,21 +197,21 @@ public struct DailyRestingHRPoint: Codable, Sendable, Hashable {
 
 public struct DailyOxygenPoint: Codable, Sendable, Hashable {
     public var date: APIDate?
-    public var averagePercentage: Double?
-    public var lowerBoundPercentage: Double?
-    public var upperBoundPercentage: Double?
+    @FlexDouble public var averagePercentage: Double?
+    @FlexDouble public var lowerBoundPercentage: Double?
+    @FlexDouble public var upperBoundPercentage: Double?
 }
 
 public struct DailyRespiratoryPoint: Codable, Sendable, Hashable {
     public var date: APIDate?
-    public var breathsPerMinute: Double?
+    @FlexDouble public var breathsPerMinute: Double?
 }
 
 public struct DailyTemperaturePoint: Codable, Sendable, Hashable {
     public var date: APIDate?
-    public var nightlyTemperatureCelsius: Double?
-    public var baselineTemperatureCelsius: Double?
-    public var relativeNightlyStddev30dCelsius: Double?
+    @FlexDouble public var nightlyTemperatureCelsius: Double?
+    @FlexDouble public var baselineTemperatureCelsius: Double?
+    @FlexDouble public var relativeNightlyStddev30dCelsius: Double?
 }
 
 public struct SleepStagePoint: Codable, Sendable, Hashable {
@@ -185,13 +247,13 @@ public struct SleepPoint: Codable, Sendable, Hashable {
 
 public struct ExercisePoint: Codable, Sendable, Hashable {
     public struct Metrics: Codable, Sendable, Hashable {
-        public var caloriesKcal: Double?
+        @FlexDouble public var caloriesKcal: Double?
         public var steps: FlexInt?
-        public var distanceMillimeters: Double?
+        @FlexDouble public var distanceMillimeters: Double?
         public var averageHeartRateBeatsPerMinute: FlexInt?
-        public var elevationGainMillimeters: Double?
-        public var averageSpeedMillimetersPerSecond: Double?
-        public var runVo2Max: Double?
+        @FlexDouble public var elevationGainMillimeters: Double?
+        @FlexDouble public var averageSpeedMillimetersPerSecond: Double?
+        @FlexDouble public var runVo2Max: Double?
     }
 
     public struct Metadata: Codable, Sendable, Hashable {
@@ -215,18 +277,18 @@ public struct IntervalCount: Codable, Sendable, Hashable {
 
 public struct VO2Point: Codable, Sendable, Hashable {
     public var sampleTime: SampleTime?
-    public var vo2Max: Double?
+    @FlexDouble public var vo2Max: Double?
 }
 
 public struct DailyVO2Point: Codable, Sendable, Hashable {
     public var date: APIDate?
-    public var vo2Max: Double?
+    @FlexDouble public var vo2Max: Double?
     public var estimated: Bool?
 }
 
 public struct RunVO2Point: Codable, Sendable, Hashable {
     public var sampleTime: SampleTime?
-    public var runVo2Max: Double?
+    @FlexDouble public var runVo2Max: Double?
 }
 
 /// Punto de datos (`list`) o punto reconciliado (`reconcile`): un campo por tipo.
@@ -254,18 +316,30 @@ public struct APIDataPoint: Codable, Sendable, Hashable {
 public struct ListDataPointsResponse: Codable, Sendable {
     public var dataPoints: [APIDataPoint]?
     public var nextPageToken: String?
+    /// Puntos ilegibles descartados en esta página.
+    public var skipped = 0
+
+    enum CodingKeys: String, CodingKey { case dataPoints, nextPageToken }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let list = try c.decodeIfPresent(LossyList<APIDataPoint>.self, forKey: .dataPoints)
+        dataPoints = list?.elements
+        skipped = list?.skipped ?? 0
+        nextPageToken = try c.decodeIfPresent(String.self, forKey: .nextPageToken)
+    }
 }
 
 public struct RollupDataPoint: Codable, Sendable, Hashable {
     public struct HR: Codable, Sendable, Hashable {
-        public var beatsPerMinuteAvg: Double?
-        public var beatsPerMinuteMin: Double?
-        public var beatsPerMinuteMax: Double?
+        @FlexDouble public var beatsPerMinuteAvg: Double?
+        @FlexDouble public var beatsPerMinuteMin: Double?
+        @FlexDouble public var beatsPerMinuteMax: Double?
     }
 
     public struct StepsSum: Codable, Sendable, Hashable { public var countSum: FlexInt? }
     public struct DistanceSum: Codable, Sendable, Hashable { public var millimetersSum: FlexInt? }
-    public struct CaloriesSum: Codable, Sendable, Hashable { public var kcalSum: Double? }
+    public struct CaloriesSum: Codable, Sendable, Hashable { @FlexDouble public var kcalSum: Double? }
 
     public var startTime: String?
     public var endTime: String?
@@ -280,6 +354,18 @@ public struct RollupDataPoint: Codable, Sendable, Hashable {
 public struct RollUpResponse: Codable, Sendable {
     public var rollupDataPoints: [RollupDataPoint]?
     public var nextPageToken: String?
+    /// Puntos ilegibles descartados en esta página.
+    public var skipped = 0
+
+    enum CodingKeys: String, CodingKey { case rollupDataPoints, nextPageToken }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let list = try c.decodeIfPresent(LossyList<RollupDataPoint>.self, forKey: .rollupDataPoints)
+        rollupDataPoints = list?.elements
+        skipped = list?.skipped ?? 0
+        nextPageToken = try c.decodeIfPresent(String.self, forKey: .nextPageToken)
+    }
 }
 
 public struct PairedDevice: Codable, Sendable, Hashable {

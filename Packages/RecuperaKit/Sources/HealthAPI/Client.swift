@@ -80,6 +80,8 @@ public actor GoogleHealthClient {
     let sleep: @Sendable (Double) async -> Void
     private var lastRequest = Date.distantPast
     public private(set) var requestCount = 0
+    /// Puntos ilegibles descartados desde que se creó el cliente (se anotan en el registro de sincronización).
+    public private(set) var skippedPoints = 0
 
     public init(config: OAuthConfig, transport: HTTPTransport = URLSessionTransport(), tokens: TokenStore,
                 sleep: @escaping @Sendable (Double) async -> Void = { s in try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }) {
@@ -214,6 +216,7 @@ public actor GoogleHealthClient {
             if let token { q.append(URLQueryItem(name: "pageToken", value: token)) }
             let r = try decode(ListDataPointsResponse.self, await request("dataTypes/\(type.rawValue)/dataPoints", query: q))
             out += r.dataPoints ?? []
+            skippedPoints += r.skipped
             token = r.nextPageToken?.isEmpty == false ? r.nextPageToken : nil
             pages += 1
         } while token != nil && pages < maxPages
@@ -231,6 +234,7 @@ public actor GoogleHealthClient {
             if let token { q.append(URLQueryItem(name: "pageToken", value: token)) }
             let r = try decode(ListDataPointsResponse.self, await request("dataTypes/\(type.rawValue)/dataPoints:reconcile", query: q))
             out += r.dataPoints ?? []
+            skippedPoints += r.skipped
             token = r.nextPageToken?.isEmpty == false ? r.nextPageToken : nil
             pages += 1
         } while token != nil && pages < maxPages
@@ -255,6 +259,7 @@ public actor GoogleHealthClient {
                 let data = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
                 let r = try decode(RollUpResponse.self, await request("dataTypes/\(type.rawValue)/dataPoints:rollUp", body: data))
                 out += r.rollupDataPoints ?? []
+                skippedPoints += r.skipped
                 token = r.nextPageToken?.isEmpty == false ? r.nextPageToken : nil
             } while token != nil
             start = end
@@ -271,7 +276,8 @@ public actor GoogleHealthClient {
             "windowSizeDays": 1, "pageSize": 1000, "dataSourceFamily": family,
         ]
         let data = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
-        return try decode(RollUpResponse.self, await request("dataTypes/\(type.rawValue)/dataPoints:dailyRollUp", body: data))
-            .rollupDataPoints ?? []
+        let r = try decode(RollUpResponse.self, await request("dataTypes/\(type.rawValue)/dataPoints:dailyRollUp", body: data))
+        skippedPoints += r.skipped
+        return r.rollupDataPoints ?? []
     }
 }

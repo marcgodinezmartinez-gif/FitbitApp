@@ -284,8 +284,10 @@ struct DayContent: View {
                report.recoveryScore == cycle.recovery.score {
                 MorningSummaryCard(report: report, tint: Palette.recovery(cycle.recovery.zone))
             } else {
-                InsightCard(text: TodayRecommendation.text(for: cycle, output: output, profile: model.displayProfile), symbol: "sparkle",
-                            tint: Palette.recovery(cycle.recovery.zone))
+                let clock = Calendar.current.dateComponents([.hour, .minute], from: Date())
+                InsightCard(text: TodayRecommendation.text(for: cycle, output: output, profile: model.displayProfile,
+                                                           nowMinutes: (clock.hour ?? 0) * 60 + (clock.minute ?? 0)),
+                            symbol: "sparkle", tint: Palette.recovery(cycle.recovery.zone))
             }
             VitalsCard(cycle: cycle)
             StressCard(cycle: cycle)
