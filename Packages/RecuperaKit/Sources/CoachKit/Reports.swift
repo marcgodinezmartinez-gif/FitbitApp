@@ -94,6 +94,19 @@ public struct AIReport: Codable, Sendable, Hashable {
     public var usedFallback: Bool?
     public var morning: MorningSummary?
     public var weekly: WeeklyNarrative?
+
+    public init(kind: Kind, periodStart: String, createdAt: Date, provider: String, model: String, costUSD: Double,
+                usedFallback: Bool? = nil, morning: MorningSummary? = nil, weekly: WeeklyNarrative? = nil) {
+        self.kind = kind
+        self.periodStart = periodStart
+        self.createdAt = createdAt
+        self.provider = provider
+        self.model = model
+        self.costUSD = costUSD
+        self.usedFallback = usedFallback
+        self.morning = morning
+        self.weekly = weekly
+    }
 }
 
 extension AppDatabase {

@@ -6,10 +6,21 @@ import Insights
 /// Tendencias: métrica y periodo, media móvil, rango habitual, calendario por recuperación e informe semanal (doc. 11 §5).
 struct TrendsView: View {
     @Environment(AppModel.self) private var model
-    @State private var metric: TrendMetric = .recovery
+    @State private var metric: DayMetric = .recovery
     @State private var period: Int = 30
 
     var body: some View {
+        ScrollViewReader { proxy in
+            content
+                .task(id: model.dataVersion) {
+                    guard AppModel.screenshotScreen == "report", model.output != nil else { return }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    proxy.scrollTo("weekly", anchor: .top)
+                }
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if let output = model.output, let last = output.current?.date {
@@ -22,7 +33,7 @@ struct TrendsView: View {
                     .pickerStyle(.segmented)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
-                            ForEach(TrendMetric.allCases) { m in
+                            ForEach(DayMetric.allCases) { m in
                                 Button {
                                     withAnimation(.snappy) { metric = m }
                                     Haptics.selection()
@@ -56,6 +67,7 @@ struct TrendsView: View {
                     }
                     RecoveryCalendar(cycles: output.cycles, month: last)
                     WeeklyReportCard(output: output, today: last)
+                        .id("weekly")
                     HabitImpactCard(impacts: output.habitImpacts)
                 } else {
                     ContentUnavailableView("Sin datos todavía", systemImage: "chart.xyaxis.line",
@@ -80,71 +92,69 @@ struct TrendsView: View {
     }
 }
 
-enum TrendMetric: String, CaseIterable, Identifiable {
-    case recovery, hrv, rhr, sleep, strain, steps, stress, respiratory
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .recovery: return "Recuperación"
-        case .hrv: return "VFC"
-        case .rhr: return "FC en reposo"
-        case .sleep: return "Horas de sueño"
-        case .strain: return "Carga"
-        case .steps: return "Pasos"
-        case .stress: return "Estrés"
-        case .respiratory: return "Frec. respiratoria"
-        }
-    }
-
-    var unit: String {
-        switch self {
-        case .recovery: return "%"
-        case .hrv: return "ms"
-        case .rhr: return "lpm"
-        case .sleep: return "h"
-        case .strain, .stress: return ""
-        case .steps: return "pasos"
-        case .respiratory: return "rpm"
-        }
-    }
-
-    var digits: Int { self == .sleep || self == .strain || self == .stress || self == .respiratory ? 1 : 0 }
-
+extension DayMetric {
     var color: Color {
         switch self {
-        case .recovery: return Palette.recoveryHigh
-        case .hrv: return Palette.recoveryHigh
+        case .recovery, .hrv: return Palette.recoveryHigh
         case .rhr: return Palette.recoveryLow
-        case .sleep: return Palette.sleep
-        case .strain: return Palette.strain
+        case .sleep, .sleepPerformance, .spo2: return Palette.sleep
+        case .strain, .respiratory: return Palette.strain
+        case .zoneMinutes: return Palette.zones[3]
         case .steps: return Palette.fitbit
-        case .stress: return Palette.stress
-        case .respiratory: return Palette.strain
+        case .stress, .skinTemp: return Palette.stress
         }
     }
+}
 
-    var domain: ClosedRange<Double>? {
-        switch self {
-        case .recovery: return 0...100
-        case .strain: return 0...21
-        case .stress: return 0...3
-        default: return nil
+/// Tendencia de una métrica (se abre desde «Mi panel»).
+struct MetricTrendView: View {
+    let metric: DayMetric
+    @Environment(AppModel.self) private var model
+    @State private var period = 30
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if let output = model.output, let last = output.current?.date {
+                    Picker("Periodo", selection: $period) {
+                        Text("7 d").tag(7)
+                        Text("30 d").tag(30)
+                        Text("90 d").tag(90)
+                        Text("1 año").tag(365)
+                    }
+                    .pickerStyle(.segmented)
+                    let summary = MetricSummary.build(metric, cycles: output.cycles, until: last)
+                    Card {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(summary.latest.map { metric.formatted($0) } ?? "—").font(.metric(40)).monospacedDigit()
+                            if metric != .sleep { Text(metric.unit).font(.title3.weight(.semibold)).foregroundStyle(Palette.textSecondary) }
+                            Spacer()
+                        }
+                        if let usual = summary.usual {
+                            Text("Lo habitual (30 días): \(metric.formatted(usual)) \(metric == .sleep ? "" : metric.unit)")
+                                .font(.subheadline).foregroundStyle(Palette.textSecondary)
+                        }
+                        let points = series(model, until: last, days: period) { metric.value($0) }
+                        if points.count >= 2 {
+                            TrendChart(points: points, color: metric.color, band: usualBand(points), showAverage: period > 7,
+                                       yDomain: metric.domain, unit: metric.unit)
+                                .frame(height: 240)
+                        } else {
+                            Text("Todavía no hay datos suficientes para este periodo.").font(.footnote).foregroundStyle(Palette.textSecondary)
+                        }
+                    }
+                }
+            }
+            .padding(16)
         }
+        .screenBackground()
+        .navigationTitle(metric.title)
     }
 
-    func value(_ c: CycleMetrics) -> Double? {
-        switch self {
-        case .recovery: return c.recovery.score.map(Double.init)
-        case .hrv: return c.vitals?.hrvRmssdAvg
-        case .rhr: return c.vitals?.restingHR
-        case .sleep: return c.sleep.map { $0.asleepMin / 60 }
-        case .strain: return c.strain.strain
-        case .steps: return c.totals.map { Double($0.steps) }
-        case .stress: return c.stress.average
-        case .respiratory: return c.vitals?.respiratoryRate
-        }
+    private func usualBand(_ points: [DayPoint]) -> ClosedRange<Double>? {
+        let values = points.map(\.value)
+        guard values.count >= 14, let lo = Stats.percentile(values, 10), let hi = Stats.percentile(values, 90), hi > lo else { return nil }
+        return lo...hi
     }
 }
 
@@ -190,6 +200,7 @@ struct RecoveryCalendar: View {
 
 /// Informe semanal determinista (RF-INF): medias, zonas, carreras y recomendaciones.
 struct WeeklyReportCard: View {
+    @Environment(AppModel.self) private var model
     let output: MetricsOutput
     let today: LocalDate
 
@@ -213,7 +224,13 @@ struct WeeklyReportCard: View {
             ForEach(report.recommendations, id: \.self) { r in
                 Label(r, systemImage: "arrow.forward.circle").font(.footnote).foregroundStyle(Palette.textSecondary)
             }
+            if let plan = model.planProgress(weekStart: weekStart) {
+                Divider().overlay(Palette.separator)
+                Label("Plan semanal: \(plan.percent) % cumplido", systemImage: "checklist")
+                    .font(.subheadline.weight(.semibold))
+            }
         }
+        AIWeeklyReportCard(weekStart: weekStart)
     }
 
     private func stat(_ name: String, _ value: String?, previous: String?) -> some View {

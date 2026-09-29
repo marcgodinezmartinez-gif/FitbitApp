@@ -28,6 +28,15 @@ final class AppModel {
     var coachMonthSpend: Double = 0
     /// Se incrementa cada vez que cambian los datos (las vistas que leen de la BD se recargan).
     var dataVersion = 0
+    /// Plan semanal (en el modo demostración, uno de ejemplo que no se guarda).
+    var weeklyPlan = WeeklyPlan()
+    /// Resumen matinal de hoy e informe de la semana pasada redactados por la IA.
+    var morningReport: AIReport?
+    var weeklyAIReport: AIReport?
+    var isWritingReport = false
+    /// Respiración guiada abierta desde un aviso (NOT-09) o desde «+».
+    var showBreathing = false
+    let liveWorkout = LiveWorkout()
 
     let db: AppDatabase?
     let keychain = Keychain(service: "recupera.secrets")
@@ -40,6 +49,8 @@ final class AppModel {
     @ObservationIgnored private var deliveryStarted = false
     @ObservationIgnored private var demoProfile = UserProfile()
     @ObservationIgnored private var demoJournal: [JournalAnswer] = []
+    @ObservationIgnored private var demoStrength: [String: [StrengthSet]] = [:]
+    @ObservationIgnored private var reportAttempts: [String: Date] = [:]
 
     init() {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -82,7 +93,7 @@ final class AppModel {
 
     static var initialTab: AppTab {
         switch screenshotScreen {
-        case "trends"?: return .trends
+        case "trends"?, "report"?: return .trends
         case "coach"?: return .coach
         case "profile"?: return .profile
         default: return .today
@@ -135,6 +146,7 @@ final class AppModel {
         settings = (try? db.settings()) ?? AppSettings()
         profile = (try? db.profile()) ?? UserProfile()
         connection = (try? db.connection()) ?? ConnectionState()
+        if !settings.demoMode { weeklyPlan = (try? db.weeklyPlan()) ?? WeeklyPlan() }
         refreshCoachSpend()
     }
 
@@ -152,6 +164,8 @@ final class AppModel {
         LocalNotifications.deliver(report.notifications)
         if let snapshot = report.snapshot { SharedSnapshot.write(snapshot) }
         scheduleBedtimeReminder()
+        loadReports()
+        await generateReportsIfNeeded()
         var problems: [String] = []
         if let e = report.google.error { problems.append("Google Health: \(e)") }
         if let e = report.apple.error { problems.append("Apple Health: \(e)") }
@@ -168,6 +182,7 @@ final class AppModel {
         if let out = try? await syncEngine.recompute() {
             output = out
             dataVersion += 1
+            loadReports()
         }
     }
 
@@ -245,10 +260,13 @@ final class AppModel {
     func setDemoMode(_ on: Bool) async {
         updateSettings { $0.demoMode = on }
         selectedDate = nil
+        morningReport = nil
+        weeklyAIReport = nil
         if on {
             await loadDemo()
         } else {
             output = nil
+            weeklyPlan = (try? db?.weeklyPlan()) ?? WeeklyPlan()
             await recompute()
             await sync(.open)
         }
@@ -263,6 +281,8 @@ final class AppModel {
         demoProfile = result.0.profile
         demoJournal = result.0.journal
         output = result.1
+        weeklyPlan = WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness, createdAt: Date())
+        loadDemoReports()
         dataVersion += 1
     }
 
@@ -322,6 +342,96 @@ final class AppModel {
         await recompute()
     }
 
+    // MARK: Plan semanal
+
+    func saveWeeklyPlan(_ plan: WeeklyPlan) {
+        weeklyPlan = plan
+        if !settings.demoMode { try? db?.saveWeeklyPlan(plan) }
+    }
+
+    func planProgress(weekStart: LocalDate) -> WeeklyPlanProgress? {
+        guard weeklyPlan.isActive, let output, let today = output.current?.date else { return nil }
+        let end = min(today, weekStart.adding(days: 6))
+        let journal: [JournalAnswer] = settings.demoMode
+            ? demoJournal.filter { $0.date >= weekStart && $0.date <= end }
+            : ((try? db?.journalAnswers(from: weekStart, to: end)) ?? [])
+        return WeeklyPlanner.progress(plan: weeklyPlan, cycles: output.cycles, journal: journal, weekStart: weekStart, today: end)
+    }
+
+    /// Progreso de esta semana.
+    var planProgress: WeeklyPlanProgress? {
+        guard let today = output?.current?.date else { return nil }
+        return planProgress(weekStart: WeeklyPlanner.weekStart(of: today))
+    }
+
+    var planAvailable: Bool { WeeklyPlanner.isAvailable(cycles: output?.cycles ?? []) }
+
+    // MARK: Fuerza y entrenamientos creados en la app
+
+    /// Series registradas de una actividad (en la anotación de cualquiera de sus fuentes).
+    func strengthSets(for activity: FusedActivity) -> [StrengthSet] {
+        if settings.demoMode { return demoStrength[activity.id] ?? Self.demoSets(for: activity) }
+        for member in activity.members {
+            if let sets = (try? db?.annotation(for: member.id))?.strengthSets, !sets.isEmpty { return sets }
+        }
+        return []
+    }
+
+    func saveStrength(_ sets: [StrengthSet], rpe: Double?, for activity: FusedActivity) async {
+        if settings.demoMode {
+            demoStrength[activity.id] = sets
+            dataVersion += 1
+            return
+        }
+        guard let db else { return }
+        let id = activity.primary.id
+        var a = (try? db.annotation(for: id)) ?? ActivityAnnotation(activityID: id)
+        a.strengthSets = sets
+        if let rpe { a.rpe = rpe }
+        try? db.saveAnnotation(a)
+        await recompute()
+    }
+
+    /// Crea una actividad en la app (fin del entrenamiento con la Live Activity o una sesión de fuerza). Devuelve su id.
+    @discardableResult
+    func saveManualActivity(kind: ActivityKind, start: Date, end: Date, rpe: Double?, notes: String? = nil,
+                            sets: [StrengthSet]? = nil) async -> String? {
+        guard !settings.demoMode, let db else { return nil }
+        let session = ActivitySession(source: .manual, sourceRecordID: UUID().uuidString, kind: kind, start: start, end: end,
+                                      utcOffsetSeconds: TimeZone.current.secondsFromGMT(for: start), isManual: true, rpe: rpe,
+                                      notes: notes)
+        try? db.saveManualActivity(session, strengthSets: sets)
+        await recompute()
+        return session.id
+    }
+
+    func deleteManualActivity(id: String) async {
+        guard !settings.demoMode else { return }
+        try? db?.deleteManualActivity(id: id)
+        await recompute()
+    }
+
+    /// Mejor 1RM estimado de cada ejercicio antes de una fecha (para marcar récords).
+    func previousBests(before date: Date) -> [String: Double] {
+        if settings.demoMode {
+            let earlier = (output?.fusedActivities ?? []).filter { $0.kind.isStrength && $0.start < date }
+            return StrengthRecords.bestOneRepMax(earlier.map { demoStrength[$0.id] ?? Self.demoSets(for: $0) })
+        }
+        let sessions = (try? db?.strengthSessions(before: date)) ?? []
+        return StrengthRecords.bestOneRepMax(sessions.map(\.sets))
+    }
+
+    /// Series de ejemplo para las sesiones de fuerza del modo demostración (con una progresión suave).
+    static func demoSets(for activity: FusedActivity) -> [StrengthSet] {
+        guard activity.kind.isStrength else { return [] }
+        let week = Double(LocalDate(activity.start, utcOffsetSeconds: activity.primary.utcOffsetSeconds).dayNumber / 7 % 12)
+        func sets(_ name: String, _ count: Int, _ reps: Int, _ kg: Double?) -> [StrengthSet] {
+            (0..<count).map { i in StrengthSet(id: "\(activity.id)-\(name)-\(i)", exercise: name, reps: reps, weightKg: kg) }
+        }
+        return sets("Sentadilla", 4, 5, 90 + 1.25 * week) + sets("Press de banca", 4, 6, 67.5 + week)
+            + sets("Remo con barra", 3, 8, 60 + week) + sets("Dominadas", 3, 8, nil)
+    }
+
     func saveRPE(_ rpe: Double?, activity: FusedActivity) async {
         guard let db else { return }
         for member in activity.members {
@@ -337,6 +447,100 @@ final class AppModel {
     func aiKey(_ provider: String) -> String? { keychain.string("ai.\(provider)") }
 
     func setAIKey(_ key: String?, provider: String) { keychain.setString(key, "ai.\(provider)") }
+
+    // MARK: Informes redactados por la IA (RF-COA-05/06)
+
+    var lastWeekStart: LocalDate? {
+        output?.current.map { WeeklyPlanner.weekStart(of: $0.date).adding(days: -7) }
+    }
+
+    func loadReports() {
+        guard !settings.demoMode, let db, let today = output?.current?.date else { return }
+        morningReport = db.aiReport(.morning, periodStart: today)
+        weeklyAIReport = lastWeekStart.flatMap { db.aiReport(.weekly, periodStart: $0) }
+    }
+
+    /// Tras sincronizar: resumen de esta mañana (cuando ya hay sueño) e informe de la semana pasada, si están activados.
+    /// Un intento fallido no se repite hasta pasadas 3 horas.
+    func generateReportsIfNeeded() async {
+        guard !settings.demoMode, settings.coachEnabled, settings.coachMode == .personal, let cur = output?.current else { return }
+        if settings.aiMorningSummary, cur.sleep != nil, morningReport?.periodStart != cur.date.isoString,
+           shouldAttempt("morning:\(cur.date.isoString)") {
+            _ = await writeMorningSummary(force: false)
+        }
+        if settings.aiWeeklyReport, let monday = lastWeekStart, weeklyAIReport?.periodStart != monday.isoString,
+           shouldAttempt("weekly:\(monday.isoString)") {
+            _ = await writeWeeklyReport(force: false)
+        }
+    }
+
+    private func shouldAttempt(_ key: String) -> Bool {
+        if let last = reportAttempts[key], Date().timeIntervalSince(last) < 3 * 3600 { return false }
+        reportAttempts[key] = Date()
+        return true
+    }
+
+    /// Redacta (o rehace) el resumen de esta mañana. Devuelve el error para mostrarlo, si lo hay.
+    func writeMorningSummary(force: Bool) async -> String? {
+        guard let coach, let snapshot = coachSnapshot() else { return "Todavía no hay datos." }
+        isWritingReport = true
+        defer { isWritingReport = false }
+        do {
+            morningReport = try await coach.morningSummary(snapshot: snapshot, bedtimeMinutes: tonightBedtimeMinutes, force: force)
+            refreshCoachSpend()
+            return nil
+        } catch {
+            refreshCoachSpend()
+            return error.localizedDescription
+        }
+    }
+
+    func writeWeeklyReport(force: Bool) async -> String? {
+        guard let coach, let snapshot = coachSnapshot(), let monday = lastWeekStart else { return "Todavía no hay datos." }
+        isWritingReport = true
+        defer { isWritingReport = false }
+        do {
+            weeklyAIReport = try await coach.weeklyNarrative(snapshot: snapshot, weekStart: monday, plan: planProgress(weekStart: monday),
+                                                             force: force)
+            refreshCoachSpend()
+            return nil
+        } catch {
+            refreshCoachSpend()
+            return error.localizedDescription
+        }
+    }
+
+    /// Textos de ejemplo del modo demostración (se marcan como ejemplo; no se llama a ninguna IA).
+    private func loadDemoReports() {
+        guard let output, let cur = output.current else { return }
+        let score = cur.recovery.score ?? 0
+        let title = score >= 67 ? "Llegas con buena energía" : (score >= 34 ? "Día para mantener" : "Hoy toca recuperar")
+        var summary = "Tu recuperación es del \(score) %"
+        if let s = cur.sleep {
+            summary += " tras dormir \(Format.duration(minutes: s.asleepMin)) de las \(Format.duration(minutes: s.need.totalMin)) que necesitabas"
+        }
+        summary += ". Tu VFC y tu FC en reposo están en tu rango habitual."
+        let target = cur.target.map { "Carga objetivo de \(Format.decimal($0.low, digits: 0)) a \(Format.decimal($0.high, digits: 0)): encaja un rodaje con algún cambio de ritmo." }
+            ?? "Aún no hay carga objetivo: muévete a tu ritmo."
+        let bed = tonightBedtimeMinutes.map { "Acuéstate a las \(Format.clock(minutes: $0)) para dormir lo que necesitas esta noche." }
+            ?? "Intenta acostarte a tu hora de siempre."
+        let morning = MorningSummary(titulo: title, resumen: summary, cargaObjetivo: target, horaAcostarse: bed)
+        morningReport = AIReport(kind: .morning, periodStart: cur.date.isoString, createdAt: Date(), provider: "demo", model: "ejemplo",
+                                 costUSD: 0, morning: morning)
+        if let monday = lastWeekStart {
+            let r = WeeklyReportBuilder.build(output: output, weekStart: monday)
+            let rec = r.avgRecovery.map { "\(Int($0.rounded())) %" } ?? "—"
+            var logros = Array(r.best.prefix(3))
+            if logros.count < 3 { logros.append("Constancia en la hora de despertar") }
+            let narrative = WeeklyNarrative(
+                resumen: "Semana equilibrada: recuperación media del \(rec) y \(r.runs) carreras sin acumular fatiga.",
+                logros: logros,
+                mejoras: ["Acuéstate 20 min antes el domingo", "Añade 10 min de movilidad tras la fuerza", "Evita la cafeína después de las 14:00"],
+                comparacion: "Recuperación y carga muy parecidas a la semana anterior.")
+            weeklyAIReport = AIReport(kind: .weekly, periodStart: monday.isoString, createdAt: Date(), provider: "demo", model: "ejemplo",
+                                      costUSD: 0, weekly: narrative)
+        }
+    }
 
     func refreshCoachSpend() {
         let today = LocalDate(Date(), utcOffsetSeconds: TimeZone.current.secondsFromGMT())

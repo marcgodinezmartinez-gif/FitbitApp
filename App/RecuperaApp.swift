@@ -1,5 +1,6 @@
 import SwiftUI
 import MetricsKit
+import Insights
 import SyncKit
 
 @main
@@ -11,6 +12,7 @@ struct RecuperaApp: App {
         let model = AppModel()
         _model = State(initialValue: model)
         BackgroundSync.register(model: model)
+        NotificationRouter.install(model: model)
     }
 
     var body: some Scene {
@@ -20,6 +22,11 @@ struct RecuperaApp: App {
                 .tint(Palette.recoveryHigh)
                 .preferredColorScheme(colorScheme)
                 .task { await model.bootstrap() }
+                .fullScreenCover(isPresented: $model.showBreathing) {
+                    BreathingView()
+                        .environment(model)
+                        .preferredColorScheme(.dark)
+                }
         }
         .onChange(of: scenePhase) { _, phase in
             // Al volver a la app se sincronizan las dos fuentes sin tocar nada (RF-SYN-09).
@@ -93,6 +100,8 @@ enum DetailRoute: Hashable {
     case activity(String)
     case journal(LocalDate)
     case sources
+    case weeklyPlan
+    case trend(DayMetric)
 }
 
 struct DetailDestination: View {
@@ -107,6 +116,8 @@ struct DetailDestination: View {
         case .activity(let id): ActivityDetailView(activityID: id)
         case .journal(let d): JournalView(date: d)
         case .sources: SourcesView()
+        case .weeklyPlan: WeeklyPlanView()
+        case .trend(let m): MetricTrendView(metric: m)
         }
     }
 }

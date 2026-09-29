@@ -57,12 +57,15 @@ public enum SyntheticData {
                     m += 60
                 }
             }
-            // Día: FC de vigilia, pasos y una carrera en días alternos a las 18:30.
+            // Día: FC de vigilia, pasos, una carrera en días alternos a las 18:30 y fuerza cada 4 días a las 19:00.
             let dayStart = midnight.addingTimeInterval(7 * 3600 + 900)
             let dayEnd = min(now, midnight.addingTimeInterval(22 * 3600 + 3000))
             let runs = k % 2 == 0
             let runStart = midnight.addingTimeInterval(18.5 * 3600)
             let runEnd = runStart.addingTimeInterval((40 + noise(10)) * 60)
+            let gym = k % 4 == 1
+            let gymStart = midnight.addingTimeInterval(19 * 3600)
+            let gymEnd = gymStart.addingTimeInterval(50 * 60)
             var steps = 0
             var distance = 0.0
             var m = dayStart.minuteEpoch
@@ -70,17 +73,18 @@ public enum SyntheticData {
             while TimeInterval(m) < dayEnd.timeIntervalSince1970 {
                 let date = Date(timeIntervalSince1970: TimeInterval(m))
                 let inRun = runs && date >= runStart && date < runEnd
+                let inGym = gym && date >= gymStart && date < gymEnd
                 // Paseos en tramos (≈ 7 min de media) y ratos sentado entre ellos, como un día real.
                 let roll = Int.random(in: 0..<100, using: &rng)
-                walking = !inRun && (walking ? roll < 85 : roll < 3)
-                let bpm = inRun ? 152 + noise(8) : (walking ? 88 + noise(8) : 68 + noise(6))
+                walking = !inRun && !inGym && (walking ? roll < 85 : roll < 3)
+                let bpm = inRun ? 152 + noise(8) : (inGym ? 112 + noise(12) : (walking ? 88 + noise(8) : 68 + noise(6)))
                 hrF.append(HRMinute(minute: m, bpmAvg: bpm, source: .googleHealth))
                 let s = inRun ? 165 : (walking ? 90 : 0)
                 let d = Double(s) * (inRun ? 1.05 : 0.72)
                 steps += s
                 distance += d
                 mins.append(ActivityMinute(minute: m, steps: s, distanceM: d, source: .googleHealth))
-                if inRun, withWatch {
+                if inRun || inGym, withWatch {
                     hrW.append(HRMinute(minute: m, bpmAvg: bpm + 2 + watchNoise(2), samples: 12, source: .appleHealth))
                 }
                 m += 60
@@ -100,6 +104,11 @@ public enum SyntheticData {
                                                 hrRecovery1Min: 28 + watchNoise(4), effortScore: 6))
                     if k % 6 == 0 { vo2.append(VO2MaxValue(date: day, value: 49 + watchNoise(1), source: .appleHealth)) }
                 }
+            }
+            if gym && gymEnd <= now && withWatch {
+                acts.append(ActivitySession(source: .appleHealth, sourceRecordID: "hk-gym-\(day.isoString)", kind: .strength,
+                                            name: "Fuerza", start: gymStart, end: gymEnd, utcOffsetSeconds: utcOffsetSeconds,
+                                            avgHR: 114, maxHR: 139, caloriesKcal: 250, effortScore: 7, rpe: 7))
             }
             if !(k == 0 && dayEnd < midnight.addingTimeInterval(20 * 3600)) {
                 totals[day] = DailySourceTotals(steps: steps, distanceM: distance, caloriesKcal: 2300 + Double(steps) * 0.04)

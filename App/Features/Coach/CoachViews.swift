@@ -438,6 +438,17 @@ struct CoachSettingsView: View {
                      : "Crea la clave en la consola de Anthropic y pon un límite de gasto allí. Si Claude declina una pregunta por sus filtros de seguridad, responde automáticamente el modelo de reserva que recomienda Anthropic y la respuesta lo indica.")
             }
 
+            Section {
+                Toggle("Resumen matinal redactado", isOn: Binding(get: { model.settings.aiMorningSummary },
+                                                                 set: { v in model.updateSettings { $0.aiMorningSummary = v } }))
+                Toggle("Informe semanal redactado", isOn: Binding(get: { model.settings.aiWeeklyReport },
+                                                                 set: { v in model.updateSettings { $0.aiWeeklyReport = v } }))
+            } header: {
+                Text("Informes de la IA")
+            } footer: {
+                Text("Una petición corta al día (el resumen, en cuanto llega tu sueño) y otra los lunes (el informe de la semana pasada), solo con las cifras ya calculadas y sin herramientas. Cuentan para el gasto máximo del mes, pero no como preguntas. Mientras no estén, se muestran los textos automáticos de siempre.")
+            }
+
             Section("Límites") {
                 Stepper("Máximo \(model.settings.coachDailyLimit) preguntas al día", value: Binding(get: { model.settings.coachDailyLimit },
                                                                                                 set: { v in model.updateSettings { $0.coachDailyLimit = v } }),

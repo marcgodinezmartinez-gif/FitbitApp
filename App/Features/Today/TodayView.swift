@@ -3,18 +3,39 @@ import UIKit
 import MetricsKit
 import Insights
 import Store
+import CoachKit
 
 /// «Hoy»: tres anillos y una recomendación que explican el día en diez segundos (doc. 11 §4).
 struct TodayView: View {
     @Environment(AppModel.self) private var model
     @State private var showAnalysis = false
     @State private var menuRoute: DetailRoute?
+    @State private var showStartWorkout = false
+    @State private var finishedWorkout: LiveWorkout.Finished?
+    @State private var strengthWorkout: LiveWorkout.Finished?
+    @State private var showStrengthLog = false
+    @State private var strengthActivity: FusedActivity?
+    @State private var scrollTarget: String?
 
     var body: some View {
+        ScrollViewReader { proxy in
+            content
+                .onChange(of: scrollTarget) { _, target in
+                    if let target { withAnimation { proxy.scrollTo(target, anchor: .top) } }
+                }
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 DaySwitcher()
                 SourceHeader()
+                if let session = model.liveWorkout.session {
+                    LiveWorkoutBanner(session: session) { finished in
+                        if finished.kind.isStrength { strengthWorkout = finished } else { finishedWorkout = finished }
+                    }
+                }
                 if let message = model.syncMessage {
                     StateCard(symbol: "exclamationmark.arrow.triangle.2.circlepath", title: "Sincronización incompleta", message: message)
                 }
@@ -49,6 +70,28 @@ struct TodayView: View {
                 }
                 Menu {
                     Button {
+                        showStartWorkout = true
+                    } label: {
+                        Label("Empezar entrenamiento", systemImage: "play.circle")
+                    }
+                    .disabled(model.liveWorkout.isRunning)
+                    Button {
+                        showStrengthLog = true
+                    } label: {
+                        Label("Registrar fuerza", systemImage: "dumbbell")
+                    }
+                    Button {
+                        model.showBreathing = true
+                    } label: {
+                        Label("Respiración guiada", systemImage: "wind")
+                    }
+                    Button {
+                        menuRoute = .weeklyPlan
+                    } label: {
+                        Label("Plan semanal", systemImage: "checklist")
+                    }
+                    Divider()
+                    Button {
                         menuRoute = .journal((model.displayedCycle?.date ?? today).adding(days: model.isShowingToday ? -1 : 0))
                     } label: {
                         Label("Diario de ayer", systemImage: "book.closed")
@@ -72,6 +115,11 @@ struct TodayView: View {
                 DayAnalysisView(date: date)
             }
         }
+        .sheet(isPresented: $showStartWorkout) { StartWorkoutView() }
+        .sheet(item: $finishedWorkout) { f in FinishWorkoutView(finished: f) }
+        .sheet(item: $strengthWorkout) { f in StrengthLogView(activity: nil, start: f.start, end: f.end) }
+        .sheet(isPresented: $showStrengthLog) { StrengthLogView(activity: nil) }
+        .sheet(item: $strengthActivity) { a in StrengthLogView(activity: a) }
     }
 
     private var today: LocalDate { LocalDate(Date(), utcOffsetSeconds: TimeZone.current.secondsFromGMT()) }
@@ -88,6 +136,15 @@ struct TodayView: View {
             let runs = output.cycles.reversed().flatMap(\.activities).filter { $0.activity.kind.isRun }
             if let run = runs.first { menuRoute = .activity(run.id) }
         case "analysis": showAnalysis = true
+        case "plan": menuRoute = .weeklyPlan
+        case "alarm": menuRoute = .sleep(output.cycles.last(where: { $0.sleep != nil })?.date ?? cycle.date)
+        case "vo2": menuRoute = .health(cycle.date)
+        case "breathing": model.showBreathing = true
+        case "panel": scrollTarget = "panel"
+        case "workout":
+            if !model.liveWorkout.isRunning { model.liveWorkout.start(kind: .running, dayStrain: cycle.strain.strain, target: cycle.target) }
+        case "strength":
+            strengthActivity = output.fusedActivities.last { $0.kind.isStrength }
         default: break
         }
     }
@@ -194,11 +251,18 @@ struct DayContent: View {
                     if let url = URL(string: "https://www.fitbit.com/in-app/today") { UIApplication.shared.open(url) }
                 }
             }
-            InsightCard(text: TodayRecommendation.text(for: cycle, output: output, profile: model.displayProfile), symbol: "sparkle",
-                        tint: Palette.recovery(cycle.recovery.zone))
+            if let report = model.morningReport, report.periodStart == cycle.date.isoString, report.morning != nil {
+                MorningSummaryCard(report: report, tint: Palette.recovery(cycle.recovery.zone))
+            } else {
+                InsightCard(text: TodayRecommendation.text(for: cycle, output: output, profile: model.displayProfile), symbol: "sparkle",
+                            tint: Palette.recovery(cycle.recovery.zone))
+            }
             VitalsCard(cycle: cycle)
             StressCard(cycle: cycle)
             if !cycle.activities.isEmpty { ActivitiesCard(activities: cycle.activities) }
+            if model.isShowingToday, let progress = model.planProgress {
+                WeeklyPlanCard(progress: progress)
+            }
             if cycle.isOpen, let bed = model.tonightBedtimeMinutes {
                 NavigationLink(value: DetailRoute.sleep(cycle.date)) {
                     HStack {
@@ -222,6 +286,8 @@ struct DayContent: View {
             }
             .buttonStyle(.glassProminent)
             .accessibilityHint("Muestra un resumen de tu día con recomendaciones")
+            DashboardSection(date: cycle.date)
+                .id("panel")
             NavigationLink(value: DetailRoute.health(cycle.date)) {
                 Label("Salud, estrés y edad fisiológica", systemImage: "heart.text.square")
                     .frame(maxWidth: .infinity, alignment: .leading)

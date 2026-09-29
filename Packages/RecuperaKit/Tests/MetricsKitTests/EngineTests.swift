@@ -13,13 +13,20 @@ import Testing
         #expect(scored.count >= 50)
         #expect(scored.allSatisfy { (0...100).contains($0) })
         #expect(out.cycles.allSatisfy { $0.strain.strain >= 0 && $0.strain.strain <= 21 })
-        // Cada carrera del Watch aparece en exactamente una actividad fusionada con las dos fuentes.
-        let watchRuns = input.activities.filter { $0.source == .appleHealth }
+        // Cada carrera del Watch aparece en exactamente una actividad fusionada con las dos fuentes;
+        // las sesiones de fuerza (solo del Watch) quedan como actividades propias.
+        let watchRuns = input.activities.filter { $0.source == .appleHealth && $0.kind.isRun }
         for w in watchRuns {
             let owners = out.fusedActivities.filter { $0.members.contains { $0.id == w.id } }
             #expect(owners.count == 1)
             #expect(owners.first?.sources == [.appleHealth, .googleHealth])
         }
+        let gym = input.activities.filter { $0.kind.isStrength }
+        #expect(!gym.isEmpty)
+        for g in gym {
+            #expect(out.fusedActivities.filter { $0.members.contains { $0.id == g.id } }.map(\.sources) == [[.appleHealth]])
+        }
+        #expect(out.physioAge?.factors.contains { $0.key == "strength" } == true)
         #expect(out.agreementSummary != nil)
         #expect(out.tonightNeed != nil)
         #expect(out.habitImpacts.contains { $0.questionKey == "alcohol" })

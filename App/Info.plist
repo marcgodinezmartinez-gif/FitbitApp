@@ -49,6 +49,10 @@
 	<string>Recupera lee de Salud los entrenamientos, rutas, frecuencia cardiaca, métricas de carrera y VO₂máx de tu Apple Watch para fusionarlos con los datos de tu Fitbit Air. Tus datos se quedan en tu iPhone y la app nunca escribe en Salud.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Recupera no escribe nada en Salud; solo lee los datos de tu Apple Watch.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Recupera programa la alarma de despertar que tú eliges en el planificador de sueño, para que suene aunque el iPhone esté en silencio.</string>
 	<key>RecuperaGoogleClientID</key>
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
 	<key>RecuperaGoogleReversedClientID</key>

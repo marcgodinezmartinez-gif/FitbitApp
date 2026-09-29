@@ -136,6 +136,17 @@ struct SleepDetailView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        ScrollViewReader { proxy in
+            content
+                .task {
+                    guard AppModel.screenshotScreen == "alarm" else { return }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    proxy.scrollTo("planner", anchor: .top)
+                }
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if let cycle = model.output?.cycle(on: date), let s = cycle.sleep {
@@ -187,6 +198,8 @@ struct SleepDetailView: View {
                                            description: Text("No llevabas la pulsera esta noche o aún no se ha sincronizado."))
                 }
                 SleepPlannerCard()
+                    .id("planner")
+                SmartAlarmCard()
                 Card {
                     SectionHeader(title: "Últimos 30 días")
                     TrendChart(points: series(model, until: date, days: 30) { $0.sleep.map { $0.asleepMin / 60 } },
@@ -353,6 +366,17 @@ struct HealthDetailView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        ScrollViewReader { proxy in
+            content
+                .task {
+                    guard AppModel.screenshotScreen == "vo2" else { return }
+                    try? await Task.sleep(for: .milliseconds(600))
+                    proxy.scrollTo("vo2", anchor: .top)
+                }
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if let cycle = model.output?.cycle(on: date) {
@@ -370,6 +394,8 @@ struct HealthDetailView: View {
                     }
                     StressCard(cycle: cycle)
                 }
+                VO2MaxCard()
+                    .id("vo2")
                 if let pa = model.output?.physioAge {
                     Card {
                         SectionHeader(title: "Edad fisiológica", trailing: pa.calibrated ? nil : "estimación preliminar")
@@ -387,6 +413,10 @@ struct HealthDetailView: View {
                                 Text(Format.signed(f.deltaYears, digits: 1)).font(.subheadline.weight(.semibold)).monospacedDigit()
                                     .foregroundStyle(f.deltaYears <= 0 ? Palette.recoveryHigh : Palette.recoveryMedium)
                             }
+                        }
+                        if pa.omittedFitness {
+                            Text("Sin VO₂ máx. no se cuenta la forma cardiorrespiratoria. Completa tu cintura y el cuestionario de actividad en Perfil › Tus datos para estimarla.")
+                                .font(.caption).foregroundStyle(Palette.recoveryMedium)
                         }
                         Text("Es una estimación de bienestar a partir de tus hábitos y vitales, no una medida médica.")
                             .font(.caption).foregroundStyle(Palette.textSecondary)
@@ -418,5 +448,46 @@ struct HealthDetailView: View {
         let values = points.map(\.value)
         guard let usual, values.count >= 7, let sigma = Stats.robustSigma(values), sigma > 0 else { return nil }
         return (usual - sigma)...(usual + sigma)
+    }
+}
+
+/// VO₂ máx.: el del Apple Watch o el de Google y, si no hay ninguno, la estimación sin ejercicio del modelo HUNT (ALG-EDA-02).
+struct VO2MaxCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Card {
+            SectionHeader(title: "VO₂ máx.", trailing: sourceText)
+            if let value = value {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(Format.decimal(value)).font(.metric(40)).monospacedDigit()
+                    Text("ml/kg/min").foregroundStyle(Palette.textSecondary)
+                }
+                Text("Referencia para tu edad y sexo: \(Format.decimal(reference)) ml/kg/min · edad de forma física ≈ \(Int(PhysioAgeCalculator.fitnessAge(vo2max: value, sex: model.displayProfile.sex).rounded())) años.")
+                    .font(.footnote).foregroundStyle(Palette.textSecondary)
+                if model.output?.primaryVO2 == nil {
+                    Text("Estimación sin ejercicio con tu edad, sexo, cintura, FC en reposo y hábitos de actividad (estudio HUNT). Es orientativa: puede desviarse varios ml/kg/min de una prueba de esfuerzo. Si corres al aire libre con el Apple Watch, se usará su medida.")
+                        .font(.caption).foregroundStyle(Palette.textSecondary)
+                }
+            } else {
+                let missing = NonExerciseVO2.missingInputs(profile: model.displayProfile)
+                Text(missing.isEmpty
+                     ? "Aún no hay VO₂ máx.: hace falta tu FC en reposo de las últimas noches."
+                     : "No hay VO₂ máx. del Apple Watch ni de Google. Para estimarlo sin ejercicio falta: \(missing.joined(separator: ", ")).")
+                    .font(.footnote).foregroundStyle(Palette.textSecondary)
+            }
+        }
+    }
+
+    private var value: Double? { model.output?.primaryVO2?.value ?? model.output?.estimatedVO2 }
+
+    private var reference: Double {
+        let age = model.displayProfile.age(on: model.output?.current?.date ?? LocalDate(Date(), timeZone: .current)) ?? 35
+        return PhysioAgeCalculator.referenceVO2(age: age, sex: model.displayProfile.sex)
+    }
+
+    private var sourceText: String? {
+        if let p = model.output?.primaryVO2 { return p.source.label }
+        return model.output?.estimatedVO2 != nil ? "estimado (HUNT)" : nil
     }
 }

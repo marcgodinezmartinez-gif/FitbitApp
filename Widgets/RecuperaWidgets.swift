@@ -188,5 +188,6 @@ struct RecuperaWidgetsBundle: WidgetBundle {
     var body: some Widget {
         RingsWidget()
         LockScreenWidget()
+        WorkoutLiveActivity()
     }
 }

@@ -69,6 +69,9 @@ struct ActivityDetailView: View {
                             if let g = dyn.avgGroundContactMs { row("Contacto con el suelo", "\(Int(g.rounded())) ms") }
                         }
                     }
+                    if f.kind.isStrength {
+                        StrengthCard(metrics: a)
+                    }
                     Card {
                         SectionHeader(title: "¿Cuánto te costó?", trailing: "RPE 0–10")
                         Slider(value: $rpe, in: 0...10, step: 1) { editing in

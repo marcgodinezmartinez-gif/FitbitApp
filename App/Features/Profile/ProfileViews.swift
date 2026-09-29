@@ -60,6 +60,11 @@ struct ProfileEditor: View {
     @State private var heightText = ""
     @State private var weightText = ""
     @State private var hrMaxText = ""
+    @State private var waistText = ""
+    @State private var answersQuestionnaire = false
+    @State private var frequency: ActivityQuestionnaire.Frequency = .twoToThreeWeekly
+    @State private var intensity: ActivityQuestionnaire.Intensity = .breathless
+    @State private var duration: ActivityQuestionnaire.Duration = .from30to60
 
     var body: some View {
         Form {
@@ -86,6 +91,25 @@ struct ProfileEditor: View {
                 Text("Frecuencia cardiaca")
             } footer: {
                 Text("Si la conoces por una prueba de esfuerzo, ponla aquí. Si no, se estima con tu edad y se ajusta con tus entrenamientos.")
+            }
+            Section {
+                numberField("Perímetro de cintura (cm)", text: $waistText)
+                Toggle("Responder el cuestionario de actividad", isOn: $answersQuestionnaire)
+                if answersQuestionnaire {
+                    Picker("¿Con qué frecuencia haces ejercicio?", selection: $frequency) {
+                        ForEach(ActivityQuestionnaire.Frequency.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    Picker("¿Cuánto te esfuerzas?", selection: $intensity) {
+                        ForEach(ActivityQuestionnaire.Intensity.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    Picker("¿Cuánto dura cada sesión?", selection: $duration) {
+                        ForEach(ActivityQuestionnaire.Duration.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                }
+            } header: {
+                Text("VO₂ máx. sin ejercicio (opcional)")
+            } footer: {
+                Text("Solo se usan si no hay VO₂ máx. del Apple Watch ni de Google: con ellos se estima con el modelo del estudio HUNT. Mide la cintura a la altura del ombligo, al final de una espiración.")
             }
         }
         .navigationTitle("Tus datos")
@@ -128,6 +152,13 @@ struct ProfileEditor: View {
         heightText = text(draft.heightCm)
         weightText = text(draft.weightKg)
         hrMaxText = text(draft.hrMaxOverride)
+        waistText = text(draft.waistCm)
+        if let q = draft.activityQuestionnaire {
+            answersQuestionnaire = true
+            frequency = q.frequency
+            intensity = q.intensity
+            duration = q.duration
+        }
     }
 
     private func save() {
@@ -139,6 +170,9 @@ struct ProfileEditor: View {
         p.heightCm = number(heightText)
         p.weightKg = number(weightText)
         p.hrMaxOverride = number(hrMaxText)
+        p.waistCm = number(waistText)
+        p.activityQuestionnaire = answersQuestionnaire
+            ? ActivityQuestionnaire(frequency: frequency, intensity: intensity, duration: duration) : nil
         Task {
             await model.saveProfile(p)
             Haptics.success()
@@ -266,7 +300,8 @@ struct SettingsView: View {
 
     static let notificationNames: [(String, String)] = [
         ("NOT-01", "Recuperación lista"), ("NOT-02", "Hora de acostarse"), ("NOT-03", "Carga objetivo alcanzada"),
-        ("NOT-04", "Vitales fuera de tu rango"), ("NOT-06", "Sin datos en 24 h"), ("NOT-09", "Estrés alto sostenido"),
+        ("NOT-04", "Vitales fuera de tu rango"), ("NOT-05", "Informe semanal listo"), ("NOT-06", "Sin datos en 24 h"),
+        ("NOT-09", "Estrés alto sostenido"), ("NOT-11", "Revisión del plan semanal (viernes)"),
         ("NOT-12", "Carrera del Apple Watch importada"),
     ]
 
@@ -349,6 +384,8 @@ struct HowWeCalculateView: View {
          "Tu necesidad de sueño parte de tu base y se ajusta con la carga del día anterior, tu deuda acumulada y las siestas. El rendimiento combina lo que dormiste frente a lo que necesitabas, tu eficiencia y tu constancia."),
         ("Estrés", "waveform.path.ecg",
          "Durante el día, en momentos de reposo, compara tu FC y tu VFC con tu referencia para estimar tu activación de 0 a 3."),
+        ("VO₂ máx.", "lungs",
+         "Se usa el del Apple Watch (carreras y caminatas al aire libre) o el de Google. Si no hay ninguno, se estima sin ejercicio con el modelo del estudio HUNT: edad, sexo, cintura, FC en reposo y un índice de actividad (frecuencia × intensidad × duración). Es orientativo."),
         ("Fusión de fuentes", "arrow.triangle.merge",
          "La Fitbit Air aporta el día completo y el sueño; el Apple Watch, tus carreras. Las sesiones de las dos pulseras que coinciden se fusionan en una sola actividad para no contar nada dos veces."),
         ("Límites", "exclamationmark.bubble",

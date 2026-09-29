@@ -38,6 +38,7 @@ targets:
     platform: iOS
     sources:
       - path: App
+      - path: Shared
     dependencies:
       - package: RecuperaKit
         product: MetricsKit
@@ -68,6 +69,7 @@ targets:
     platform: iOS
     sources:
       - path: Widgets
+      - path: Shared
     dependencies:
       - package: RecuperaKit
         product: MetricsKit

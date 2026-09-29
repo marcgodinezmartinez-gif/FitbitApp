@@ -17,6 +17,7 @@ on:
     paths:
       - "App/**"
       - "Widgets/**"
+      - "Shared/**"
       - "Packages/**"
       - "project.yml"
       - ".github/workflows/ios.yml"

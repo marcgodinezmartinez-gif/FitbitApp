@@ -62,6 +62,7 @@ enum LocalNotifications {
             content.body = n.body
             content.sound = .default
             content.threadIdentifier = n.id
+            if n.id == "NOT-09" { content.userInfo = ["route": "breathing"] }
             let request = UNNotificationRequest(identifier: n.key, content: content, trigger: nil)
             UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
         }
@@ -83,6 +84,30 @@ enum LocalNotifications {
         let request = UNNotificationRequest(identifier: "NOT-02", content: content,
                                             trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
         center.add(request, withCompletionHandler: nil)
+    }
+}
+
+/// Abre la pantalla que corresponde al tocar un aviso (p. ej. NOT-09 → respiración guiada) y muestra los avisos con la app abierta.
+final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationRouter()
+    weak var model: AppModel?
+
+    @MainActor
+    static func install(model: AppModel) {
+        shared.model = model
+        UNUserNotificationCenter.current().delegate = shared
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async
+        -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        let route = response.notification.request.content.userInfo["route"] as? String
+        await MainActor.run {
+            if route == "breathing" { self.model?.showBreathing = true }
+        }
     }
 }
 
