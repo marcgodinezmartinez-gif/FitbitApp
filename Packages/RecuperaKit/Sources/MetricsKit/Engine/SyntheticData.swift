@@ -11,6 +11,9 @@ public enum SyntheticData {
         func watchNoise(_ amp: Double) -> Double { Double.random(in: -amp...amp, using: &watchRNG) }
 
         let profile = UserProfile(birthDate: LocalDate(year: 1990, month: 5, day: 12), sex: .male, heightCm: 178, weightKg: 74,
+                                  waistCm: 83,
+                                  activityQuestionnaire: ActivityQuestionnaire(frequency: .twoToThreeWeekly, intensity: .breathless,
+                                                                               duration: .from30to60),
                                   sports: ["Carrera", "Fuerza"], usualWakeMinutes: 7 * 60)
         let today = LocalDate(now, utcOffsetSeconds: utcOffsetSeconds)
         var sleeps: [SleepSession] = []

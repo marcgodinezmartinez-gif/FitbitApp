@@ -37,6 +37,13 @@ public struct AppSettings: Codable, Sendable, Hashable {
     public var geminiPaidTierConfirmed: Bool = false
     public var coachConsentVersion: Int = 0
     public var eveningAnalysis: Bool = false
+    /// Resumen matinal redactado por la IA (RF-COA-05) e informe semanal redactado (RF-COA-06).
+    public var aiMorningSummary: Bool = false
+    public var aiWeeklyReport: Bool = false
+    /// «Mi panel» de Hoy: métricas elegidas y su orden (claves de `DayMetric`).
+    public var dashboardMetrics: [String] = ["hrv", "rhr", "sleep", "steps"]
+    /// Alarma por necesidad cumplida (RF-SUE-12): ventana de despertar en minutos antes de la hora habitual.
+    public var smartAlarmWindowMin: Int = 30
 
     public init() {}
 
@@ -76,6 +83,7 @@ public struct EngineSummary: Codable, Sendable, Hashable {
     public var habitImpacts: [HabitImpact]
     public var physioAge: PhysioAgeResult?
     public var primaryVO2: VO2MaxValue?
+    public var estimatedVO2: Double?
     public var agreementSummary: HRAgreement?
     public var tonightNeed: SleepNeedBreakdown?
     public var usualEfficiency: Double?
@@ -91,6 +99,7 @@ public struct EngineSummary: Codable, Sendable, Hashable {
         habitImpacts = output.habitImpacts
         physioAge = output.physioAge
         primaryVO2 = output.primaryVO2
+        estimatedVO2 = output.estimatedVO2
         agreementSummary = output.agreementSummary
         tonightNeed = output.tonightNeed
         usualEfficiency = output.usualEfficiency
@@ -105,13 +114,30 @@ public struct ActivityAnnotation: Codable, Sendable, Hashable {
     public var notes: String?
     public var kindOverride: ActivityKind?
     public var nameOverride: String?
+    /// Series de fuerza registradas (RF-ENT-05); se guardan en la actividad principal.
+    public var strengthSets: [StrengthSet]?
 
-    public init(activityID: String, rpe: Double? = nil, notes: String? = nil, kindOverride: ActivityKind? = nil, nameOverride: String? = nil) {
+    public init(activityID: String, rpe: Double? = nil, notes: String? = nil, kindOverride: ActivityKind? = nil, nameOverride: String? = nil,
+                strengthSets: [StrengthSet]? = nil) {
         self.activityID = activityID
         self.rpe = rpe
         self.notes = notes
         self.kindOverride = kindOverride
         self.nameOverride = nameOverride
+        self.strengthSets = strengthSets
+    }
+}
+
+/// Sesión de fuerza con series registradas (RF-ENT-05).
+public struct StrengthSession: Sendable, Hashable {
+    public var activityID: String
+    public var start: Date
+    public var sets: [StrengthSet]
+
+    public init(activityID: String, start: Date, sets: [StrengthSet]) {
+        self.activityID = activityID
+        self.start = start
+        self.sets = sets
     }
 }
 

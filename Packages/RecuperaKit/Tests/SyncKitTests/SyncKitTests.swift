@@ -4,6 +4,7 @@ import FoundationNetworking
 #endif
 import Testing
 @testable import HealthAPI
+@testable import Insights
 @testable import MetricsKit
 @testable import Store
 @testable import SyncKit
@@ -124,5 +125,48 @@ struct FakeWatch: AppleHealthProvider {
         #expect(NotificationPlanner.limit(many, sent: [:], now: night, settings: settings, utcOffsetSeconds: 0).isEmpty)
         let critical = [PlannedNotification(id: "NOT-07", key: "x", title: "t", body: "b", critical: true)]
         #expect(NotificationPlanner.limit(critical, sent: [:], now: night, settings: settings, utcOffsetSeconds: 0).count == 1)
+    }
+}
+
+@Suite struct PlanNotificationTests {
+    /// Viernes 2 de octubre de 2026 a las 12:00 UTC (14:00 en UTC+2).
+    let friday = ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z")!
+
+    @Test func fridayReviewAndMondayReport() throws {
+        let db = try AppDatabase.inMemory()
+        let input = SyntheticData.generate(days: 30, endingAt: friday, utcOffsetSeconds: 7200)
+        let out = MetricsEngine.run(input)
+        try db.saveWeeklyPlan(WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness))
+        let today = LocalDate(friday, utcOffsetSeconds: 7200)
+        let progress = try #require(try db.weeklyPlanProgress(output: out, today: today))
+        #expect(progress.weekStart == LocalDate(year: 2026, month: 9, day: 28))
+        #expect(progress.daysElapsed == 5)
+
+        var settings = AppSettings()
+        settings.notifications["NOT-01"] = false
+        let planned = NotificationPlanner.plan(output: out, newWatchWorkoutIDs: [], connection: ConnectionState(), settings: settings,
+                                               sent: [:], now: friday, utcOffsetSeconds: 7200, weeklyPlan: progress)
+        let review = try #require(planned.first { $0.id == "NOT-11" })
+        #expect(review.body.hasPrefix("Vas al"))
+        #expect(review.key == "NOT-11:2026-09-28")
+        // Ya enviado: no se repite.
+        let again = NotificationPlanner.plan(output: out, newWatchWorkoutIDs: [], connection: ConnectionState(), settings: settings,
+                                             sent: [review.key: friday], now: friday, utcOffsetSeconds: 7200, weeklyPlan: progress)
+        #expect(!again.contains { $0.id == "NOT-11" })
+
+        // El lunes siguiente avisa del informe semanal (NOT-05).
+        let monday = friday.addingTimeInterval(3 * 86_400)
+        let mondayInput = SyntheticData.generate(days: 30, endingAt: monday, utcOffsetSeconds: 7200)
+        let mondayOut = MetricsEngine.run(mondayInput)
+        let weekly = NotificationPlanner.plan(output: mondayOut, newWatchWorkoutIDs: [], connection: ConnectionState(), settings: settings,
+                                              sent: [:], now: monday, utcOffsetSeconds: 7200)
+        #expect(weekly.contains { $0.id == "NOT-05" && $0.key == "NOT-05:2026-09-28" })
+        #expect(!weekly.contains { $0.id == "NOT-11" })
+    }
+
+    @Test func noPlanNoReview() throws {
+        let db = try AppDatabase.inMemory()
+        let out = MetricsEngine.run(SyntheticData.generate(days: 20, endingAt: friday, utcOffsetSeconds: 7200))
+        #expect(try db.weeklyPlanProgress(output: out, today: LocalDate(friday, utcOffsetSeconds: 7200)) == nil)
     }
 }

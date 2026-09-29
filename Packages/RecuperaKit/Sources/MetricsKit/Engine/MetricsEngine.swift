@@ -96,6 +96,8 @@ public struct MetricsOutput: Sendable {
     public var habitImpacts: [HabitImpact]
     public var physioAge: PhysioAgeResult?
     public var primaryVO2: VO2MaxValue?
+    /// VO₂ máx. estimado sin ejercicio (ALG-EDA-02); solo si no hay ninguno medido en la ventana de la edad fisiológica.
+    public var estimatedVO2: Double?
     public var agreementSummary: HRAgreement?
     /// Necesidad de sueño estimada para esta noche (según la carga y la deuda actuales).
     public var tonightNeed: SleepNeedBreakdown?
@@ -294,7 +296,8 @@ public enum MetricsEngine {
 
         // VO₂ máx. principal y edad fisiológica.
         let primaryVO2 = Fusion.primaryVO2(input.vo2max, today: today, params: p)
-        let physio = physioAge(input: input, results: results, today: today, fused: fused)
+        let estimatedVO2 = estimatedVO2(input: input, results: results, today: today)
+        let physio = physioAge(input: input, results: results, today: today, fused: fused, estimatedVO2: estimatedVO2)
 
         // Necesidad de sueño para esta noche.
         var tonight: SleepNeedBreakdown?
@@ -308,7 +311,7 @@ public enum MetricsEngine {
         return MetricsOutput(algorithmVersion: AlgorithmParams.currentVersion, cycles: results, fusedHR: fusedHR,
                              fusedActivities: fused, nights: nights, hrMax: hrMax, observedHRMax: observed,
                              acuteLoad: acute, chronicLoad: chronic, habitImpacts: impacts.sorted { $0.questionKey < $1.questionKey },
-                             physioAge: physio, primaryVO2: primaryVO2,
+                             physioAge: physio, primaryVO2: primaryVO2, estimatedVO2: estimatedVO2,
                              agreementSummary: Fusion.agreementSummary(fused, params: p), tonightNeed: tonight,
                              usualEfficiency: Stats.median(last30.map(\.efficiency)),
                              usualLatency: Stats.median(last30.compactMap(\.latencyMin)))
@@ -324,7 +327,19 @@ public enum MetricsEngine {
         return out
     }
 
-    static func physioAge(input: MetricsInput, results: [CycleMetrics], today: LocalDate, fused: [FusedActivity]) -> PhysioAgeResult? {
+    /// ALG-EDA-02: sin VO₂ máx. del Apple Watch ni de Google en la ventana, se estima con el perfil y la FC en reposo de 30 días.
+    static func estimatedVO2(input: MetricsInput, results: [CycleMetrics], today: LocalDate) -> Double? {
+        let p = input.params
+        guard Fusion.vo2SourceForPhysioAge(input.vo2max, today: today, windowDays: p.physioAge.windowDays) == nil else { return nil }
+        let profile = input.profile
+        guard let age = profile.age(on: today), let waist = profile.waistCm, let q = profile.activityQuestionnaire else { return nil }
+        let rhr = Stats.mean(input.vitals.filter { today.days(since: $0.date) < 30 && $0.date <= today }.compactMap(\.restingHR))
+        guard let rhr else { return nil }
+        return NonExerciseVO2.estimate(age: age, sex: profile.sex, waistCm: waist, restingHR: rhr, activityIndex: q.index)
+    }
+
+    static func physioAge(input: MetricsInput, results: [CycleMetrics], today: LocalDate, fused: [FusedActivity],
+                          estimatedVO2: Double? = nil) -> PhysioAgeResult? {
         let p = input.params
         guard let age = input.profile.age(on: today) else { return nil }
         let window = results.filter { today.days(since: $0.date) < p.physioAge.windowDays && !$0.isOpen }
@@ -338,7 +353,7 @@ public enum MetricsEngine {
         let strength = fused.filter { $0.kind.isStrength && today.days(since: LocalDate($0.start, utcOffsetSeconds: $0.primary.utcOffsetSeconds)) < p.physioAge.windowDays }
             .reduce(0) { $0 + $1.durationMinutes }
         let inputs = PhysioAgeInputs(
-            chronologicalAge: age, sex: input.profile.sex, vo2max: Stats.mean(vo2Values), vo2maxSource: vo2Source,
+            chronologicalAge: age, sex: input.profile.sex, vo2max: Stats.mean(vo2Values) ?? estimatedVO2, vo2maxSource: vo2Source,
             stepsPerDay: Stats.mean(window.compactMap { $0.totals.map { Double($0.steps) } }.filter { $0 > 0 }),
             restingHR: Stats.mean(window.compactMap { $0.vitals?.restingHR }),
             moderateMinPerWeek: window.isEmpty ? nil : Double(moderate) / weeks,
@@ -346,7 +361,7 @@ public enum MetricsEngine {
             strengthMinPerWeek: strength > 0 ? strength / weeks : nil,
             sleepHours: Stats.mean(window.compactMap { $0.sleep.map { $0.asleepMin / 60 } }),
             sri: Stats.mean(window.compactMap { $0.sleep?.consistency }),
-            validDays: validDays)
+            validDays: validDays, vo2maxEstimated: vo2Values.isEmpty && estimatedVO2 != nil)
         return PhysioAgeCalculator.estimate(inputs, params: p)
     }
 }

@@ -114,4 +114,37 @@ import Testing
         let n = try db.writer.read { try Int.fetchOne($0, sql: "SELECT (SELECT COUNT(*) FROM hr_minute) + (SELECT COUNT(*) FROM app_state)") }
         #expect(n == 0)
     }
+
+    @Test func strengthSessionsAndManualActivities() throws {
+        let db = try AppDatabase.inMemory()
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        let gym = ActivitySession(source: .manual, sourceRecordID: "gym-1", kind: .strength, start: start, end: start.addingTimeInterval(3600),
+                                  utcOffsetSeconds: 7200, isManual: true, rpe: 7)
+        try db.saveManualActivity(gym, strengthSets: [StrengthSet(exercise: "Sentadilla", reps: 5, weightKg: 100)])
+        let older = ActivitySession(source: .manual, sourceRecordID: "gym-0", kind: .strength, start: start.addingTimeInterval(-86_400 * 3),
+                                    end: start.addingTimeInterval(-86_400 * 3 + 2400), utcOffsetSeconds: 7200, isManual: true)
+        try db.saveManualActivity(older, strengthSets: [StrengthSet(exercise: "Sentadilla", reps: 5, weightKg: 95)])
+        // Una anotación sin series no cuenta.
+        try db.saveAnnotation(ActivityAnnotation(activityID: "apple_health:x", rpe: 5))
+
+        let all = try db.strengthSessions()
+        #expect(all.map(\.activityID) == ["manual:gym-0", "manual:gym-1"])
+        #expect(try db.strengthSessions(before: start).map(\.activityID) == ["manual:gym-0"])
+        // La RPE de la actividad se conserva y las series viven en la anotación.
+        let input = try db.metricsInput(now: start.addingTimeInterval(7200), utcOffsetSeconds: 7200)
+        #expect(input.activities.first { $0.id == "manual:gym-1" }?.rpe == 7)
+
+        try db.deleteManualActivity(id: "manual:gym-1")
+        #expect(try db.strengthSessions().map(\.activityID) == ["manual:gym-0"])
+        #expect(try db.annotation(for: "manual:gym-1") == nil)
+    }
+
+    @Test func reportsByPeriod() throws {
+        let db = try AppDatabase.inMemory()
+        try db.saveReport(id: "ai_morning:2026-09-29", type: "ai_morning", periodStart: "2026-09-29", json: "{\"a\":1}")
+        try db.saveReport(id: "ai_morning:2026-09-29", type: "ai_morning", periodStart: "2026-09-29", json: "{\"a\":2}")
+        #expect(try db.report(type: "ai_morning", periodStart: "2026-09-29") == "{\"a\":2}")
+        #expect(try db.report(type: "ai_weekly", periodStart: "2026-09-29") == nil)
+        #expect(try db.reports(type: "ai_morning").count == 1)
+    }
 }

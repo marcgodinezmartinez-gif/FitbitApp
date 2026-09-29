@@ -15,10 +15,12 @@ public struct PhysioAgeInputs: Sendable {
     public var sleepHours: Double?
     public var sri: Double?
     public var validDays: Int
+    /// El VO₂ máx. es la estimación sin ejercicio (ALG-EDA-02), no una medida del Apple Watch ni de Google.
+    public var vo2maxEstimated: Bool
 
     public init(chronologicalAge: Double, sex: Sex, vo2max: Double?, vo2maxSource: DataSourceKind?, stepsPerDay: Double?,
                 restingHR: Double?, moderateMinPerWeek: Double?, vigorousMinPerWeek: Double?, strengthMinPerWeek: Double?,
-                sleepHours: Double?, sri: Double?, validDays: Int) {
+                sleepHours: Double?, sri: Double?, validDays: Int, vo2maxEstimated: Bool = false) {
         self.chronologicalAge = chronologicalAge
         self.sex = sex
         self.vo2max = vo2max
@@ -31,6 +33,7 @@ public struct PhysioAgeInputs: Sendable {
         self.sleepHours = sleepHours
         self.sri = sri
         self.validDays = validDays
+        self.vo2maxEstimated = vo2maxEstimated
     }
 }
 
@@ -50,6 +53,8 @@ public struct PhysioAgeResult: Hashable, Codable, Sendable {
     public var fitnessAge: Double?
     public var calibrated: Bool
     public var omittedFitness: Bool
+    /// La forma física sale del modelo sin ejercicio (ALG-EDA-02).
+    public var fitnessEstimated: Bool?
 }
 
 public enum PhysioAgeCalculator {
@@ -97,7 +102,8 @@ public enum PhysioAgeCalculator {
         if let vo2 = input.vo2max {
             let deltaMET = (vo2 - referenceVO2(age: age, sex: input.sex)) / 3.5
             let hr = pow(0.87, deltaMET) // cada MET ⇒ RR 0,87 [R28]
-            factors.append(PhysioAgeFactor(key: "vo2max", label: "Forma cardiorrespiratoria",
+            factors.append(PhysioAgeFactor(key: "vo2max",
+                                           label: input.vo2maxEstimated ? "Forma cardiorrespiratoria (estimada)" : "Forma cardiorrespiratoria",
                                            value: String(format: "%.0f ml/kg/min", vo2), deltaYears: years(hrRelative: hr, params: params)))
         }
         if let steps = input.stepsPerDay {
@@ -145,7 +151,8 @@ public enum PhysioAgeCalculator {
                                factors: factors.map { var f = $0; f.deltaYears = (f.deltaYears * 10).rounded() / 10; return f },
                                fitnessAge: input.vo2max.map { fitnessAge(vo2max: $0, sex: input.sex) },
                                calibrated: input.validDays >= p.calibratedDays,
-                               omittedFitness: input.vo2max == nil)
+                               omittedFitness: input.vo2max == nil,
+                               fitnessEstimated: input.vo2max != nil && input.vo2maxEstimated ? true : nil)
     }
 
     /// ALG-EDA-03: ritmo = ΔEdadF / (30/365), recortado a [−3, 3].

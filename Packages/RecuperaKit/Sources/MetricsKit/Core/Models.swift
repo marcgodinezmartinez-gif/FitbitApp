@@ -256,6 +256,31 @@ public struct ActivitySession: Hashable, Codable, Sendable, Identifiable {
     public var durationMinutes: Double { end.timeIntervalSince(start) / 60 }
 }
 
+/// Serie de un ejercicio de fuerza registrada a mano (RF-ENT-05).
+public struct StrengthSet: Hashable, Codable, Sendable, Identifiable {
+    public var id: String
+    public var exercise: String
+    public var reps: Int
+    /// Kilos levantados; `nil` = solo el peso corporal.
+    public var weightKg: Double?
+
+    public init(id: String = UUID().uuidString, exercise: String, reps: Int, weightKg: Double? = nil) {
+        self.id = id
+        self.exercise = exercise
+        self.reps = reps
+        self.weightKg = weightKg
+    }
+
+    /// Volumen = repeticiones × kilos (0 con el peso corporal).
+    public var volumeKg: Double { Double(max(reps, 0)) * (weightKg ?? 0) }
+
+    /// 1RM estimado con la fórmula de Epley, solo con peso y entre 1 y 12 repeticiones.
+    public var estimatedOneRepMax: Double? {
+        guard let w = weightKg, w > 0, (1...12).contains(reps) else { return nil }
+        return reps == 1 ? w : w * (1 + Double(reps) / 30)
+    }
+}
+
 // MARK: - Vitales nocturnos y datos diarios
 
 /// Valores diarios de la Fitbit Air (tipos diarios de la Google Health API).
@@ -305,12 +330,15 @@ public struct UserProfile: Hashable, Codable, Sendable {
     public var observedHRMaxConfirmed: Double?
     public var sleepBaseOverrideMin: Double?
     public var waistCm: Double?
+    /// Cuestionario de actividad del estudio HUNT (opcional, ALG-EDA-02).
+    public var activityQuestionnaire: ActivityQuestionnaire?
     public var sports: [String]
     public var usualWakeMinutes: Int           // minutos desde medianoche (p. ej. 7:00 = 420)
 
     public init(birthDate: LocalDate? = nil, sex: Sex = .unspecified, heightCm: Double? = nil, weightKg: Double? = nil,
                 hrMaxOverride: Double? = nil, observedHRMaxConfirmed: Double? = nil, sleepBaseOverrideMin: Double? = nil,
-                waistCm: Double? = nil, sports: [String] = ["Carrera"], usualWakeMinutes: Int = 7 * 60) {
+                waistCm: Double? = nil, activityQuestionnaire: ActivityQuestionnaire? = nil, sports: [String] = ["Carrera"],
+                usualWakeMinutes: Int = 7 * 60) {
         self.birthDate = birthDate
         self.sex = sex
         self.heightCm = heightCm
@@ -319,6 +347,7 @@ public struct UserProfile: Hashable, Codable, Sendable {
         self.observedHRMaxConfirmed = observedHRMaxConfirmed
         self.sleepBaseOverrideMin = sleepBaseOverrideMin
         self.waistCm = waistCm
+        self.activityQuestionnaire = activityQuestionnaire
         self.sports = sports
         self.usualWakeMinutes = usualWakeMinutes
     }

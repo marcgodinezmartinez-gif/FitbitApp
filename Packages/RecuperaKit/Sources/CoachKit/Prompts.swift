@@ -103,6 +103,54 @@ public enum CoachPrompts {
         return header + "]"
     }
 
+    /// Sistema de los informes redactados (resumen matinal e informe semanal): sin herramientas, solo con los hechos del mensaje.
+    public static func reportSystem(profile: UserProfile, today: LocalDate) -> String {
+        """
+        Eres el Coach de Recupera, una app personal de bienestar que combina una pulsera Fitbit Air y un Apple Watch. Redactas \
+        textos breves a partir de datos ya calculados por la app.
+
+        Cómo trabajas
+        - Usa solo las cifras del mensaje, tal cual; no calcules otras nuevas ni inventes datos. Si falta algo, no lo menciones.
+        - Recuperación 0–100 % (alta ≥ 67, media 34–66, baja < 34); carga 0–21 en escala logarítmica.
+        - Responde solo con el JSON del esquema, sin Markdown.
+
+        \(safety)
+
+        Estilo
+        - Español de España, tuteo, cercano y directo. Frases cortas.
+        - Nada de culpa: «hoy toca recuperar», nunca «has fallado».
+
+        Perfil
+        \(profileSummary(profile, today: today))
+        """
+    }
+
+    /// Petición del resumen matinal (RF-COA-05).
+    public static func morningRequest(facts: JSONValue) -> String {
+        """
+        Escribe mi resumen de esta mañana con estos datos:
+        \(facts.serialized())
+
+        - "titulo": una frase corta (máx. 8 palabras) sobre cómo llego al día.
+        - "resumen": 2–3 frases que expliquen la recuperación con el sueño y los componentes que más pesan.
+        - "carga_objetivo": una frase con el rango de carga objetivo y qué tipo de actividad encaja hoy.
+        - "hora_acostarse": una frase con la hora de acostarse y lo que conviene dormir esta noche.
+        """
+    }
+
+    /// Petición del informe semanal (RF-COA-06).
+    public static func weeklyRequest(facts: JSONValue) -> String {
+        """
+        Escribe el informe de mi semana con estos datos:
+        \(facts.serialized())
+
+        - "resumen": 2–4 frases sobre cómo ha ido la semana.
+        - "logros": exactamente 3 logros concretos, con cifras.
+        - "mejoras": exactamente 3 áreas de mejora con una acción concreta cada una para la semana que empieza.
+        - "comparacion": 1–2 frases que comparen con la semana anterior.
+        """
+    }
+
     /// Petición del análisis del día con IA (RF-COA-18). Los hechos van en el propio mensaje (mismo contenido que `get_day_detail`).
     public static func dayAnalysisRequest(date: LocalDate, facts: JSONValue) -> String {
         """

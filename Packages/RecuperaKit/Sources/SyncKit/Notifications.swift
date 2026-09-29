@@ -23,9 +23,11 @@ public struct PlannedNotification: Codable, Sendable, Hashable {
 public enum NotificationPlanner {
     /// Decide qué avisos tocan tras una sincronización. `sent` son las claves ya enviadas (con su fecha).
     public static func plan(output: MetricsOutput, newWatchWorkoutIDs: [String], connection: ConnectionState, settings: AppSettings,
-                            sent: [String: Date], now: Date, utcOffsetSeconds: Int) -> [PlannedNotification] {
+                            sent: [String: Date], now: Date, utcOffsetSeconds: Int,
+                            weeklyPlan: WeeklyPlanProgress? = nil) -> [PlannedNotification] {
         var out: [PlannedNotification] = []
-        let today = LocalDate(now, utcOffsetSeconds: utcOffsetSeconds).isoString
+        let todayDate = LocalDate(now, utcOffsetSeconds: utcOffsetSeconds)
+        let today = todayDate.isoString
         let showValues = settings.lockscreenShowsValues
         func allowed(_ id: String) -> Bool { settings.isOn(id) }
         func notSent(_ key: String) -> Bool { sent[key] == nil }
@@ -46,6 +48,23 @@ public enum NotificationPlanner {
             if allowed("NOT-09"), cur.stress.sustainedHigh, notSent("NOT-09:\(today)") {
                 out.append(PlannedNotification(id: "NOT-09", key: "NOT-09:\(today)", title: "Estrés",
                                                body: "Llevas un rato con estrés alto. ¿Un minuto de respiración?"))
+            }
+        }
+
+        // NOT-11 · revisión del plan semanal el viernes (RF-PLA-03).
+        if allowed("NOT-11"), todayDate.isoWeekday == 5, let p = weeklyPlan, !p.items.isEmpty,
+           notSent("NOT-11:\(p.weekStart.isoString)") {
+            out.append(PlannedNotification(id: "NOT-11", key: "NOT-11:\(p.weekStart.isoString)", title: "Plan semanal",
+                                           body: WeeklyPlanner.fridayReview(p)))
+        }
+
+        // NOT-05 · informe de la semana pasada, el lunes (RF-INF-01).
+        if allowed("NOT-05"), todayDate.isoWeekday == 1 {
+            let lastWeek = todayDate.adding(days: -7)
+            let days = output.cycles.filter { $0.date >= lastWeek && $0.date < todayDate && $0.recovery.score != nil }.count
+            if days >= 3, notSent("NOT-05:\(lastWeek.isoString)") {
+                out.append(PlannedNotification(id: "NOT-05", key: "NOT-05:\(lastWeek.isoString)", title: "Informe semanal",
+                                               body: "Tu informe semanal está listo."))
             }
         }
 

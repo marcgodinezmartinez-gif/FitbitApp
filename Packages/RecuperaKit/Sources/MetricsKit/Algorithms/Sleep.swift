@@ -13,6 +13,16 @@ public struct SleepNeedBreakdown: Hashable, Codable, Sendable {
     public var withoutDebtMin: Double { max(0, baseMin + strainAdjMin - napCreditMin) }
 }
 
+/// Resultado de la alarma por necesidad cumplida (RF-SUE-12).
+public struct SmartAlarmPlan: Hashable, Sendable {
+    /// Hora a la que sonará (dentro de la ventana).
+    public var alarm: Date
+    /// Cuándo se estima cumplida la necesidad.
+    public var needMetAt: Date
+    /// `false` si la necesidad no llega a cumplirse antes del final de la ventana.
+    public var needMet: Bool
+}
+
 public enum SleepBand: String, Codable, Sendable {
     case optimal, sufficient, poor
 
@@ -173,6 +183,20 @@ public enum SleepCalculator {
         let latency = usualLatency ?? 15
         let minutes = Double(wakeMinutes) - (needMin * f) / eff - latency
         return Int((minutes / 5).rounded()) * 5
+    }
+
+    /// RF-SUE-12 · «Alarma por necesidad cumplida»: te acuestas en `bedtime`; se estima cuándo habrás dormido lo necesario
+    /// (con tu latencia y tu eficiencia habituales) y se acota a la ventana de despertar. No hay fases en tiempo real.
+    public static func smartAlarm(bedtime: Date, needMin: Double, goal: PlannerGoal, usualEfficiency: Double?, usualLatency: Double?,
+                                  windowStart: Date, windowEnd: Date, params: AlgorithmParams) -> SmartAlarmPlan {
+        let f = params.sleep.plannerFactors[min(goal.rawValue, params.sleep.plannerFactors.count - 1)]
+        let eff = max(0.5, min(1.0, (usualEfficiency ?? 90) / 100))
+        let latency = usualLatency ?? 15
+        let needMetAt = bedtime.addingTimeInterval((latency + needMin * f / eff) * 60)
+        let end = max(windowStart, windowEnd)
+        let alarm = min(max(needMetAt, windowStart), end)
+        let rounded = Date(timeIntervalSince1970: (alarm.timeIntervalSince1970 / 60).rounded(.down) * 60)
+        return SmartAlarmPlan(alarm: rounded, needMetAt: needMetAt, needMet: needMetAt <= end)
     }
 
     /// Modo «Mejorar mi constancia»: acerca la hora habitual al objetivo en pasos de ≤ 15 min.

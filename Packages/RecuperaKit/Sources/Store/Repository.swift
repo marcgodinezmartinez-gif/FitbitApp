@@ -273,6 +273,40 @@ extension AppDatabase {
         }
     }
 
+    /// Sesiones con series de fuerza registradas, de la más antigua a la más reciente (para récords y progresión).
+    public func strengthSessions(before: Date? = nil) throws -> [StrengthSession] {
+        try writer.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT a.activity_id AS id, a.json AS json, act.start_ts AS start_ts FROM activity_annotation a
+                JOIN activity act ON act.id = a.activity_id ORDER BY act.start_ts
+                """)
+            return rows.compactMap { r -> StrengthSession? in
+                let start = Date(timeIntervalSince1970: r["start_ts"])
+                if let before, start >= before { return nil }
+                guard let ann = try? Self.decode(ActivityAnnotation.self, r["json"]), let sets = ann.strengthSets, !sets.isEmpty else { return nil }
+                return StrengthSession(activityID: r["id"], start: start, sets: sets)
+            }
+        }
+    }
+
+    /// Guarda una actividad creada en la app (entrenamiento con la Live Activity o sesión de fuerza) con sus series.
+    public func saveManualActivity(_ a: ActivitySession, strengthSets: [StrengthSet]? = nil) throws {
+        try upsertActivities([a])
+        if let strengthSets {
+            var ann = try annotation(for: a.id) ?? ActivityAnnotation(activityID: a.id)
+            ann.strengthSets = strengthSets
+            try saveAnnotation(ann)
+        }
+    }
+
+    /// Borra una actividad creada en la app y su anotación.
+    public func deleteManualActivity(id: String) throws {
+        try writer.write { db in
+            try db.execute(sql: "DELETE FROM activity WHERE id = ? AND is_manual = 1", arguments: [id])
+            try db.execute(sql: "DELETE FROM activity_annotation WHERE activity_id = ?", arguments: [id])
+        }
+    }
+
     /// FC por minuto de las dos fuentes en un intervalo (para las curvas de FC).
     public func hrMinutes(from: Date, to: Date) throws -> [HRMinute] {
         try writer.read { db in
@@ -493,6 +527,13 @@ extension AppDatabase {
         try writer.write { db in
             try db.execute(sql: "INSERT OR REPLACE INTO report(id, type, period_start, json, created_at) VALUES (?,?,?,?,?)",
                            arguments: [id, type, periodStart, json, Date().timeIntervalSince1970])
+        }
+    }
+
+    public func report(type: String, periodStart: String) throws -> String? {
+        try writer.read { db in
+            try String.fetchOne(db, sql: "SELECT json FROM report WHERE type = ? AND period_start = ? ORDER BY created_at DESC LIMIT 1",
+                                arguments: [type, periodStart])
         }
     }
 
