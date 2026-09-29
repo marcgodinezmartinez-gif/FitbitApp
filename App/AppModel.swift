@@ -539,7 +539,9 @@ final class AppModel {
             case .hrv: summary += " Tu VFC está por debajo de lo habitual."
             case .restingHR: summary += " Tu FC en reposo está por encima de lo habitual."
             case .sleep: summary += " Lo que más te resta es el sueño."
-            default: summary += " Algún vital nocturno está fuera de tu rango habitual."
+            case .respiratoryRate: summary += " Tu frecuencia respiratoria está por encima de lo habitual."
+            case .skinTemp: summary += " Tu temperatura nocturna se sale de lo habitual."
+            case .spo2: summary += " Tu SpO₂ está por debajo de lo habitual."
             }
         } else {
             summary += " Tus vitales nocturnos están en tu rango habitual."

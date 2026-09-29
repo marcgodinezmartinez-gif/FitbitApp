@@ -51,6 +51,12 @@ Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **
 | ![Hoy](docs/capturas/hoy.jpg) | ![Carrera](docs/capturas/carrera.jpg) | ![Sueño](docs/capturas/sueno.jpg) | ![Tendencias](docs/capturas/tendencias.jpg) |
 | **Análisis del día** | **Recuperación** | **Salud** | **Hoy (tema claro)** |
 | ![Análisis del día](docs/capturas/analisis-del-dia.jpg) | ![Recuperación](docs/capturas/recuperacion.jpg) | ![Salud](docs/capturas/salud.jpg) | ![Hoy en tema claro](docs/capturas/hoy-tema-claro.jpg) |
+| **Mi panel** | **Plan semanal** | **Registro de fuerza** | **Entrenamiento en curso** |
+| ![Mi panel](docs/capturas/mi-panel.jpg) | ![Plan semanal](docs/capturas/plan-semanal.jpg) | ![Registro de fuerza](docs/capturas/fuerza.jpg) | ![Entrenamiento con Live Activity](docs/capturas/entrenamiento.jpg) |
+| **Respiración guiada** | **Alarma inteligente** | **VO₂ máx. y edad fisiológica** | **Informe semanal (IA)** |
+| ![Respiración guiada](docs/capturas/respiracion.jpg) | ![Alarma inteligente](docs/capturas/alarma.jpg) | ![VO₂ máx.](docs/capturas/vo2max.jpg) | ![Informe semanal](docs/capturas/informe-semanal.jpg) |
+
+En el modo demostración, el resumen matinal y el informe semanal son **textos de ejemplo** (se indica en la tarjeta); con el Coach activado los redacta la IA con tus datos.
 
 ## Código
 
