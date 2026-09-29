@@ -42,6 +42,16 @@ Especificación completa de requisitos para construir una **app personal para iP
 
 Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.example.xcconfig).
 
+## Capturas
+
+Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **iOS** con los datos de demostración ([`scripts/screenshots.sh`](scripts/screenshots.sh)). Todas en [`docs/capturas`](docs/capturas).
+
+| Hoy | Carrera (Watch + Fitbit) | Sueño | Tendencias |
+|---|---|---|---|
+| ![Hoy](docs/capturas/hoy.jpg) | ![Carrera](docs/capturas/carrera.jpg) | ![Sueño](docs/capturas/sueno.jpg) | ![Tendencias](docs/capturas/tendencias.jpg) |
+| **Análisis del día** | **Recuperación** | **Salud** | **Hoy (tema claro)** |
+| ![Análisis del día](docs/capturas/analisis-del-dia.jpg) | ![Recuperación](docs/capturas/recuperacion.jpg) | ![Salud](docs/capturas/salud.jpg) | ![Hoy en tema claro](docs/capturas/hoy-tema-claro.jpg) |
+
 ## Código
 
 ```
