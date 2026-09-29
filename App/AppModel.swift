@@ -100,7 +100,7 @@ final class AppModel {
     static var initialTab: AppTab {
         switch screenshotScreen {
         case "trends"?, "report"?: return .trends
-        case "runs"?, "run"?: return .runs
+        case let screen? where screen.hasPrefix("run"): return .runs
         case "coach"?: return .coach
         case "profile"?: return .profile
         default: return .today

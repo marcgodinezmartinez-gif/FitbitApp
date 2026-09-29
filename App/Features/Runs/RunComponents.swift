@@ -25,6 +25,9 @@ enum RunFormat {
 
     static func time(_ seconds: Double) -> String { Format.raceTime(seconds: seconds) }
 
+    /// «1 carrera», «3 carreras».
+    static func count(_ n: Int, _ singular: String, _ plural: String) -> String { "\(n) \(n == 1 ? singular : plural)" }
+
     static func number(_ v: Double?, digits: Int = 0, unit: String = "") -> String {
         guard let v, v.isFinite else { return "–" }
         let text = digits == 0 ? "\(Int(v.rounded()))" : Format.decimal(v, digits: digits)

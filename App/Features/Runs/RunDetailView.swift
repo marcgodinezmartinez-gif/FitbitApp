@@ -23,50 +23,57 @@ struct RunDetailView: View {
     var run: FusedActivity? { model.output?.fusedActivities.first { $0.id == runID } }
 
     var body: some View {
-        ScrollView {
-            if let run {
-                VStack(alignment: .leading, spacing: 16) {
-                    RunHeader(run: run, summary: model.runs.summary(runID), history: model.runs.history)
-                    if let loaded {
-                        content(run: run, loaded: loaded)
-                    } else if loading {
-                        ProgressView("Analizando la carrera…").frame(maxWidth: .infinity).padding(.vertical, 40)
-                    } else {
-                        StateCard(symbol: "exclamationmark.triangle", title: "No se pudo analizar", message: "Faltan los datos de esta carrera.")
+        ScrollViewReader { proxy in
+            ScrollView {
+                if let run {
+                    VStack(alignment: .leading, spacing: 16) {
+                        RunHeader(run: run, summary: model.runs.summary(runID), history: model.runs.history)
+                        if let loaded {
+                            content(run: run, loaded: loaded)
+                        } else if loading {
+                            ProgressView("Analizando la carrera…").frame(maxWidth: .infinity).padding(.vertical, 40)
+                        } else {
+                            StateCard(symbol: "exclamationmark.triangle", title: "No se pudo analizar", message: "Faltan los datos de esta carrera.")
+                        }
+                        if run.primary.source == .manual && !model.settings.demoMode {
+                            Button("Borrar esta actividad", role: .destructive) { confirmDelete = true }
+                                .frame(maxWidth: .infinity).font(.subheadline)
+                        }
                     }
-                    if run.primary.source == .manual && !model.settings.demoMode {
-                        Button("Borrar esta actividad", role: .destructive) { confirmDelete = true }
-                            .frame(maxWidth: .infinity).font(.subheadline)
-                    }
-                }
-                .padding(16)
-            } else {
-                ContentUnavailableView("Carrera no encontrada", systemImage: "figure.run")
-            }
-        }
-        .screenBackground()
-        .navigationTitle(run?.name ?? "Carrera")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if let url = gpxURL {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }
-                        .accessibilityLabel("Exportar GPX")
+                    .padding(16)
+                } else {
+                    ContentUnavailableView("Carrera no encontrada", systemImage: "figure.run")
                 }
             }
-        }
-        .task(id: "\(runID)-\(model.dataVersion)") {
-            guard let run else { loading = false; return }
-            if model.runs.summaries.isEmpty { await model.runs.refresh(model: model) }
-            loaded = await model.runs.load(run, model: model)
-            if let loaded, !loaded.input.route.isEmpty { gpxURL = gpxFile(loaded) }
-            loading = false
-        }
-        .confirmationDialog("¿Borrar esta actividad?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Borrar", role: .destructive) {
-                Task {
-                    await model.deleteManualActivity(id: runID)
-                    dismiss()
+            .screenBackground()
+            .navigationTitle(run?.name ?? "Carrera")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if let url = gpxURL {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }
+                            .accessibilityLabel("Exportar GPX")
+                    }
+                }
+            }
+            .task(id: "\(runID)-\(model.dataVersion)") {
+                guard let run else { loading = false; return }
+                if model.runs.summaries.isEmpty { await model.runs.refresh(model: model) }
+                loaded = await model.runs.load(run, model: model)
+                if let loaded, !loaded.input.route.isEmpty { gpxURL = gpxFile(loaded) }
+                loading = false
+                // Capturas de CI: se desplaza a la sección pedida («run-charts» → «charts»).
+                if let screen = AppModel.screenshotScreen, screen.hasPrefix("run-") {
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    proxy.scrollTo(String(screen.dropFirst(4)), anchor: .top)
+                }
+            }
+            .confirmationDialog("¿Borrar esta actividad?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Borrar", role: .destructive) {
+                    Task {
+                        await model.deleteManualActivity(id: runID)
+                        dismiss()
+                    }
                 }
             }
         }
@@ -87,16 +94,16 @@ struct RunDetailView: View {
             }
         }
         RunSummaryGrid(analysis: r, run: run)
-        RunAICard(run: run, analysis: r)
-        RunChartsCard(analysis: r, metric: $chartMetric, byDistance: $byDistance, zones: loaded.input.zones)
-        if !r.splits.isEmpty { RunSplitsCard(splits: r.splits) }
+        RunAICard(run: run, analysis: r).id("ai")
+        RunChartsCard(analysis: r, metric: $chartMetric, byDistance: $byDistance, zones: loaded.input.zones).id("charts")
+        if !r.splits.isEmpty { RunSplitsCard(splits: r.splits).id("splits") }
         if !r.laps.isEmpty { RunLapsCard(laps: r.laps) }
         RunZonesDetailCard(analysis: r)
         if !r.bestEfforts.isEmpty { RunBestEffortsCard(analysis: r, run: run) }
         if r.paceCurve.count >= 2 || r.powerCurve.count >= 2 { RunCurvesCard(analysis: r) }
         if !r.climbs.isEmpty { RunClimbsCard(climbs: r.climbs) }
         RunEfficiencyCard(analysis: r)
-        if !r.form.isEmpty { RunFormCard(form: r.form) }
+        if !r.form.isEmpty { RunFormCard(form: r.form).id("form") }
         if let c = r.comparison { RunComparisonCard(comparison: c) }
         if let w = r.weather, !w.isEmpty { RunWeatherCard(weather: w) }
         RunSimilarCard(runID: runID)
@@ -212,7 +219,7 @@ struct RunAICard: View {
         }
         .task(id: run.id) {
             report = model.runs.savedReport(for: run.id, model: model)
-            if report == nil, AppModel.screenshotScreen == "run" { await write(force: false) }
+            if report == nil, AppModel.screenshotScreen?.hasPrefix("run") == true { await write(force: false) }
         }
     }
 

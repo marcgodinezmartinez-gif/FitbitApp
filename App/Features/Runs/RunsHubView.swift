@@ -14,41 +14,47 @@ struct RunsHubView: View {
 
     var body: some View {
         let runs = model.runs
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if runs.summaries.isEmpty {
-                    if runs.isLoading {
-                        ProgressView("Analizando tus carreras…").frame(maxWidth: .infinity).padding(.top, 80)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if runs.summaries.isEmpty {
+                        if runs.isLoading {
+                            ProgressView("Analizando tus carreras…").frame(maxWidth: .infinity).padding(.top, 80)
+                        } else {
+                            StateCard(symbol: "figure.run", title: "Aún no hay carreras",
+                                      message: "Cuando corras con el Apple Watch o con la Fitbit Air, aquí verás cada carrera analizada al detalle, tu forma, tus récords y tus predicciones.")
+                        }
                     } else {
-                        StateCard(symbol: "figure.run", title: "Aún no hay carreras",
-                                  message: "Cuando corras con el Apple Watch o con la Fitbit Air, aquí verás cada carrera analizada al detalle, tu forma, tus récords y tus predicciones.")
+                        RunWeekHeader(runs: runs)
+                        RunVolumeCard(runs: runs, monthly: $monthly)
+                        RunFitnessCard(runs: runs)
+                        RunPerformanceCard(runs: runs).id("performance")
+                        RunVO2Card(runs: runs)
+                        RunRecordsCard(runs: runs).id("records")
+                        RunTrendsCard(runs: runs, metric: $trendMetric)
+                        RunZonesCard(runs: runs, zones: model.output?.current?.zones)
+                        RunShoesCard(runs: runs)
+                        RunListSection(runs: runs)
                     }
-                } else {
-                    RunWeekHeader(runs: runs)
-                    RunVolumeCard(runs: runs, monthly: $monthly)
-                    RunFitnessCard(runs: runs)
-                    RunPerformanceCard(runs: runs)
-                    RunVO2Card(runs: runs)
-                    RunRecordsCard(runs: runs)
-                    RunTrendsCard(runs: runs, metric: $trendMetric)
-                    RunZonesCard(runs: runs, zones: model.output?.current?.zones)
-                    RunShoesCard(runs: runs)
-                    RunListSection(runs: runs)
+                }
+                .padding(16)
+            }
+            .screenBackground()
+            .navigationTitle("Correr")
+            .detailDestinations()
+            .navigationDestination(item: $openRun) { id in RunDetailView(runID: id) }
+            .task(id: model.dataVersion) {
+                await runs.refresh(model: model)
+                guard let screen = AppModel.screenshotScreen else { return }
+                if screen == "run" || screen.hasPrefix("run-"), openRun == nil {
+                    openRun = runs.summaries.last { $0.startLat != nil }?.id ?? runs.summaries.last?.id
+                } else if screen.hasPrefix("runs-") {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    proxy.scrollTo(String(screen.dropFirst(5)), anchor: .top)
                 }
             }
-            .padding(16)
+            .refreshable { await model.sync(.pull) }
         }
-        .screenBackground()
-        .navigationTitle("Correr")
-        .detailDestinations()
-        .navigationDestination(item: $openRun) { id in RunDetailView(runID: id) }
-        .task(id: model.dataVersion) {
-            await runs.refresh(model: model)
-            if AppModel.screenshotScreen == "run", openRun == nil {
-                openRun = runs.summaries.last { $0.startLat != nil }?.id ?? runs.summaries.last?.id
-            }
-        }
-        .refreshable { await model.sync(.pull) }
     }
 }
 
@@ -66,11 +72,11 @@ struct RunWeekHeader: View {
             SectionHeader(title: "Esta semana", trailing: streak > 1 ? "\(streak) semanas seguidas corriendo" : nil)
             HStack(alignment: .bottom) {
                 BigNumber(value: Format.decimal((week?.distanceM ?? 0) / 1000), unit: "km",
-                          caption: "\(week?.runs ?? 0) carreras · \(Format.duration(minutes: (week?.movingS ?? 0) / 60))")
+                          caption: "\(RunFormat.count(week?.runs ?? 0, "carrera", "carreras")) · \(Format.duration(minutes: (week?.movingS ?? 0) / 60))")
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(Int((year.distanceM / 1000).rounded())) km").font(.metric(22, weight: .semibold)).monospacedDigit()
-                    Text("en \(String(today.year)) · \(year.runs) carreras").font(.caption).foregroundStyle(Palette.textSecondary)
+                    Text("en \(String(today.year)) · \(RunFormat.count(year.runs, "carrera", "carreras"))").font(.caption).foregroundStyle(Palette.textSecondary)
                 }
             }
         }
@@ -131,9 +137,9 @@ struct RunFitnessCard: View {
             SectionHeader(title: "Forma y fatiga", trailing: "carga de tus carreras")
             if let last = points.last {
                 HStack {
-                    stat("Forma", last.fitness, Palette.strain)
-                    stat("Fatiga", last.fatigue, Palette.stress)
-                    stat("Frescura", last.form, last.form >= -10 ? Palette.recoveryHigh : Palette.recoveryMedium)
+                    stat("Forma", last.fitness, Palette.strain, signed: false)
+                    stat("Fatiga", last.fatigue, Palette.stress, signed: false)
+                    stat("Frescura", last.form, last.form >= -10 ? Palette.recoveryHigh : Palette.recoveryMedium, signed: true)
                 }
                 Text(Self.advice(points)).font(.subheadline).foregroundStyle(Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
                 FitnessChart(points: points)
@@ -141,9 +147,10 @@ struct RunFitnessCard: View {
         }
     }
 
-    private func stat(_ name: String, _ value: Double, _ color: Color) -> some View {
+    private func stat(_ name: String, _ value: Double, _ color: Color, signed: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(Format.signed(value)).font(.metric(24, weight: .semibold)).foregroundStyle(color).monospacedDigit()
+            Text(signed ? Format.signed(value) : "\(Int(value.rounded()))").font(.metric(24, weight: .semibold)).foregroundStyle(color)
+                .monospacedDigit()
             Text(name).font(.caption).foregroundStyle(Palette.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -426,7 +433,7 @@ struct RunListSection: View {
                 HStack {
                     Text(month.title).font(.headline)
                     Spacer()
-                    Text("\(Format.decimal(month.items.reduce(0) { $0 + $1.distanceM } / 1000)) km · \(month.items.count) carreras")
+                    Text("\(Format.decimal(month.items.reduce(0) { $0 + $1.distanceM } / 1000)) km · \(RunFormat.count(month.items.count, "carrera", "carreras"))")
                         .font(.caption).foregroundStyle(Palette.textSecondary)
                 }
                 ForEach(month.items) { s in
