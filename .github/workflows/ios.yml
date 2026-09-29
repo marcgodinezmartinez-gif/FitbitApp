@@ -142,12 +142,15 @@ jobs:
           mkdir -p ~/private_keys
           key=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
           if [ -n "$ASC_KEY_P8" ]; then
-            printf '%s\n' "$ASC_KEY_P8" > "$key"
+            pem="$ASC_KEY_P8"
           elif printf '%s' "$ASC_KEY_P8_BASE64" | grep -q "BEGIN PRIVATE KEY"; then
-            printf '%s\n' "$ASC_KEY_P8_BASE64" > "$key"
+            pem="$ASC_KEY_P8_BASE64"
           else
-            printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$key"
+            pem=$(printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode)
           fi
+          # Se rehace el PEM (64 caracteres por línea) por si al pegarlo se perdieron los saltos de línea.
+          body=$(printf '%s' "$pem" | sed -e 's/-----BEGIN PRIVATE KEY-----//' -e 's/-----END PRIVATE KEY-----//' | tr -d ' \n\r\t')
+          { echo "-----BEGIN PRIVATE KEY-----"; printf '%s' "$body" | fold -w 64; echo; echo "-----END PRIVATE KEY-----"; } > "$key"
 
       - name: Archivar (firma gestionada en la nube)
         if: steps.check.outputs.ok == 'true'

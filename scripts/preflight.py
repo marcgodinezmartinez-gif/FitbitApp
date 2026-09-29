@@ -75,15 +75,25 @@ else:
         ok("GOOGLE_IOS_CLIENT_ID con formato correcto (el esquema de redirección se calcula solo).")
 
 # 4 · Clave de la API de App Store Connect
+
+
+def normalize_pem(text):
+    """Rehace el PEM aunque se hayan perdido los saltos de línea o sobren espacios al pegarlo."""
+    body = re.sub(r"-----(BEGIN|END) PRIVATE KEY-----", "", text)
+    body = re.sub(r"\s+", "", body)
+    lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+    return "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----\n"
+
+
 key_pem = None
 if p8_raw:
-    key_pem = p8_raw
+    key_pem = normalize_pem(p8_raw)
 elif p8_b64:
     if "BEGIN PRIVATE KEY" in p8_b64:
-        key_pem = p8_b64
+        key_pem = normalize_pem(p8_b64)
     else:
         try:
-            key_pem = base64.b64decode(p8_b64).decode()
+            key_pem = normalize_pem(base64.b64decode(p8_b64).decode())
         except Exception:
             fail("ASC_KEY_P8_BASE64 no es base64 válido. Más fácil: crea el secreto ASC_KEY_P8 y pega el .p8 tal cual.")
 else:
