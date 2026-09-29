@@ -515,13 +515,36 @@ final class AppModel {
     private func loadDemoReports() {
         guard let output, let cur = output.current else { return }
         let score = cur.recovery.score ?? 0
-        let title = score >= 67 ? "Llegas con buena energía" : (score >= 34 ? "Día para mantener" : "Hoy toca recuperar")
+        let zone = cur.recovery.zone ?? .medium
+        let title: String
+        let activity: String
+        switch zone {
+        case .high:
+            title = "Llegas con buena energía"
+            activity = "buen día para un entrenamiento exigente"
+        case .medium:
+            title = "Día para mantener"
+            activity = "encaja un rodaje suave o técnica"
+        case .low:
+            title = "Hoy toca recuperar"
+            activity = "mejor algo suave: paseo, movilidad o descanso"
+        }
         var summary = "Tu recuperación es del \(score) %"
         if let s = cur.sleep {
             summary += " tras dormir \(Format.duration(minutes: s.asleepMin)) de las \(Format.duration(minutes: s.need.totalMin)) que necesitabas"
         }
-        summary += ". Tu VFC y tu FC en reposo están en tu rango habitual."
-        let target = cur.target.map { "Carga objetivo de \(Format.decimal($0.low, digits: 0)) a \(Format.decimal($0.high, digits: 0)): encaja un rodaje con algún cambio de ritmo." }
+        summary += "."
+        if let worst = cur.recovery.components.min(by: { $0.z < $1.z }), worst.z < -0.5 {
+            switch worst.kind {
+            case .hrv: summary += " Tu VFC está por debajo de lo habitual."
+            case .restingHR: summary += " Tu FC en reposo está por encima de lo habitual."
+            case .sleep: summary += " Lo que más te resta es el sueño."
+            default: summary += " Algún vital nocturno está fuera de tu rango habitual."
+            }
+        } else {
+            summary += " Tus vitales nocturnos están en tu rango habitual."
+        }
+        let target = cur.target.map { "Carga objetivo de \(Format.decimal($0.low)) a \(Format.decimal($0.high)): \(activity)." }
             ?? "Aún no hay carga objetivo: muévete a tu ritmo."
         let bed = tonightBedtimeMinutes.map { "Acuéstate a las \(Format.clock(minutes: $0)) para dormir lo que necesitas esta noche." }
             ?? "Intenta acostarte a tu hora de siempre."

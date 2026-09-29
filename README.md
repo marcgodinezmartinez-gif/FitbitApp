@@ -2,7 +2,7 @@
 
 Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes, **análisis del día** y un **Coach IA con Claude o Gemini**— y que además **fusione las carreras de tu Apple Watch**, **sin pagar Google Health Premium ni ninguna cuota nueva** y con un diseño muy superior al de la app oficial.
 
-> Estado: **v0.1 — primera versión completa del código** (app, *widgets*, lógica y CI) sobre los requisitos verificados a 28/09/2026. Pendiente: compilarla en macOS, instalarla con TestFlight y hacer el *spike* con tus datos reales.
+> Estado: **v0.1 — código completo y compilando en macOS** (app, *widgets*, Live Activity, lógica con 121 pruebas y CI) sobre los requisitos verificados a 28/09/2026. Incluye también «Mi panel», plan semanal, registro de fuerza, respiración guiada, alarma inteligente con AlarmKit, Live Activity de entrenamiento, VO₂ máx. sin ejercicio (HUNT) y el resumen matinal e informe semanal redactados por la IA. Pendiente: instalarla con TestFlight y hacer el *spike* con tus datos reales.
 > Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program), **Coach IA con Claude o Gemini** y **Apple Watch para correr** con sus datos fusionados.
 
 ## Resumen en 10 puntos
@@ -55,15 +55,17 @@ Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **
 ## Código
 
 ```
-App/                      App SwiftUI (Hoy, detalles, tendencias, diario, Coach, perfil, onboarding) y servicios del iPhone
-Widgets/                  Widgets de inicio y de pantalla de bloqueo
+App/                      App SwiftUI (Hoy, detalles, tendencias, plan, fuerza, respiración, diario, Coach, perfil, onboarding)
+                          y servicios del iPhone (HealthKit, OAuth, avisos, AlarmKit, Live Activity)
+Widgets/                  Widgets de inicio y de pantalla de bloqueo, y la Live Activity de entrenamiento
+Shared/                   Tipos compartidos entre la app y los widgets (atributos de la Live Activity)
 Packages/RecuperaKit/     Toda la lógica, compilable y probada también en Linux:
   MetricsKit              algoritmos del doc. 05 y fusión Fitbit Air + Apple Watch (doc. 16)
   HealthAPI               cliente de la Google Health API v4 con OAuth PKCE
   Store                   base de datos local (SQLite con GRDB)
   SyncKit                 sincronización de las dos fuentes, avisos y widgets
-  Insights                análisis del día determinista, recomendaciones e informes
-  CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas y costes)
+  Insights                análisis del día, recomendaciones, informes, plan semanal, fuerza, «Mi panel» y respiración
+  CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas, costes e informes redactados)
 project.yml               proyecto de Xcode generado con XcodeGen
 .github/workflows/        ci-linux.yml (tests en cada push) · ios.yml (compilación iOS y TestFlight)
 ```

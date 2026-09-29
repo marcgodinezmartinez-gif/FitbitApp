@@ -81,6 +81,9 @@ public enum DayMetric: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
 
+    /// Se acumula a lo largo del día: el valor del día en curso no se compara con días completos.
+    public var isCumulative: Bool { self == .steps || self == .strain || self == .zoneMinutes }
+
     public func value(_ c: CycleMetrics) -> Double? {
         switch self {
         case .recovery: return c.recovery.score.map(Double.init)
@@ -121,9 +124,11 @@ public struct MetricSummary: Sendable, Hashable {
     /// Mediana de los 30 días anteriores al último valor (con ≥ 5 datos).
     public var usual: Double?
     public var last7: [Double?]
+    /// El último valor es del día en curso y la métrica es acumulativa (aún no es comparable).
+    public var inProgress: Bool = false
 
     public var delta: Double? {
-        guard let latest, let usual else { return nil }
+        guard !inProgress, let latest, let usual else { return nil }
         return latest - usual
     }
 
@@ -144,6 +149,7 @@ public struct MetricSummary: Sendable, Hashable {
         }
         let byDate = Dictionary(upTo.map { ($0.date, $0) }, uniquingKeysWith: { _, b in b })
         let last7 = (0..<7).reversed().map { i in byDate[date.adding(days: -i)].flatMap { metric.value($0) } }
-        return MetricSummary(metric: metric, latest: latest, latestDate: latestCycle?.date, usual: usual, last7: last7)
+        return MetricSummary(metric: metric, latest: latest, latestDate: latestCycle?.date, usual: usual, last7: last7,
+                             inProgress: metric.isCumulative && latestCycle?.isOpen == true)
     }
 }

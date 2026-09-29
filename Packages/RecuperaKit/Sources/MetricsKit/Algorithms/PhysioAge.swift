@@ -132,7 +132,7 @@ public enum PhysioAgeCalculator {
         }
         if let h = input.sleepHours {
             let pts: [(Double, Double)] = [(5, 1.12), (6, 1.06), (7, 1.0), (8, 1.0), (9, 1.15), (10, 1.30)] // [R31]
-            factors.append(PhysioAgeFactor(key: "sleep_hours", label: "Horas de sueño", value: String(format: "%.1f h", h),
+            factors.append(PhysioAgeFactor(key: "sleep_hours", label: "Horas de sueño", value: String(format: "%.1f h", h).replacingOccurrences(of: ".", with: ","),
                                            deltaYears: years(hrRelative: logInterp(h, pts), params: params)))
         }
         if let sri = input.sri {

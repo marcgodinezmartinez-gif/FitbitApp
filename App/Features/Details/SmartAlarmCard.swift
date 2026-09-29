@@ -21,7 +21,7 @@ struct SmartAlarmCard: View {
                 .font(.subheadline)
             if let scheduled {
                 HStack {
-                    Label("Sonará a las \(scheduled.formatted(date: .omitted, time: .shortened))", systemImage: "alarm.fill")
+                    Label("Sonará a las \(clock(scheduled))", systemImage: "alarm.fill")
                         .font(.headline).foregroundStyle(Palette.sleep)
                     Spacer()
                     Button("Cancelar", role: .destructive) {
@@ -63,10 +63,14 @@ struct SmartAlarmCard: View {
     }
 
     private func summary(_ p: SmartAlarmPlan) -> String {
-        let t = p.alarm.formatted(date: .omitted, time: .shortened)
+        let t = clock(p.alarm)
         return p.needMet
             ? "Si te acuestas ahora, sonaría a las \(t), con tu necesidad cumplida."
             : "Si te acuestas ahora, sonaría a las \(t), al final de la ventana y sin llegar a tu necesidad."
+    }
+
+    private func clock(_ date: Date) -> String {
+        Format.clock(date, utcOffsetSeconds: TimeZone.current.secondsFromGMT(for: date))
     }
 
     private func schedule() async {

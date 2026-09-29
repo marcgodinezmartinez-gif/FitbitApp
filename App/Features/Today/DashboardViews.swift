@@ -65,14 +65,17 @@ struct DashboardTile: View {
     }
 
     private var deltaText: String {
+        if summary.inProgress { return "hoy, en curso" }
         guard let d = summary.delta else { return "sin referencia aún" }
         let m = summary.metric
-        let digits = m == .sleep ? 1 : m.digits
-        let value = m == .sleep ? Format.signed(d * 60, digits: 0) + " min" : Format.signed(d, digits: digits) + (m.unit.isEmpty ? "" : " \(m.unit)")
+        let scaled = m == .sleep ? d * 60 : d * pow(10.0, Double(m.digits))
+        if scaled.rounded() == 0 { return "igual que lo habitual" }
+        let value = m == .sleep ? Format.signed(d * 60, digits: 0) + " min" : Format.signed(d, digits: m.digits) + (m.unit.isEmpty ? "" : " \(m.unit)")
         return "\(value) vs. lo habitual"
     }
 
     private var deltaColor: Color {
+        if summary.inProgress { return Palette.textSecondary }
         switch summary.isImprovement {
         case true?: return Palette.recoveryHigh
         case false?: return Palette.recoveryMedium

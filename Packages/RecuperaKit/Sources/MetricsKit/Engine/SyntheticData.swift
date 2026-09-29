@@ -110,7 +110,8 @@ public enum SyntheticData {
                                             name: "Fuerza", start: gymStart, end: gymEnd, utcOffsetSeconds: utcOffsetSeconds,
                                             avgHR: 114, maxHR: 139, caloriesKcal: 250, effortScore: 7, rpe: 7))
             }
-            if !(k == 0 && dayEnd < midnight.addingTimeInterval(20 * 3600)) {
+            // El total de Google de hoy es parcial (hasta ahora), como en la API.
+            if dayEnd > dayStart {
                 totals[day] = DailySourceTotals(steps: steps, distanceM: distance, caloriesKcal: 2300 + Double(steps) * 0.04)
             }
             if k > 0 {

@@ -21,6 +21,11 @@ private func utcDate(_ s: String) -> Date { ISO8601DateFormatter().date(from: s 
         #expect(s.latest != nil && s.usual != nil)
         #expect(s.delta == s.latest! - s.usual!)
         #expect(MetricSummary.build(.rhr, cycles: out.cycles, until: today).metric.higherIsBetter == false)
+        // Los pasos de hoy (día en curso) no se comparan con días completos.
+        let steps = MetricSummary.build(.steps, cycles: out.cycles, until: today)
+        #expect(steps.inProgress && steps.delta == nil && steps.latest != nil)
+        let yesterday = MetricSummary.build(.steps, cycles: out.cycles, until: today.adding(days: -1))
+        #expect(!yesterday.inProgress && yesterday.delta != nil)
         for m in DayMetric.allCases {
             let v = MetricSummary.build(m, cycles: out.cycles, until: today).latest
             if let v { #expect(!m.formatted(v).isEmpty) }

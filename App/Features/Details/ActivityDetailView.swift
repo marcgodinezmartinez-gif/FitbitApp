@@ -10,6 +10,8 @@ import Store
 struct ActivityDetailView: View {
     let activityID: String
     @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmDelete = false
 
     @State private var route: [RoutePoint] = []
     @State private var hr: [HeartRateChart.Sample] = []
@@ -101,6 +103,11 @@ struct ActivityDetailView: View {
                                 .font(.caption).foregroundStyle(Palette.textSecondary)
                         }
                     }
+                    if f.primary.source == .manual && !model.settings.demoMode {
+                        Button("Borrar esta actividad", role: .destructive) { confirmDelete = true }
+                            .frame(maxWidth: .infinity)
+                            .font(.subheadline)
+                    }
                 }
                 .padding(16)
             } else {
@@ -111,6 +118,16 @@ struct ActivityDetailView: View {
         .navigationTitle(metrics?.activity.name ?? "Actividad")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: activityID) { load() }
+        .confirmationDialog("¿Borrar esta actividad?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Borrar", role: .destructive) {
+                Task {
+                    await model.deleteManualActivity(id: activityID)
+                    dismiss()
+                }
+            }
+        } message: {
+            Text("Se borran la actividad, su RPE y sus series de fuerza. La FC registrada por las pulseras no se toca.")
+        }
     }
 
     private func load() {
