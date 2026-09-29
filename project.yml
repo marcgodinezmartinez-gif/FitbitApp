@@ -59,6 +59,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
         PRODUCT_NAME: Recupera
+        # Solo iPhone. Va también en cada target: el preajuste iOS de XcodeGen pone "1,2" a nivel de
+        # target y taparía el del proyecto (App Store Connect rechaza entonces la subida por no
+        # admitir todas las orientaciones del iPad).
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/Recupera.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -79,6 +83,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widgets
         PRODUCT_NAME: RecuperaWidgets
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_FILE: Widgets/Info.plist
         CODE_SIGN_ENTITLEMENTS: Widgets/RecuperaWidgets.entitlements
         SKIP_INSTALL: YES
