@@ -481,18 +481,33 @@ extension AppDatabase {
 
     public func saveThread(_ t: CoachThread) throws {
         try writer.write { db in
-            try db.execute(sql: "INSERT OR REPLACE INTO coach_thread(id, title, provider, model, created_at, updated_at) VALUES (?,?,?,?,?,?)",
-                           arguments: [t.id, t.title, t.provider, t.model, t.createdAt.timeIntervalSince1970, t.updatedAt.timeIntervalSince1970])
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO coach_thread(id, title, provider, model, created_at, updated_at, context_json) VALUES (?,?,?,?,?,?,?)
+                """, arguments: [t.id, t.title, t.provider, t.model, t.createdAt.timeIntervalSince1970, t.updatedAt.timeIntervalSince1970,
+                                 t.contextJSON])
         }
     }
 
     public func threads() throws -> [CoachThread] {
         try writer.read { db in
-            try Row.fetchAll(db, sql: "SELECT * FROM coach_thread ORDER BY updated_at DESC").map { r in
-                CoachThread(id: r["id"], title: r["title"], provider: r["provider"], model: r["model"],
-                            createdAt: Date(timeIntervalSince1970: r["created_at"]), updatedAt: Date(timeIntervalSince1970: r["updated_at"]))
-            }
+            try Row.fetchAll(db, sql: "SELECT * FROM coach_thread ORDER BY updated_at DESC").map(Self.thread)
         }
+    }
+
+    public func thread(id: String) throws -> CoachThread? {
+        try writer.read { db in
+            try Row.fetchOne(db, sql: "SELECT * FROM coach_thread WHERE id = ?", arguments: [id]).map(Self.thread)
+        }
+    }
+
+    public func renameThread(id: String, title: String) throws {
+        try writer.write { db in try db.execute(sql: "UPDATE coach_thread SET title = ? WHERE id = ?", arguments: [title, id]) }
+    }
+
+    static func thread(_ r: Row) -> CoachThread {
+        CoachThread(id: r["id"], title: r["title"], provider: r["provider"], model: r["model"],
+                    createdAt: Date(timeIntervalSince1970: r["created_at"]), updatedAt: Date(timeIntervalSince1970: r["updated_at"]),
+                    contextJSON: r["context_json"])
     }
 
     public func deleteThread(id: String) throws {
@@ -513,20 +528,20 @@ extension AppDatabase {
         try writer.write { db in
             try db.execute(sql: """
                 INSERT OR REPLACE INTO coach_message(id, thread_id, role, model, content_json, display_text, input_tokens, output_tokens,
-                cache_read, cache_write, cost_usd, rating, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                cache_read, cache_write, cost_usd, rating, created_at, meta_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, arguments: [m.id, m.threadID, m.role, m.model, m.contentJSON, m.displayText, m.inputTokens, m.outputTokens,
-                                 m.cacheReadTokens, m.cacheWriteTokens, m.costUSD, m.rating, m.createdAt.timeIntervalSince1970])
+                                 m.cacheReadTokens, m.cacheWriteTokens, m.costUSD, m.rating, m.createdAt.timeIntervalSince1970, m.metaJSON])
             try db.execute(sql: "UPDATE coach_thread SET updated_at = ? WHERE id = ?", arguments: [m.createdAt.timeIntervalSince1970, m.threadID])
         }
     }
 
     public func messages(threadID: String) throws -> [CoachMessageRecord] {
         try writer.read { db in
-            try Row.fetchAll(db, sql: "SELECT * FROM coach_message WHERE thread_id = ? ORDER BY created_at, rowid", arguments: [threadID]).map { r in
+            try Row.fetchAll(db, sql: "SELECT * FROM coach_message WHERE thread_id = ? ORDER BY rowid", arguments: [threadID]).map { r in
                 CoachMessageRecord(id: r["id"], threadID: r["thread_id"], role: r["role"], model: r["model"], contentJSON: r["content_json"],
                                    displayText: r["display_text"], inputTokens: r["input_tokens"], outputTokens: r["output_tokens"],
                                    cacheReadTokens: r["cache_read"], cacheWriteTokens: r["cache_write"], costUSD: r["cost_usd"],
-                                   rating: r["rating"], createdAt: Date(timeIntervalSince1970: r["created_at"]))
+                                   rating: r["rating"], createdAt: Date(timeIntervalSince1970: r["created_at"]), metaJSON: r["meta_json"])
             }
         }
     }
@@ -543,6 +558,25 @@ extension AppDatabase {
             let c = try Double.fetchOne(db, sql: "SELECT COALESCE(SUM(cost_usd), 0) FROM coach_message WHERE created_at >= ?",
                                         arguments: [since.timeIntervalSince1970]) ?? 0
             return (q, c)
+        }
+    }
+
+    /// Gasto del Coach por día local (se conserva aunque borres los hilos; límites de RF-COA-13).
+    public func addCoachSpend(day: String, questions: Int, costUSD: Double) throws {
+        try writer.write { db in
+            try db.execute(sql: """
+                INSERT INTO coach_spend(day, questions, cost_usd) VALUES (?,?,?)
+                ON CONFLICT(day) DO UPDATE SET questions = questions + excluded.questions, cost_usd = cost_usd + excluded.cost_usd
+                """, arguments: [day, questions, costUSD])
+        }
+    }
+
+    /// Preguntas y gasto acumulados desde un día local (incluido), en formato AAAA-MM-DD.
+    public func coachSpend(fromDay day: String) throws -> (questions: Int, costUSD: Double) {
+        try writer.read { db in
+            let row = try Row.fetchOne(db, sql: "SELECT COALESCE(SUM(questions), 0) AS q, COALESCE(SUM(cost_usd), 0) AS c FROM coach_spend WHERE day >= ?",
+                                       arguments: [day])
+            return (row?["q"] ?? 0, row?["c"] ?? 0)
         }
     }
 
@@ -571,7 +605,7 @@ extension AppDatabase {
             for t in ["app_state", "sync_state", "sync_log", "hk_anchor", "hr_minute", "hr_sample", "activity_minute", "sleep_session",
                       "vitals", "daily_source_totals", "vo2max", "activity", "activity_annotation", "route_point",
                       "activity_metric_sample", "journal_answer", "strain_mode", "cycle_metrics", "fused_activity", "day_analysis",
-                      "report", "coach_message", "coach_thread", "coach_memory", "privacy_event"] {
+                      "report", "coach_message", "coach_thread", "coach_memory", "coach_spend", "privacy_event"] {
                 try db.execute(sql: "DELETE FROM \(t)")
             }
         }

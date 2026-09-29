@@ -84,6 +84,14 @@ public final class AppDatabase: Sendable {
             CREATE TABLE privacy_event (id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL, action TEXT NOT NULL);
             """)
         }
+        // v2 · Coach: contexto congelado de cada hilo (sistema + herramientas) y metadatos de cada mensaje.
+        m.registerMigration("v2") { db in
+            try db.execute(sql: """
+            ALTER TABLE coach_thread ADD COLUMN context_json TEXT;
+            ALTER TABLE coach_message ADD COLUMN meta_json TEXT;
+            CREATE TABLE coach_spend (day TEXT PRIMARY KEY, questions INTEGER NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0);
+            """)
+        }
         return m
     }
 

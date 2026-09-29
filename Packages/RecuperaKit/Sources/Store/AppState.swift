@@ -152,21 +152,25 @@ public struct CoachThread: Codable, Sendable, Hashable, Identifiable {
     public var model: String
     public var createdAt: Date
     public var updatedAt: Date
+    /// Sistema y herramientas con los que se creó el hilo (JSON). No cambian durante la vida del hilo.
+    public var contextJSON: String?
 
-    public init(id: String = UUID().uuidString, title: String, provider: String, model: String, createdAt: Date = Date(), updatedAt: Date = Date()) {
+    public init(id: String = UUID().uuidString, title: String, provider: String, model: String, createdAt: Date = Date(),
+                updatedAt: Date = Date(), contextJSON: String? = nil) {
         self.id = id
         self.title = title
         self.provider = provider
         self.model = model
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.contextJSON = contextJSON
     }
 }
 
 public struct CoachMessageRecord: Codable, Sendable, Hashable, Identifiable {
     public var id: String
     public var threadID: String
-    public var role: String            // user | assistant | tool
+    public var role: String            // user | assistant | tool | local_user | notice (estos dos no se envían a la IA)
     public var model: String?
     public var contentJSON: String     // bloques tal como los devolvió el proveedor
     public var displayText: String
@@ -177,10 +181,12 @@ public struct CoachMessageRecord: Codable, Sendable, Hashable, Identifiable {
     public var costUSD: Double
     public var rating: Int?
     public var createdAt: Date
+    /// Metadatos para la interfaz: datos usados, modelo que respondió, filtros aplicados… (JSON).
+    public var metaJSON: String?
 
     public init(id: String = UUID().uuidString, threadID: String, role: String, model: String?, contentJSON: String, displayText: String,
                 inputTokens: Int = 0, outputTokens: Int = 0, cacheReadTokens: Int = 0, cacheWriteTokens: Int = 0,
-                costUSD: Double = 0, rating: Int? = nil, createdAt: Date = Date()) {
+                costUSD: Double = 0, rating: Int? = nil, createdAt: Date = Date(), metaJSON: String? = nil) {
         self.id = id
         self.threadID = threadID
         self.role = role
@@ -194,6 +200,7 @@ public struct CoachMessageRecord: Codable, Sendable, Hashable, Identifiable {
         self.costUSD = costUSD
         self.rating = rating
         self.createdAt = createdAt
+        self.metaJSON = metaJSON
     }
 }
 

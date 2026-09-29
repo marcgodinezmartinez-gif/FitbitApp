@@ -23,13 +23,13 @@ let package = Package(
         .target(name: "HealthAPI"),
         .target(name: "Store", dependencies: ["MetricsKit", .product(name: "GRDB", package: "GRDB.swift")]),
         .target(name: "Insights", dependencies: ["MetricsKit"]),
-        .target(name: "CoachKit", dependencies: ["MetricsKit", "Insights"]),
+        .target(name: "CoachKit", dependencies: ["MetricsKit", "Insights", "Store"]),
         .target(name: "SyncKit", dependencies: ["MetricsKit", "HealthAPI", "Store", "Insights"]),
         .testTarget(name: "MetricsKitTests", dependencies: ["MetricsKit"]),
         .testTarget(name: "HealthAPITests", dependencies: ["HealthAPI"]),
         .testTarget(name: "StoreTests", dependencies: ["Store"]),
         .testTarget(name: "InsightsTests", dependencies: ["Insights"]),
-        .testTarget(name: "CoachKitTests", dependencies: ["CoachKit"]),
+        .testTarget(name: "CoachKitTests", dependencies: ["CoachKit", "Store", "Insights", "MetricsKit"]),
         .testTarget(name: "SyncKitTests", dependencies: ["SyncKit"]),
     ]
 )
