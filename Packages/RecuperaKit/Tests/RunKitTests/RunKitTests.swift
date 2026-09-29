@@ -281,3 +281,22 @@ enum SyntheticRun {
         #expect(gpx.contains("Rodaje &amp; series") && gpx.contains("<ele>600.0</ele>"))
     }
 }
+
+@Suite struct RunDemoTests {
+    @Test func demoRunsHaveEverythingTheScreensShow() throws {
+        let now = ISO8601DateFormatter().date(from: "2026-09-29T19:00:00Z")!
+        let data = SyntheticData.generate(days: 40, endingAt: now, utcOffsetSeconds: 7200)
+        let output = MetricsEngine.run(data)
+        let runs = RunLibrary.runs(in: output)
+        let run = try #require(runs.last { $0.fitbitMember != nil && $0.watchMember != nil })
+        let input = RunDemo.input(for: run, zones: RunLibrary.zones(for: run, output: output), profile: data.profile)
+        // Reproducible.
+        #expect(RunDemo.input(for: run, zones: input.zones, profile: data.profile).route == input.route)
+        let r = RunAnalyzer.analyze(input)
+        #expect(r.distanceSource == .gps && abs(r.distanceM - (run.distanceM ?? 0)) < 0.2 * (run.distanceM ?? 1))
+        #expect(!r.splits.isEmpty && !r.bestEfforts.isEmpty && r.avgCadence != nil && r.avgPower != nil && r.hasDynamics)
+        #expect(r.comparison?.hrBias != nil && r.weather != nil && r.hasAltitude)
+        let summaries = RunDemo.summaries(output: output, profile: data.profile)
+        #expect(summaries.count == runs.count && RunHistory(summaries: summaries).vdot(today: LocalDate(now, utcOffsetSeconds: 7200)) != nil)
+    }
+}

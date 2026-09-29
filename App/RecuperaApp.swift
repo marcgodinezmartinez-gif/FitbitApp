@@ -46,7 +46,7 @@ struct RecuperaApp: App {
 }
 
 enum AppTab: Hashable {
-    case today, trends, coach, profile
+    case today, trends, runs, coach, profile
 }
 
 struct RootView: View {
@@ -81,6 +81,9 @@ struct MainTabs: View {
             Tab("Tendencias", systemImage: "chart.xyaxis.line", value: AppTab.trends) {
                 NavigationStack { TrendsView() }
             }
+            Tab("Correr", systemImage: "figure.run", value: AppTab.runs) {
+                NavigationStack { RunsHubView() }
+            }
             Tab("Coach", systemImage: "sparkles", value: AppTab.coach) {
                 NavigationStack { CoachHomeView() }
             }
@@ -102,10 +105,13 @@ enum DetailRoute: Hashable {
     case sources
     case weeklyPlan
     case trend(DayMetric)
+    case run(String)
+    case shoes
 }
 
 struct DetailDestination: View {
     let route: DetailRoute
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         switch route {
@@ -113,11 +119,19 @@ struct DetailDestination: View {
         case .sleep(let d): SleepDetailView(date: d)
         case .strain(let d): StrainDetailView(date: d)
         case .health(let d): HealthDetailView(date: d)
-        case .activity(let id): ActivityDetailView(activityID: id)
+        case .activity(let id):
+            // Las carreras abren su análisis completo (doc. 18).
+            if model.output?.fusedActivities.first(where: { $0.id == id })?.kind.isRun == true {
+                RunDetailView(runID: id)
+            } else {
+                ActivityDetailView(activityID: id)
+            }
         case .journal(let d): JournalView(date: d)
         case .sources: SourcesView()
         case .weeklyPlan: WeeklyPlanView()
         case .trend(let m): MetricTrendView(metric: m)
+        case .run(let id): RunDetailView(runID: id)
+        case .shoes: ShoesView()
         }
     }
 }

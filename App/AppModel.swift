@@ -39,6 +39,8 @@ final class AppModel {
     /// Respiración guiada abierta desde un aviso (NOT-09) o desde «+».
     var showBreathing = false
     let liveWorkout = LiveWorkout()
+    /// Apartado «Correr»: resúmenes, historial y análisis de cada carrera (doc. 18).
+    let runs = RunsModel()
 
     let db: AppDatabase?
     let keychain = Keychain(service: "recupera.secrets")
@@ -98,6 +100,7 @@ final class AppModel {
     static var initialTab: AppTab {
         switch screenshotScreen {
         case "trends"?, "report"?: return .trends
+        case "runs"?, "run"?: return .runs
         case "coach"?: return .coach
         case "profile"?: return .profile
         default: return .today

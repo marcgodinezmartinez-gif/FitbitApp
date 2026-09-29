@@ -52,6 +52,8 @@ targets:
         product: CoachKit
       - package: RecuperaKit
         product: SyncKit
+      - package: RecuperaKit
+        product: RunKit
       - target: RecuperaWidgets
         embed: true
       - sdk: HealthKit.framework
