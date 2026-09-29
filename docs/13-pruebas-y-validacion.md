@@ -46,7 +46,7 @@ Con el resto de entradas fijas:
 | `synthetic/overreaching` | 3 semanas de carga creciente con HRV descendente | Recuperación, relación carga aguda/crónica |
 | `synthetic/gaps` | Noches sin datos, días sin llevar la pulsera, sincronizaciones tardías | Estados de «datos insuficientes», recálculo |
 | `synthetic/dst-travel` | Cambio de hora y viaje con cambio de zona horaria | Cálculo de ciclos y noches |
-| `synthetic/watch-runs` | Escenarios del doc. 16 §8: solo Fitbit, solo Watch, los dos a la vez (con y sin discrepancia), carrera partida en dos, carrera más paseo, copias cruzadas por Google y por Salud, borrado en Salud, carrera en cinta | Fusión (ALG-FUS) y análisis del día |
+| `synthetic/watch-runs` | Escenarios del doc. 16 §8: los dos a la vez (caso principal, con y sin discrepancia), solo Fitbit, solo Watch, carrera partida en dos, carrera más paseo, copias cruzadas por Google y por Salud, borrado en Salud, carrera en cinta | Fusión (ALG-FUS) y análisis del día |
 | `real/owner` | Exportación de tus propios datos | Calibración y validación (§6) — **nunca** en el repositorio (`data/` está en `.gitignore`) |
 
 ## 4. Pruebas de la integración con la Google Health API
@@ -80,7 +80,7 @@ Objetivo: demostrar que las puntuaciones son **estables, sensibles y coherentes*
 | Carga diaria | Calibración con escenarios de referencia: día sedentario, 60 min de carrera suave, competición | Sedentario 2–8; 60 min suave 10–14; esfuerzo máximo prolongado ≥ 17 |
 | Sueño | Diario de sueño (hora de acostarse/levantarse) | Diferencia media de duración ≤ 20 min |
 | Estrés | Etiquetado manual de episodios (reunión tensa, calma) durante 2 semanas | Mayor estrés medio en episodios etiquetados como estresantes (prueba de Wilcoxon, p < 0,05) |
-| FC en carrera (Apple Watch frente a Fitbit Air) | ≥ 5 carreras con los dos dispositivos, minuto a minuto (Bland-Altman) | Sesgo medio ≤ 5 lpm; si no, se revisa `hr_workout_priority` (ALG-FUS-03) |
+| FC en carrera (Apple Watch frente a Fitbit Air) | Todas tus carreras (corres con los dos), minuto a minuto (Bland-Altman, ALG-FUS-10) | Tras 5 carreras, sesgo medio ≤ 5 lpm; si no, se revisa `hr_workout_priority` (ALG-FUS-03) |
 | Fusión de actividades | 4 semanas de carreras reales con los dos | 100 % de carreras del Watch emparejadas cuando la Fitbit también las detecta; 0 duplicadas |
 | Análisis del día | 14 análisis revisados junto a tu diario | Cifras 100 % coincidentes con sus pantallas; utilidad media ≥ 4/5 |
 | Todas | Fiabilidad test–retest: recálculo con 10 % de datos eliminados al azar | Cambio medio ≤ 5 % del rango de la escala |

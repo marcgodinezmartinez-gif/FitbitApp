@@ -43,7 +43,7 @@ gantt
 | E12 · Edad fisiológica, fuerza y respiración | RF-EDA-01/02, RF-ENT-05, RF-EST-05, RF-SAL-06 | F3 | 1,5 sem |
 | E13 · Coach IA (Claude y Gemini) | RF-COA-01..23 (incluido el análisis del día con IA, RF-COA-18 y RF-ANA-02): `CoachEngine`, proveedores Anthropic y Gemini, herramientas, seguridad, suite de evaluación con ambos | F3 | 3 sem |
 | E14 · FC en vivo, Live Activity y alarma | RF-ENT-07, RF-WID-03, RF-SUE-12 | F3 | 1 sem |
-| E15 · Apple Watch y fusión de datos | RF-CON-06/09, RF-SYN-09 (parte de Salud)/11, RF-FUS-01..09, RF-ENT-08, RF-SAL-05: `AppleHealth` (permisos, anclas, entrega en segundo plano), ALG-FUS en `MetricsKit`, detalle de carrera con mapa, Fuentes de datos | F2 | 2 sem |
+| E15 · Apple Watch y fusión de datos | RF-CON-06/09, RF-SYN-09 (parte de Salud)/11, RF-FUS-01..10, RF-ENT-08, RF-SAL-05: `AppleHealth` (permisos, anclas, entrega en segundo plano), ALG-FUS en `MetricsKit`, detalle de carrera con mapa, Fuentes de datos | F2 | 2 sem |
 | E16 · Análisis del día | RF-ANA-01..05 (versión determinista, ALG-ANA-01), NOT-10/12 | F2 | 1 sem |
 
 ### Historias de usuario representativas

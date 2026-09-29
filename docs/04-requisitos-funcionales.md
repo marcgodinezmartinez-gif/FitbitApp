@@ -65,7 +65,8 @@ La Fitbit Air se lleva 24/7; el Apple Watch, solo para correr. Reglas completas 
 | RF-FUS-06 | **Sin duplicados por la conexión Google Health ↔ Apple Health**, si la tienes activada: la app ignora en Apple Health lo que escribió Google Health y, de Google, solo lee los datos de sus pulseras. No hace falta desconectar nada. | M | F2 | FUS-08 |
 | RF-FUS-07 | Ajustes › **Fuentes de datos**: estado de cada fuente, qué aporta cada una y preferencia de FC en entrenamientos (Apple Watch por defecto o Fitbit Air), con una explicación de cómo se evitan los duplicados. | S | F2 | FUS-03 |
 | RF-FUS-08 | **VO₂ máx. y FC máxima con ambas fuentes**: el VO₂ máx. se muestra en series separadas por dispositivo (principal, el del Watch si es reciente); la FC máxima observada sale de los entrenamientos de los dos. | S | F2 | FUS-06, FUS-07 |
-| RF-FUS-09 | Si un día falta una de las dos fuentes, la app funciona con la otra e indica qué falta (p. ej., carrera con el Watch sin la pulsera puesta: la carga de la carrera usa la FC del Watch). | M | F2 | FUS-09 |
+| RF-FUS-09 | Si un día falta una de las dos fuentes, la app funciona con la otra e indica qué falta (p. ej., si corres con la pulsera cargando, la carga de la carrera usa la FC del Watch). | M | F2 | FUS-09 |
+| RF-FUS-10 | **Comparar el pulso de los dos**: en cada carrera grabada con ambos, curvas de FC superpuestas y cuánto se parecen (diferencia media y rango habitual); en Fuentes de datos, el resumen de tus últimas 10 carreras, para decidir la preferencia de RF-FUS-07. | S | F2 | FUS-10 |
 
 ## 4. Sueño (SUE)
 
@@ -107,7 +108,7 @@ La Fitbit Air se lleva 24/7; el Apple Watch, solo para correr. Reglas completas 
 | RF-CAR-05 | Aviso opcional al alcanzar la carga objetivo (NOT-03). | C | F2 | — |
 | RF-CAR-06 | Carga semanal, carga crónica y relación aguda/crónica (solo como indicador de cambios bruscos). | S | F2 | CAR-04 |
 | RF-CAR-07 | FC máxima estimada por edad, sustituible por la máxima observada validada (en entrenamientos de la Fitbit Air o del Apple Watch) o por un valor manual. | M | F1 | CAR-06 |
-| RF-CAR-08 | Mostrar pasos, distancia y calorías del día como contexto (los de Google, completados con los del Apple Watch si no llevabas la pulsera, ALG-FUS-04). | S | F1 | FUS-04 |
+| RF-CAR-08 | Mostrar pasos, distancia y calorías del día como contexto: los de Google y, desde F2, con la distancia de tus carreras tomada del GPS del Apple Watch y los datos del Watch si no llevabas la pulsera (ALG-FUS-04). | S | F1 | FUS-04 |
 | RF-ENT-01 | Listar entrenamientos (detectados por la Fitbit Air, registrados en Google Health o grabados con el Apple Watch, fusionados si coinciden) con tipo, hora, duración, FC media/máx., calorías, distancia y fuente. | S | F2 | FUS-02 |
 | RF-ENT-02 | Detalle del entrenamiento con curva de FC coloreada por zonas y carga de actividad. | S | F2 | CAR-02 |
 | RF-ENT-03 | Preguntar el **esfuerzo percibido (RPE 0–10)** tras cada entrenamiento y guardar el sRPE. | S | F2 | CAR-05 |

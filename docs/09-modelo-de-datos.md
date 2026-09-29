@@ -82,7 +82,8 @@ Los nombres exactos de los campos de origen se fijan tras el *spike* de F0.
 | `recovery_scores` | `cycle_id`, `score`, `zone`, `confidence`, `components` (JSON), `inputs` (JSON), `algorithm_version`, `computed_at` |
 | `strain_scores` | `cycle_id`, `strain`, `load_raw`, `zone_minutes` (JSON), `target_low`, `target_high`, `confidence`, `algorithm_version`, `computed_at` |
 | `hr_minute_fused` | `minute_ts`, `bpm_avg`, `source` (la elegida, ALG-FUS-03), `algorithm_version` — serie única para carga, zonas y estrés |
-| `fused_activities` | `id` (estable: el del entrenamiento del Watch si lo hay), `member_activity_ids` (JSON), `start_ts`, `end_ts`, `type`, `sources` (JSON), `hr_source`, `sources_disagree`, `algorithm_version` — una fila por actividad que ves (ALG-FUS-02); el RPE y las notas se leen de sus miembros |
+| `fused_activities` | `id` (estable: el del entrenamiento del Watch si lo hay), `member_activity_ids` (JSON), `start_ts`, `end_ts`, `type`, `sources` (JSON), `hr_source`, `sources_disagree`, `hr_agreement` (JSON: sesgo, límites de concordancia y minutos comparados, ALG-FUS-10), `algorithm_version` — una fila por actividad que ves (ALG-FUS-02); el RPE y las notas se leen de sus miembros |
+| `daily_totals` | `date`, `steps`, `distance_m`, `calories_kcal`, `sources` (JSON), `algorithm_version` — totales del día tras ALG-FUS-04 (distancia de tus carreras con el GPS del Watch) |
 | `activity_splits` | `fused_activity_id`, `index`, `distance_m`, `duration_s`, `avg_hr`, `elevation_gain_m` (parciales por km o milla, calculados de la ruta y la distancia) |
 | `activity_strain` | `fused_activity_id`, `strain`, `load_raw`, `zone_minutes`, `srpe`, `algorithm_version` |
 | `sleep_scores` | `sleep_session_id`, `need_min`, `need_breakdown` (JSON), `sufficiency`, `performance`, `debt_min`, `sri_7d`, `efficiency`, `restorative_min`, `restorative_pct`, `algorithm_version` |

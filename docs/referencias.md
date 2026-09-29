@@ -92,6 +92,7 @@ Citadas como **[R#]** en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.
 - **[R69]** Molina-Garcia P, Notbohm HL, Schumann M, et al. Validity of estimating the maximal oxygen consumption by consumer wearables: a systematic review with meta-analysis and expert statement of the INTERLIVE Network. *Sports Med.* 2022;52(7):1577–1597. doi:10.1007/s40279-021-01639-y
 - **[R70]** Lee S, et al. Fitbit Sense 2 in hospitalized general medicine patients: a pilot study. *Int J Med Inform.* 2026;222:106704. doi:10.1016/j.ijmedinf.2026.106704
 - **[R73]** Shcherbina A, Mattsson CM, Waggott D, Salisbury H, Christle JW, Hastie T, Wheeler MT, Ashley EA. Accuracy in wrist-worn, sensor-based measurements of heart rate and energy expenditure in a diverse cohort. *J Pers Med.* 2017;7(2):3. doi:10.3390/jpm7020003
+- **[R74]** Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. *Lancet.* 1986;1(8476):307–310. doi:10.1016/S0140-6736(86)90837-8
 
 ## Normativa y estándares
 

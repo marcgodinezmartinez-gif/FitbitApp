@@ -20,6 +20,7 @@ La Fitbit Air es, como WHOOP, una pulsera **sin pantalla** para llevar 24/7. La 
 | D-10 | **Sí al Coach IA, con Claude o Gemini** | Proveedor configurable con tu propia clave; con Gemini, solo clave de nivel de pago (doc. 06) |
 | D-13 | **También tienes Apple Watch (solo para correr) y quieres fusionar sus datos** | Lectura de Salud (solo lectura) y reglas de fusión sin doble conteo: el Watch manda en sus carreras y la Fitbit Air en el resto y en la noche (doc. 16, RF-FUS) |
 | D-14 | **Que todo se sincronice al abrir y poder pedir un análisis del día** | Sincronización de las dos fuentes al abrir (RF-SYN-09) y botón «Analizar mi día», sin IA o con el Coach (RF-ANA) |
+| D-16 | **Llevas la Fitbit Air también cuando corres** | Cada carrera la graban los dos: se une siempre en una sola actividad, manda el pulso del Watch (comparado con el de la Fitbit, RF-FUS-10) y la distancia del día usa el GPS del Watch. Además, la primera versión (F1) ya calcula bien la carga de tus carreras solo con la Fitbit |
 
 ## 3. Objetivos
 
@@ -39,7 +40,7 @@ La Fitbit Air es, como WHOOP, una pulsera **sin pantalla** para llevar 24/7. La 
 
 ## 4. Usuario
 
-Un único usuario: **el propietario**, que lleva la Fitbit Air 24/7, corre con el Apple Watch, usa iPhone y quiere la experiencia de WHOOP sin cuotas y con mejor diseño. Los requisitos se escriben pensando en su día a día (entrenar, dormir mejor, entender su cuerpo).
+Un único usuario: **el propietario**, que lleva la Fitbit Air 24/7 (también al correr), corre con el Apple Watch, usa iPhone y quiere la experiencia de WHOOP sin cuotas y con mejor diseño. Los requisitos se escriben pensando en su día a día (entrenar, dormir mejor, entender su cuerpo).
 
 ## 5. Alcance por fases
 
@@ -91,4 +92,4 @@ Detalle en [14-plan-de-proyecto-y-riesgos.md](14-plan-de-proyecto-y-riesgos.md);
 | D-7 | Modo de la app en Google Cloud: *Testing* (reconectar cada 7 días) o producción sin verificar (aviso de «app no verificada» una vez) | Producción sin verificar, tras comprobarlo en el *spike* | 10 |
 | D-11 | Si los ≈ 200 minutos mensuales de macOS del plan gratuito de GitHub se quedan cortos: hacer público el repositorio, pagar minutos o pasar a Xcode Cloud | Empezar con el plan gratuito y ahorrar minutos (doc. 08 §6) | 08, 15 |
 | D-12 | Proveedor por defecto del Coach | El que gane la suite de evaluación del doc. 13 §7 con tus preguntas (Claude o Gemini) | 06 |
-| D-15 | ¿Adelantar el Apple Watch y el análisis del día a F1? | Mantenerlos en F2: F1 ya funciona solo con la Fitbit (que también registra tus carreras) y sale antes | 01, 14 |
+| D-15 | ¿Adelantar el Apple Watch y el análisis del día a F1? | Mantenerlos en F2: F1 ya funciona solo con la Fitbit, que llevas también al correr y registra el pulso de tus carreras (D-16), y sale antes | 01, 14 |

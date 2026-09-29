@@ -1,6 +1,6 @@
 # 16 · Apple Watch y fusión de datos
 
-Llevas la **Fitbit Air 24/7** y el **Apple Watch solo para correr**. Este documento explica cómo entra el Apple Watch en la app y cómo se combinan los datos de los dos dispositivos **sin contar nada dos veces**. Las reglas formales están en ALG-FUS ([doc. 05 §0 bis](05-algoritmos-y-metricas.md#0-bis-fusión-de-fuentes-alg-fus)) y los requisitos en RF-CON-06/09, RF-SYN-09..11, RF-FUS y RF-ENT-08 ([doc. 04](04-requisitos-funcionales.md)). Información verificada a 29/09/2026; lo marcado **[verificar]** se comprueba en el *spike* de F0.
+Llevas la **Fitbit Air 24/7, también cuando corres**, y el **Apple Watch solo para correr**: cada carrera la graban los dos. Este documento explica cómo entra el Apple Watch en la app y cómo se combinan los datos de los dos dispositivos **sin contar nada dos veces**. Las reglas formales están en ALG-FUS ([doc. 05 §0 bis](05-algoritmos-y-metricas.md#0-bis-fusión-de-fuentes-alg-fus)) y los requisitos en RF-CON-06/09, RF-SYN-09..11, RF-FUS y RF-ENT-08 ([doc. 04](04-requisitos-funcionales.md)). Información verificada a 29/09/2026; lo marcado **[verificar]** se comprueba en el *spike* de F0.
 
 ## 0. En resumen
 
@@ -9,6 +9,7 @@ Llevas la **Fitbit Air 24/7** y el **Apple Watch solo para correr**. Este docume
 - De Salud solo se aceptan muestras **grabadas por el Apple Watch**; lo que escriba allí la app Google Health se ignora.
 - Un motor de **fusión** (en `MetricsKit`, puro y con tests) decide qué fuente manda en cada dato y minuto: el Watch en sus entrenamientos y la Fitbit Air el resto del día y toda la noche.
 - **Cada vez que abres la app se sincronizan las dos fuentes**. Además, cuando el Watch pasa una carrera al iPhone, iOS puede despertar la app para importarla y avisarte.
+- Como corres con los dos puestos, **cada carrera llega por las dos vías**: la unión de actividades (ALG-FUS-02) y la elección del pulso (ALG-FUS-03) se aplican siempre, la distancia del día usa el GPS del Watch en tus carreras y puedes comparar el pulso de ambos (RF-FUS-10).
 - Sin Apple Watch la app funciona exactamente igual que antes.
 
 ## 1. Qué aporta cada dispositivo
@@ -25,7 +26,7 @@ Llevas la **Fitbit Air 24/7** y el **Apple Watch solo para correr**. Este docume
 | Dinámica de carrera (potencia, zancada, oscilación vertical, contacto con el suelo) | No | Sí | **Apple Watch** |
 | FC de recuperación a 1 min y esfuerzo | No | Sí | **Apple Watch** |
 | VO₂ máx. | Carreras con el GPS del móvil | Carreras y caminatas al aire libre | Una serie por fuente; principal, la del **Watch** |
-| Pasos, distancia y calorías del día | Todo el día | Solo mientras lo llevas | **Fitbit Air** (el Watch rellena huecos) |
+| Pasos, distancia y calorías del día | Todo el día | Solo mientras lo llevas | **Fitbit Air**; en tus carreras, la distancia del GPS del **Watch** (y todo del Watch si no llevabas la pulsera) |
 
 La «Carga de entrenamiento» de watchOS no está disponible en HealthKit; nuestra Carga (ALG-CAR) cumple esa función con los datos de los dos.
 
@@ -78,9 +79,10 @@ Resumen de ALG-FUS (doc. 05):
 1. **Una sola fuente por dato y minuto; nunca se promedian** (ALG-FUS-01).
 2. **Actividades** (ALG-FUS-02): una sesión de la Fitbit y un entrenamiento del Watch son la misma actividad si se solapan al menos la mitad de la más corta. Resultado: una actividad con los datos del Watch y la Fitbit como fuente secundaria.
 3. **FC por minuto** (ALG-FUS-03): en entrenamientos del Watch, el Watch (si tiene ≥ 2 muestras válidas ese minuto); fuera, la Fitbit; los huecos de una los rellena la otra. Si difieren > 15 lpm durante ≥ 5 min, se avisa.
-4. **Pasos, distancia y calorías** (ALG-FUS-04): totales de la Fitbit; el Watch solo suma los minutos en que no llevabas la pulsera.
+4. **Pasos, distancia y calorías** (ALG-FUS-04): pasos y calorías de la Fitbit; la distancia también, salvo en tus carreras con GPS, donde manda el Watch; si no llevabas la pulsera, el Watch rellena esos minutos.
 5. **Noche y líneas base** (ALG-FUS-05): solo la Fitbit.
-6. **Sin copias cruzadas** (ALG-FUS-08): de Google solo se lee la familia `google-wearables`, que según la API contiene «datos grabados por pulseras y relojes de Google y Fitbit» y excluye lo registrado a mano y lo estimado por el móvil. Que también excluya lo importado de Salud se deduce de esa definición [verificar]. Si algún tipo se lee con `list` (sin familia de fuentes), la app descarta los puntos con `dataSource.platform = HEALTH_KIT`. De Salud, solo lo grabado por el Watch.
+6. **Concordancia** (ALG-FUS-10): en cada carrera se mide cuánto se parecen el pulso del Watch y el de la Fitbit.
+7. **Sin copias cruzadas** (ALG-FUS-08): de Google solo se lee la familia `google-wearables`, que según la API contiene «datos grabados por pulseras y relojes de Google y Fitbit» y excluye lo registrado a mano y lo estimado por el móvil. Que también excluya lo importado de Salud se deduce de esa definición [verificar]. Si algún tipo se lee con `list` (sin familia de fuentes), la app descarta los puntos con `dataSource.platform = HEALTH_KIT`. De Salud, solo lo grabado por el Watch.
 
 Ejemplo: sales a correr de 18:00 a 18:45 con los dos; la Fitbit detecta «Correr» de 18:02 a 18:44 y «Caminar» de 18:44 a 19:05 (vuelves andando).
 
@@ -89,7 +91,9 @@ Ejemplo: sales a correr de 18:00 a 18:45 con los dos; la Fitbit detecta «Correr
 | Watch 18:00–18:45 «Carrera» + Fitbit 18:02–18:44 «Correr» | **Una** carrera de 18:00 a 18:45 con ruta, ritmo y FC del Watch (insignia ⌚+◉) |
 | Fitbit 18:44–19:05 «Caminar» (21 min, 20 fuera del Watch) | Una caminata aparte, con la FC de la Fitbit |
 | FC de 18:00 a 18:45 | Del Watch; el resto del día, de la Fitbit |
-| Pasos del día | Los de la Fitbit (llevabas la pulsera) |
+| Pasos y calorías del día | Los de la Fitbit (llevabas la pulsera) |
+| Distancia del día | La de la Fitbit, con los 45 min de carrera sustituidos por los km del GPS del Watch |
+| Pulso de la carrera en los dos | Curvas superpuestas y, p. ej., «el Watch marca de media 2 lpm más» (ALG-FUS-10) |
 
 Consecuencia de usar `google-wearables`: una actividad que registres **a mano** en la app Google Health no llega; regístrala en esta app (RF-ENT-04).
 
@@ -117,19 +121,19 @@ Detalles que condicionan el diseño (documentación de HealthKit):
 
 ## 7. Qué verás en la app
 
-Detalle en el [doc. 11](11-ux-y-pantallas.md): cabecera de «Hoy» con el estado de cada fuente, insignias ⌚/◉ en actividades y gráficos, **detalle de carrera** con mapa y parciales (RF-ENT-08), **Ajustes › Fuentes de datos** (RF-FUS-07), aviso «Carrera importada» (NOT-12) y el **análisis del día** con los datos de los dos (RF-ANA-01).
+Detalle en el [doc. 11](11-ux-y-pantallas.md): cabecera de «Hoy» con el estado de cada fuente, insignias ⌚/◉ en actividades y gráficos, **detalle de carrera** con mapa y parciales (RF-ENT-08), **Ajustes › Fuentes de datos** (RF-FUS-07), aviso «Carrera importada» (NOT-12), comparación del pulso de los dos en cada carrera (RF-FUS-10) y el **análisis del día** con los datos de los dos (RF-ANA-01).
 
 ## 8. Pruebas y validación
 
-- **Escenarios sintéticos** (tests de `MetricsKit` en Linux): solo Fitbit; solo Watch (pulsera no puesta); los dos con FC parecida; los dos con discrepancia; la Fitbit parte la carrera en dos; carrera más paseo de vuelta (ejemplo del §5); copia de la carrera llegada por Google; copia de la FC de la Fitbit en Salud; borrado en Salud; cambio de zona horaria; carrera en cinta sin ruta.
+- **Escenarios sintéticos** (tests de `MetricsKit` en Linux): los dos a la vez con FC parecida (el caso habitual, porque corres con los dos); los dos con discrepancia; solo Fitbit; solo Watch (pulsera cargando); la Fitbit parte la carrera en dos; carrera más paseo de vuelta (ejemplo del §5); copia de la carrera llegada por Google; copia de la FC de la Fitbit en Salud; borrado en Salud; cambio de zona horaria; carrera en cinta sin ruta.
 - **Invariantes**: ningún minuto aporta FC, pasos o carga de dos fuentes; repetir la sincronización no cambia nada; quitar el Watch reproduce exactamente el resultado solo con la Fitbit (doc. 13 §2).
 - **HealthKit en CI de macOS**: tests de integración en el simulador escribiendo muestras de prueba en un almacén de pruebas [verificar que HealthKit funciona en el simulador del *runner*].
-- **Con tus datos**: en ≥ 5 carreras con los dos dispositivos, concordancia de la FC minuto a minuto (Bland-Altman) y comparación de la carga con una u otra fuente; decide el valor por defecto de `hr_workout_priority` (doc. 13 §6).
+- **Con tus datos**: como corres con los dos, cada carrera sirve. Tras las 5 primeras, concordancia de la FC minuto a minuto (Bland-Altman, ALG-FUS-10) y comparación de la carga con una u otra fuente; decide el valor por defecto de `hr_workout_priority` (doc. 13 §6).
 
 ## 9. Preguntas para el *spike* de F0
 
 1. ¿`google-wearables` excluye de verdad las carreras del Watch que Google Health importa de Salud? (Se espera que sí.)
-2. ¿La Fitbit Air detecta la carrera cuando llevas el Watch? ¿Con qué desfase de inicio y fin?
+2. ¿La Fitbit Air detecta todas tus carreras? ¿Con qué desfase de inicio y fin respecto al Watch?
 3. Frecuencia real de la FC del Watch durante tus carreras.
 4. Valores de `sourceRevision` (`bundleIdentifier`, `productType`) de tus carreras y de lo que escribe Google Health en Salud.
 5. Retraso de la entrega en segundo plano desde que terminas una carrera.

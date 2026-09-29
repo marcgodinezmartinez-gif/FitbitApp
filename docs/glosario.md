@@ -15,6 +15,7 @@
 | **Carga (Strain)** | Nuestra medida del estrés cardiovascular acumulado en un ciclo o actividad, en escala 0–21. Equivalente funcional del *Strain* de WHOOP. |
 | **CASA** | *Cloud Application Security Assessment*: evaluación de seguridad que Google exige a apps que usan ámbitos OAuth restringidos. |
 | **Ciclo fisiológico** | Periodo entre dos despertares del sueño principal. Unidad temporal de la app (doc. 08 §4.3). |
+| **Concordancia (Bland-Altman)** | Forma de comparar dos medidores de lo mismo: diferencia media entre ellos (sesgo) y rango en el que caen el 95 % de las diferencias. La app la usa para comparar el pulso del Apple Watch y el de la Fitbit Air. |
 | **Confianza** | Indicador alta/media/baja de la calidad de datos detrás de una puntuación (RNF-CAL-01). |
 | **Deuda de sueño** | Acumulado ponderado de la diferencia entre necesidad de sueño y sueño real de las noches recientes. |
 | **Dinámica de carrera** | Métricas del Apple Watch al correr: potencia, velocidad, longitud de zancada, oscilación vertical y tiempo de contacto con el suelo. |
