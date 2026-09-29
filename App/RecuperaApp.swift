@@ -64,7 +64,7 @@ struct RootView: View {
 
 struct MainTabs: View {
     @Environment(AppModel.self) private var model
-    @State private var tab: AppTab = .today
+    @State private var tab: AppTab = AppModel.initialTab
 
     var body: some View {
         TabView(selection: $tab) {

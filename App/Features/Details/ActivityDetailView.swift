@@ -114,10 +114,19 @@ struct ActivityDetailView: View {
         guard let a = metrics else { return }
         let f = a.activity
         if let r = f.rpe { rpe = r; rpeSet = true }
-        guard let db = model.db, !model.settings.demoMode else { return }
-        if let watch = f.watchMember { route = (try? db.route(activityID: watch.id)) ?? [] }
-        let minutes = (try? db.hrMinutes(from: f.start, to: f.end)) ?? []
-        hr = minutes.map { HeartRateChart.Sample(time: Date(timeIntervalSince1970: TimeInterval($0.minute)), bpm: $0.bpmAvg, source: $0.source) }
+        if let db = model.db, !model.settings.demoMode {
+            if let watch = f.watchMember { route = (try? db.route(activityID: watch.id)) ?? [] }
+            let minutes = (try? db.hrMinutes(from: f.start, to: f.end)) ?? []
+            hr = minutes.map { HeartRateChart.Sample(time: Date(timeIntervalSince1970: TimeInterval($0.minute)), bpm: $0.bpmAvg, source: $0.source) }
+        }
+        if hr.isEmpty, let output = model.output {
+            let lo = f.start.minuteEpoch, hi = f.end.minuteEpoch
+            hr = output.fusedHR.filter { $0.minute >= lo && $0.minute <= hi }
+                .map { HeartRateChart.Sample(time: Date(timeIntervalSince1970: TimeInterval($0.minute)), bpm: $0.bpm, source: $0.source) }
+        }
+        if route.isEmpty, model.settings.demoMode, f.kind.isRun, let distance = f.distanceM, distance > 0 {
+            route = RouteMath.demoLoop(distanceM: distance, start: f.start, end: f.end)
+        }
     }
 
     private func header(_ a: ActivityMetrics) -> some View {
@@ -209,6 +218,23 @@ enum RouteMath {
 
     static func distance(_ a: RoutePoint, _ b: RoutePoint) -> Double {
         CLLocation(latitude: a.latitude, longitude: a.longitude).distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
+    }
+
+    /// Ruta ficticia (una vuelta por el Retiro, Madrid) solo para el modo demostración.
+    static func demoLoop(distanceM: Double, start: Date, end: Date) -> [RoutePoint] {
+        let center = (lat: 40.4153, lon: -3.6845)
+        let lapLength = 4_200.0
+        let laps = max(1.0, distanceM / lapLength)
+        let count = 400
+        let duration = end.timeIntervalSince(start)
+        return (0...count).map { i in
+            let t = Double(i) / Double(count)
+            let angle = 2 * Double.pi * laps * t
+            let wobble = 1 + 0.08 * sin(angle * 3)
+            let lat = center.lat + 0.0062 * wobble * sin(angle)
+            let lon = center.lon + 0.0081 * wobble * cos(angle)
+            return RoutePoint(time: start.addingTimeInterval(duration * t), latitude: lat, longitude: lon)
+        }
     }
 
     /// Tiempo de cada kilómetro completo.

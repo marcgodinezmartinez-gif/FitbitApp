@@ -9,6 +9,10 @@ on:
         description: "Firmar y subir a TestFlight"
         type: boolean
         default: false
+      screenshots:
+        description: "Capturas de pantalla en el simulador (modo demostración)"
+        type: boolean
+        default: true
   push:
     paths:
       - "App/**"
@@ -63,8 +67,21 @@ jobs:
             -project Recupera.xcodeproj -scheme Recupera -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -clonedSourcePackagesDirPath "$SPM_DIR" \
+            -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
+
+      - name: Capturas de pantalla
+        if: (github.event_name == 'workflow_dispatch' && inputs.screenshots) || contains(github.event.head_commit.message, '[capturas]')
+        run: ./scripts/screenshots.sh build/dd/Build/Products/Debug-iphonesimulator/Recupera.app screenshots
+
+      - name: Publicar capturas
+        if: (github.event_name == 'workflow_dispatch' && inputs.screenshots) || contains(github.event.head_commit.message, '[capturas]')
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: screenshots
+          retention-days: 14
 
       - name: Resumen de errores
         if: failure()

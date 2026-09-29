@@ -65,6 +65,30 @@ final class AppModel {
         if let openError { phase = .failed(openError) }
     }
 
+    // MARK: Capturas de pantalla (CI)
+
+    /// Valor de un argumento de arranque (`-Nombre valor`).
+    static func argument(_ name: String) -> String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
+
+    /// Pantalla pedida por `scripts/screenshots.sh` (`-RecuperaScreenshots -RecuperaScreen hoy…`); `nil` en uso normal.
+    static var screenshotScreen: String? {
+        guard ProcessInfo.processInfo.arguments.contains("-RecuperaScreenshots") else { return nil }
+        return argument("-RecuperaScreen") ?? "today"
+    }
+
+    static var initialTab: AppTab {
+        switch screenshotScreen {
+        case "trends"?: return .trends
+        case "coach"?: return .coach
+        case "profile"?: return .profile
+        default: return .today
+        }
+    }
+
     static func databaseDirectory() throws -> URL {
         try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("Recupera", isDirectory: true)
@@ -86,6 +110,15 @@ final class AppModel {
     func bootstrap() async {
         if case .failed = phase { return }
         reloadState()
+        if let screen = Self.screenshotScreen, screen != "onboarding" {
+            // Capturas automáticas en CI: datos de demostración, sin conexiones y sin guardar nada.
+            settings.demoMode = true
+            settings.onboardingCompleted = true
+            if Self.argument("-RecuperaTheme") == "light" { settings.theme = .light }
+            phase = .ready
+            await loadDemo()
+            return
+        }
         phase = settings.onboardingCompleted ? .ready : .onboarding
         if settings.demoMode {
             await loadDemo()

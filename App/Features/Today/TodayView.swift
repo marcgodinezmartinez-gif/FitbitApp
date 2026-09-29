@@ -66,6 +66,7 @@ struct TodayView: View {
         }
         .detailDestinations()
         .navigationDestination(item: $menuRoute) { route in DetailDestination(route: route) }
+        .task(id: model.dataVersion) { openScreenshotScreen() }
         .sheet(isPresented: $showAnalysis) {
             if let date = model.displayedCycle?.date {
                 DayAnalysisView(date: date)
@@ -74,6 +75,22 @@ struct TodayView: View {
     }
 
     private var today: LocalDate { LocalDate(Date(), utcOffsetSeconds: TimeZone.current.secondsFromGMT()) }
+
+    /// En las capturas automáticas de CI, abre la pantalla pedida por argumento.
+    private func openScreenshotScreen() {
+        guard let screen = AppModel.screenshotScreen, let output = model.output, let cycle = output.current, menuRoute == nil else { return }
+        switch screen {
+        case "recovery": menuRoute = .recovery(cycle.date)
+        case "sleep": menuRoute = .sleep(output.cycles.last(where: { $0.sleep != nil })?.date ?? cycle.date)
+        case "strain": menuRoute = .strain(cycle.date)
+        case "health": menuRoute = .health(cycle.date)
+        case "activity":
+            let runs = output.cycles.reversed().flatMap(\.activities).filter { $0.activity.kind.isRun }
+            if let run = runs.first { menuRoute = .activity(run.id) }
+        case "analysis": showAnalysis = true
+        default: break
+        }
+    }
 
     private var title: String {
         guard let date = model.displayedCycle?.date else { return "Hoy" }
