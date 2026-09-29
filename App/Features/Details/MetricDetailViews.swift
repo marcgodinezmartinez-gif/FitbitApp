@@ -88,20 +88,33 @@ struct ComponentBar: View {
                     .multilineTextAlignment(.trailing)
             }
             GeometryReader { geo in
-                let half = geo.size.width / 2
-                let w = min(half, half * CGFloat(min(abs(component.z), 2.5) / 2.5))
                 ZStack(alignment: .leading) {
                     Capsule().fill(Palette.separator).frame(height: 8)
-                    Rectangle().fill(Palette.textSecondary.opacity(0.5)).frame(width: 2, height: 14).offset(x: half - 1)
+                    Rectangle().fill(Palette.textSecondary.opacity(0.5)).frame(width: 2, height: 14)
+                        .offset(x: geo.size.width / 2 - 1)
                     Capsule()
-                        .fill(component.contribution >= 0 ? Palette.recoveryHigh : Palette.recoveryLow)
-                        .frame(width: max(4, w), height: 8)
-                        .offset(x: component.contribution >= 0 ? half : half - max(4, w))
+                        .fill(positive ? Palette.recoveryHigh : Palette.recoveryLow)
+                        .frame(width: barWidth(geo.size.width), height: 8)
+                        .offset(x: barOffset(geo.size.width))
                 }
             }
             .frame(height: 14)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var positive: Bool { component.contribution >= 0 }
+
+    /// Ancho proporcional a |z| (saturado en 2,5), sobre la mitad de la barra.
+    private func barWidth(_ full: CGFloat) -> CGFloat {
+        let half: CGFloat = full / 2
+        let fraction: Double = Swift.min(abs(component.z), 2.5) / 2.5
+        return Swift.max(CGFloat(4), half * CGFloat(fraction))
+    }
+
+    private func barOffset(_ full: CGFloat) -> CGFloat {
+        let half: CGFloat = full / 2
+        return positive ? half : half - barWidth(full)
     }
 
     private var name: String {

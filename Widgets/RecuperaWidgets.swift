@@ -69,7 +69,7 @@ struct MiniRing: View {
         ZStack {
             Circle().stroke(color.opacity(0.18), lineWidth: lineWidth)
             Circle()
-                .trim(from: 0, to: max(0.002, min(1, progress)))
+                .trim(from: 0, to: CGFloat(Swift.max(0.002, Swift.min(1.0, progress))))
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             Text(label).font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit().minimumScaleFactor(0.6)

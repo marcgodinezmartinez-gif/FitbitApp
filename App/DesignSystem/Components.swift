@@ -65,7 +65,7 @@ struct VitalRow: View {
                 Text("\(Format.decimal(value, digits: digits)) \(unit)").monospacedDigit().foregroundStyle(Palette.textPrimary)
                 if let usual {
                     let delta = value - usual
-                    let threshold = pow(10, Double(-digits)) / 2
+                    let threshold: Double = pow(10.0, Double(-digits)) / 2.0
                     Image(systemName: abs(delta) < threshold ? "equal" : (delta > 0 ? "arrow.up" : "arrow.down"))
                         .font(.caption.weight(.bold))
                         .foregroundStyle(color(delta: delta, threshold: threshold))
@@ -136,32 +136,44 @@ struct SourceBadges: View {
 struct ZoneBar: View {
     var minutes: [Int]
 
+    private var total: Int { Swift.max(1, minutes.reduce(0, +)) }
+
+    private func width(_ m: Int, of full: CGFloat) -> CGFloat {
+        let share: CGFloat = full * CGFloat(m) / CGFloat(total)
+        return Swift.max(CGFloat(3), share - CGFloat(2))
+    }
+
+    private func color(_ i: Int) -> Color { Palette.zones[Swift.min(i, Palette.zones.count - 1)] }
+
+    private var labelIndices: [Int] { Array(minutes.indices.dropFirst()) }
+
+    private var accessibilityText: String {
+        labelIndices.map { "zona \($0): \(minutes[$0]) minutos" }.joined(separator: ", ")
+    }
+
     var body: some View {
-        let total = max(1, minutes.reduce(0, +))
         VStack(alignment: .leading, spacing: 6) {
             GeometryReader { geo in
                 HStack(spacing: 2) {
-                    ForEach(Array(minutes.enumerated()), id: \.offset) { i, m in
-                        if m > 0 {
+                    ForEach(minutes.indices, id: \.self) { i in
+                        if minutes[i] > 0 {
                             RoundedRectangle(cornerRadius: 3)
-                                .fill(Palette.zones[min(i, Palette.zones.count - 1)])
-                                .frame(width: max(3, geo.size.width * CGFloat(m) / CGFloat(total) - 2))
+                                .fill(color(i))
+                                .frame(width: width(minutes[i], of: geo.size.width))
                         }
                     }
                 }
             }
             .frame(height: 12)
             HStack {
-                ForEach(Array(minutes.enumerated()), id: \.offset) { i, m in
-                    if i > 0 {
-                        Text("Z\(i) \(m)′").font(.caption2).monospacedDigit().foregroundStyle(Palette.textSecondary)
-                        if i < minutes.count - 1 { Spacer(minLength: 2) }
-                    }
+                ForEach(labelIndices, id: \.self) { i in
+                    Text("Z\(i) \(minutes[i])′").font(.caption2).monospacedDigit().foregroundStyle(Palette.textSecondary)
+                    if i < minutes.count - 1 { Spacer(minLength: 2) }
                 }
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(minutes.enumerated().dropFirst().map { "zona \($0.offset): \($0.element) minutos" }.joined(separator: ", "))
+        .accessibilityLabel(accessibilityText)
     }
 }
 

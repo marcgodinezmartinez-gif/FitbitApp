@@ -258,6 +258,13 @@ struct MessageBubble: View {
 
     var meta: CoachMessageMeta? { CoachMessageMeta.decode(message.metaJSON) }
 
+    /// Etiqueta de IA con el modelo que respondió (RF-COA-11).
+    var aiLabel: String {
+        let modelID: String = meta?.model ?? message.model ?? ""
+        let fallback: String = meta?.usedFallback == true ? " (modelo de reserva)" : ""
+        return "Respuesta generada por IA · " + ModelCatalog.displayName(modelID) + fallback
+    }
+
     var body: some View {
         let isUser = message.role == "user" || message.role == "local_user"
         VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
@@ -305,7 +312,7 @@ struct MessageBubble: View {
             .tint(Palette.textSecondary)
         }
         HStack(spacing: 12) {
-            Text("Respuesta generada por IA · \(ModelCatalog.displayName(meta?.model ?? message.model ?? ""))\(meta?.usedFallback == true ? " (modelo de reserva)" : "")")
+            Text(aiLabel)
                 .font(.caption2).foregroundStyle(Palette.textSecondary)
             if meta?.filtered == true {
                 Image(systemName: "shield.lefthalf.filled").font(.caption2).foregroundStyle(Palette.textSecondary)

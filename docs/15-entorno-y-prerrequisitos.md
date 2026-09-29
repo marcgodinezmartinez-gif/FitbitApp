@@ -66,7 +66,7 @@ Dependencias Swift previstas (licencia permisiva, a confirmar en F0): **GRDB** (
 ## 5. Lista de tareas de F0 (en orden)
 
 1. [ ] Llevar la Fitbit Air 24/7 y comprobar en Google Health que aparecen sueño con fases, VFC, FC en reposo, SpO₂, frecuencia respiratoria y temperatura.
-2. [ ] En **developer.apple.com**: crear el App ID con su *bundle ID* y las capacidades (App Groups; **HealthKit** con entrega en segundo plano, `com.apple.developer.healthkit.background-delivery`; AlarmKit si se usa [verificar requisitos de AlarmKit]).
+2. [ ] En **developer.apple.com**: crear el App ID con su *bundle ID* y las capacidades (App Groups con el grupo `group.<bundle ID>`; **HealthKit** con entrega en segundo plano, `com.apple.developer.healthkit.background-delivery`; AlarmKit si se usa [verificar requisitos de AlarmKit]), y un segundo App ID `<bundle ID>.widgets` para la extensión de *widgets* con el mismo App Group. Con la firma automática en la nube, Xcode puede crearlos solo si la clave de API tiene permisos suficientes.
 3. [ ] En **App Store Connect**: crear la ficha de la app, añadirte como **probador interno** y crear una **clave de API** (rol mínimo que permita firmar y subir [verificar]); instalar la app **TestFlight** en el iPhone.
 4. [ ] En **GitHub**: guardar los secretos del §4 y crear los *workflows* `ci-linux.yml` e `ios.yml` (doc. 08 §6) con una app mínima generada por XcodeGen. **Criterio**: un *merge* a `main` produce una *build* instalable en TestFlight.
 5. [ ] Publicar la página de privacidad mínima (declaración de *Limited Use*, RL-42).

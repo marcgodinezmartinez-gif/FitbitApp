@@ -29,6 +29,18 @@ struct FakeWatch: AppleHealthProvider {
     }
 }
 
+@Suite struct FirstLaunchTests {
+    @Test func emptyDatabaseRecomputesAndSyncsWithoutSources() async throws {
+        let db = try AppDatabase.inMemory()
+        let engine = SyncEngine(db: db, google: nil, apple: nil)
+        let out = try await engine.recompute()
+        #expect(out.cycles.isEmpty || out.current != nil)
+        let report = await engine.sync(.open)
+        #expect(report.google.skipped && report.apple.skipped)
+        #expect(report.notifications.isEmpty)
+    }
+}
+
 @Suite struct MappingTests {
     @Test func skipsHealthKitPlatformAndMapsSleep() throws {
         let json = """
