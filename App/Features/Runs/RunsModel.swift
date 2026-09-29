@@ -47,7 +47,7 @@ final class RunsModel {
         context = history.context(today: today)
         if !demo, let db {
             shoes = (try? db.shoes()) ?? []
-            assignments = (try? db.shoeAssignments()) ?? []
+            assignments = (try? db.shoeAssignments()) ?? [:]
             vo2 = (try? db.vo2maxValues()) ?? []
         } else {
             shoes = Self.demoShoes
