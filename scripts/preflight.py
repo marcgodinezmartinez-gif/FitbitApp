@@ -129,44 +129,80 @@ def api(path, params=None):
         return json.load(response)
 
 
+def apple_detail(error):
+    """Mensaje de error de App Store Connect (no contiene secretos)."""
+    try:
+        body = json.loads(error.read().decode())
+        first = (body.get("errors") or [{}])[0]
+        return " ".join(x for x in (first.get("title"), first.get("detail")) if x)
+    except Exception:
+        return ""
+
+
+def call(label, path, params):
+    """Una consulta a App Store Connect; si falla, lo anota y devuelve None sin cortar el resto."""
+    try:
+        return api(path, params)
+    except urllib.error.HTTPError as e:
+        detail = apple_detail(e)
+        if e.code in (401, 403):
+            fail(f"{label}: App Store Connect no deja consultarlo (HTTP {e.code}); revisa ASC_KEY_ID, ASC_ISSUER_ID y que la clave "
+                 f"tenga acceso Admin. {detail}".strip())
+        else:
+            fail(f"{label}: App Store Connect respondió HTTP {e.code}. {detail}".strip())
+    except urllib.error.URLError as e:
+        warn(f"{label}: no se pudo contactar con App Store Connect ({e.reason}).")
+    return None
+
+
 NAMES = {"HEALTHKIT": "HealthKit", "APP_GROUPS": "App Groups"}
 
+
+def capabilities_by_identifier(response):
+    """{identificador: {capacidades}} a partir de /v1/bundleIds con include=bundleIdCapabilities."""
+    caps = {c["id"]: c.get("attributes", {}).get("capabilityType")
+            for c in response.get("included", []) if c.get("type") == "bundleIdCapabilities"}
+    out = {}
+    for item in response.get("data", []):
+        rel = item.get("relationships", {}).get("bundleIdCapabilities", {}).get("data") or []
+        out[item["attributes"].get("identifier")] = {caps.get(r.get("id")) for r in rel}
+    return out
+
+
+def check_app_ids(found):
+    for ident, needs, label in ((bundle, ("HEALTHKIT", "APP_GROUPS"), "App ID de la app"),
+                                (bundle + ".widgets", ("APP_GROUPS",), "App ID de los widgets")):
+        if ident not in found:
+            fail(f"{label} sin registrar: créalo en developer.apple.com › Identifiers (doc. 17, parte A).")
+            continue
+        missing = [NAMES[c] for c in needs if c not in found[ident]]
+        if missing:
+            fail(f"{label}: falta activar {', '.join(missing)} en su App ID.")
+        else:
+            ok(f"{label} registrado con {' y '.join(NAMES[c] for c in needs)}.")
+
+
 if token and bundle_ok:
-    try:
-        ids = api("/v1/bundleIds", {"filter[identifier]": bundle, "limit": 200}).get("data", [])
+    ids = call("App IDs", "/v1/bundleIds", {"filter[identifier]": f"{bundle},{bundle}.widgets", "include": "bundleIdCapabilities",
+                                            "fields[bundleIdCapabilities]": "capabilityType", "limit[bundleIdCapabilities]": 50,
+                                            "limit": 200})
+    if ids is not None:
         ok("App Store Connect acepta la clave.")
-        by_identifier = {d["attributes"].get("identifier"): d for d in ids}
-        for ident, needs, label in ((bundle, ("HEALTHKIT", "APP_GROUPS"), "App ID de la app"),
-                                    (bundle + ".widgets", ("APP_GROUPS",), "App ID de los widgets")):
-            item = by_identifier.get(ident)
-            if not item:
-                fail(f"{label} sin registrar: créalo en developer.apple.com › Identifiers (doc. 17, parte A).")
-                continue
-            caps = api(f"/v1/bundleIds/{item['id']}/bundleIdCapabilities", {"limit": 50}).get("data", [])
-            have = {c["attributes"].get("capabilityType") for c in caps}
-            missing = [NAMES[c] for c in needs if c not in have]
-            if missing:
-                fail(f"{label}: falta activar {', '.join(missing)} en su App ID.")
-            else:
-                ok(f"{label} registrado con {' y '.join(NAMES[c] for c in needs)}.")
-        apps = api("/v1/apps", {"filter[bundleId]": bundle, "limit": 10}).get("data", [])
-        app = next((a for a in apps if a["attributes"].get("bundleId") == bundle), None)
+        check_app_ids(capabilities_by_identifier(ids))
+    apps = call("Ficha de la app", "/v1/apps", {"filter[bundleId]": bundle, "limit": 10})
+    if apps is not None:
+        app = next((a for a in apps.get("data", []) if a["attributes"].get("bundleId") == bundle), None)
         if not app:
             fail("La app no existe en App Store Connect con ese identificador: créala en Apps › + › Nueva app (parte B).")
         else:
             ok(f"App creada en App Store Connect («{app['attributes'].get('name')}»).")
-            groups = api("/v1/betaGroups", {"filter[app]": app["id"], "filter[isInternalGroup]": "true", "limit": 10}).get("data", [])
-            if groups:
-                ok("Grupo interno de TestFlight creado.")
-            else:
-                warn("Aún no hay grupo interno de TestFlight: créalo y añádete (se puede hacer tras la primera subida).")
-    except urllib.error.HTTPError as e:
-        if e.code in (401, 403):
-            fail(f"App Store Connect rechaza la clave (HTTP {e.code}): revisa ASC_KEY_ID, ASC_ISSUER_ID y que la clave tenga acceso Admin.")
-        else:
-            fail(f"App Store Connect respondió con un error (HTTP {e.code}). Vuelve a intentarlo en unos minutos.")
-    except urllib.error.URLError as e:
-        warn(f"No se pudo contactar con App Store Connect ({e.reason}).")
+            groups = call("Grupo de TestFlight", "/v1/betaGroups",
+                          {"filter[app]": app["id"], "filter[isInternalGroup]": "true", "limit": 10})
+            if groups is not None:
+                if groups.get("data"):
+                    ok("Grupo interno de TestFlight creado.")
+                else:
+                    warn("Aún no hay grupo interno de TestFlight: créalo y añádete (se puede hacer tras la primera subida).")
 
 lines = [f"{mark} {text}" for mark, text in results]
 failed = any(mark == "❌" for mark, _ in results)
