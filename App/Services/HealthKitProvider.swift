@@ -46,6 +46,7 @@ final class HealthKitProvider: AppleHealthProvider, @unchecked Sendable {
             result.workoutHeartRate[rid] = d.heartRate
             if !d.route.isEmpty { result.routes[rid] = d.route }
             if !d.metrics.isEmpty { result.metricSamples[rid] = d.metrics }
+            result.details[rid] = d.detail
             result.heartRateMinutes += Self.minutes(d.heartRate)
         }
         try anchors.setAnchor(Self.encodeAnchor(changes.newAnchor), for: "workouts")
@@ -93,6 +94,7 @@ final class HealthKitProvider: AppleHealthProvider, @unchecked Sendable {
         var heartRate: [HRSample]
         var route: [RoutePoint]
         var metrics: [MetricSample]
+        var detail: ActivityDetail
     }
 
     func details(for w: HKWorkout) async throws -> WorkoutDetails {
@@ -124,11 +126,26 @@ final class HealthKitProvider: AppleHealthProvider, @unchecked Sendable {
         let route = (try? await route(for: w)) ?? []
         var metrics: [MetricSample] = []
         if kind.isRun {
-            let series: [(HKQuantityTypeIdentifier, String, HKUnit)] = [(.runningPower, "power_w", .watt()), (.runningSpeed, "speed_mps", mps)]
+            // Series de la carrera para su análisis (doc. 18): potencia, velocidad y dinámica de carrera.
+            let series: [(HKQuantityTypeIdentifier, String, HKUnit)] = [
+                (.runningPower, "power_w", .watt()), (.runningSpeed, "speed_mps", mps), (.runningStrideLength, "stride_m", .meter()),
+                (.runningVerticalOscillation, "vertical_osc_cm", .meterUnit(with: .centi)),
+                (.runningGroundContactTime, "ground_contact_ms", .secondUnit(with: .milli)),
+            ]
             for (id, key, unit) in series {
                 let values = (try? await samples(id, from: w.startDate, to: w.endDate, unit: unit)) ?? []
                 metrics += values.map { MetricSample(metric: key, time: $0.time, value: $0.value) }
             }
+            // Cadencia (pasos por minuto de cada tramo) y distancia por tramos (ritmo en cinta o sin GPS).
+            let stepSamples = (try? await intervalSamples(.stepCount, from: w.startDate, to: w.endDate, unit: .count())) ?? []
+            metrics += stepSamples.compactMap { s in
+                let minutes = s.end.timeIntervalSince(s.start) / 60
+                guard minutes >= 1.0 / 60, s.value > 0 else { return nil }
+                let spm = s.value / minutes
+                return spm < 260 ? MetricSample(metric: "cadence_spm", time: s.start.addingTimeInterval(minutes * 30), value: spm) : nil
+            }
+            let distanceSamples = (try? await intervalSamples(.distanceWalkingRunning, from: w.startDate, to: w.endDate, unit: .meter())) ?? []
+            metrics += distanceSamples.map { MetricSample(metric: "distance_m", time: $0.end, value: $0.value) }
         }
         let distance = (stat(.distanceWalkingRunning) ?? stat(.distanceCycling))?.sumQuantity()?.doubleValue(for: .meter())
         let session = ActivitySession(
@@ -140,7 +157,88 @@ final class HealthKitProvider: AppleHealthProvider, @unchecked Sendable {
             elevationGainM: (w.metadata?[HKMetadataKeyElevationAscended] as? HKQuantity)?.doubleValue(for: .meter()),
             hasRoute: !route.isEmpty, dynamics: dynamics.isEmpty ? nil : dynamics, hrRecovery1Min: recovery,
             effortScore: effort)
-        return WorkoutDetails(session: session, heartRate: heartRate, route: route, metrics: metrics)
+        return WorkoutDetails(session: session, heartRate: heartRate, route: route, metrics: metrics,
+                              detail: Self.detail(for: w, activityID: session.id, indoor: indoor))
+    }
+
+    /// Pausas, vueltas, segmentos, intervalos, meteo y desnivel negativo del entreno (doc. 18).
+    static func detail(for w: HKWorkout, activityID: String, indoor: Bool) -> ActivityDetail {
+        var d = ActivityDetail(activityID: activityID, indoor: indoor)
+        let events = (w.workoutEvents ?? []).sorted { $0.dateInterval.start < $1.dateInterval.start }
+        var manualPause: Date?
+        var autoPause: Date?
+        for e in events {
+            let interval = e.dateInterval
+            switch e.type {
+            case .pause: manualPause = manualPause ?? interval.start
+            case .resume:
+                if let start = manualPause, interval.start > start { d.events.append(WorkoutEvent(kind: .pause, start: start, end: interval.start)) }
+                manualPause = nil
+            case .motionPaused: autoPause = autoPause ?? interval.start
+            case .motionResumed:
+                if let start = autoPause, interval.start > start {
+                    d.events.append(WorkoutEvent(kind: .pause, start: start, end: interval.start, automatic: true))
+                }
+                autoPause = nil
+            case .lap:
+                if interval.duration > 0 { d.events.append(WorkoutEvent(kind: .lap, start: interval.start, end: interval.end)) }
+            case .segment:
+                if interval.duration > 0 { d.events.append(WorkoutEvent(kind: .segment, start: interval.start, end: interval.end)) }
+            case .marker: d.events.append(WorkoutEvent(kind: .marker, start: interval.start, end: interval.start))
+            default: break
+            }
+        }
+        // Entrenos por intervalos o de varias partes: cada actividad es un tramo con sus propias estadísticas.
+        let activities = w.workoutActivities
+        if activities.count > 1 {
+            let bpm = HKUnit.count().unitDivided(by: .minute())
+            d.laps = activities.map { a in
+                let end = a.endDate ?? a.startDate.addingTimeInterval(a.duration)
+                let distance = a.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meter())
+                let hr = a.statistics(for: HKQuantityType(.heartRate))?.averageQuantity()?.doubleValue(for: bpm)
+                let kcal = a.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
+                return SourceSplit(start: a.startDate, end: end, kind: "interval", distanceM: distance, activeSeconds: a.duration,
+                                   avgHR: hr, caloriesKcal: kcal)
+            }
+        }
+        let meta = w.metadata ?? [:]
+        // Solo se convierte si la unidad es compatible: con una incompatible, HealthKit cierra la app.
+        func value(_ key: String, _ unit: HKUnit) -> Double? {
+            guard let q = meta[key] as? HKQuantity, q.is(compatibleWith: unit) else { return nil }
+            return q.doubleValue(for: unit)
+        }
+        var weather = WeatherInfo()
+        weather.temperatureC = value(HKMetadataKeyWeatherTemperature, .degreeCelsius())
+        weather.humidityPct = value(HKMetadataKeyWeatherHumidity, .percent()).map { $0 <= 1.5 ? $0 * 100 : $0 }
+        weather.condition = (meta[HKMetadataKeyWeatherCondition] as? NSNumber)
+            .flatMap { HKWeatherCondition(rawValue: $0.intValue) }.flatMap(Self.conditionName)
+        if !weather.isEmpty { d.weather = weather }
+        d.elevationLossM = value(HKMetadataKeyElevationDescended, .meter())
+        d.avgMETs = value(HKMetadataKeyAverageMETs,
+                          HKUnit.kilocalorie().unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: .hour())))
+        let paused = d.events.filter { $0.kind == .pause }.reduce(0.0) { $0 + $1.end.timeIntervalSince($1.start) }
+        d.activeSeconds = max(0, w.duration - paused)
+        return d
+    }
+
+    static func conditionName(_ c: HKWeatherCondition) -> String? {
+        switch c {
+        case .clear, .fair: return "Despejado"
+        case .partlyCloudy, .mostlyCloudy: return "Nubes y claros"
+        case .cloudy: return "Nublado"
+        case .foggy, .haze: return "Niebla"
+        case .windy, .blustery: return "Viento"
+        case .smoky, .dust: return "Calima"
+        case .snow: return "Nieve"
+        case .mixedRainAndSnow, .mixedSnowAndSleet, .mixedRainAndSleet, .mixedRainAndHail, .sleet, .freezingDrizzle, .freezingRain:
+            return "Aguanieve"
+        case .hail: return "Granizo"
+        case .drizzle: return "Llovizna"
+        case .showers, .scatteredShowers: return "Chubascos"
+        case .thunderstorms: return "Tormenta"
+        case .tropicalStorm, .hurricane, .tornado: return "Temporal"
+        default: return nil
+        }
     }
 
     /// Muestras de un tipo en un intervalo, solo del Apple Watch.
@@ -150,6 +248,16 @@ final class HealthKitProvider: AppleHealthProvider, @unchecked Sendable {
                                                  sortDescriptors: [SortDescriptor(\.startDate)], limit: 20_000)
         let results = try await descriptor.result(for: store)
         return results.filter(Self.accepts).map { (time: $0.startDate, value: $0.quantity.doubleValue(for: unit)) }
+    }
+
+    /// Muestras con su tramo (inicio y fin), solo del Apple Watch: pasos y distancia.
+    func intervalSamples(_ id: HKQuantityTypeIdentifier, from: Date, to: Date, unit: HKUnit) async throws
+        -> [(start: Date, end: Date, value: Double)] {
+        let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: [])
+        let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(id), predicate: predicate)],
+                                                 sortDescriptors: [SortDescriptor(\.startDate)], limit: 20_000)
+        let results = try await descriptor.result(for: store)
+        return results.filter(Self.accepts).map { (start: $0.startDate, end: $0.endDate, value: $0.quantity.doubleValue(for: unit)) }
     }
 
     /// Esfuerzo del entrenamiento (valorado por ti en el reloj o estimado por Apple), escala 1–10.

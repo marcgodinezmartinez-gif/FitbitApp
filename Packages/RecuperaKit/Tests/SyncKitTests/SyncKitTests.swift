@@ -62,6 +62,38 @@ struct FakeWatch: AppleHealthProvider {
         #expect(sleeps[0].stages.last?.stage == .wake)
     }
 
+    /// Parciales, vueltas, pausas, dinámica de carrera, zonas y VO₂ máx. de una carrera de la Fitbit (doc. 18).
+    @Test func fitbitRunDetails() throws {
+        let json = """
+        {"dataPoints":[{"name":"users/me/dataTypes/exercise/dataPoints/r1","dataSource":{"platform":"FITBIT"},
+         "exercise":{"exerciseType":"RUNNING","displayName":"Carrera","activeDuration":"1500s",
+          "interval":{"startTime":"2026-09-28T07:00:00Z","endTime":"2026-09-28T07:26:00Z","startUtcOffset":"7200s"},
+          "metricsSummary":{"distanceMillimeters":5000000,"runVo2Max":51.2,"activeZoneMinutes":"31",
+           "heartRateZoneDurations":{"moderateTime":"600s","vigorousTime":"840s","peakTime":"60s"},
+           "mobilityMetrics":{"avgCadenceStepsPerMinute":172.5,"avgVerticalOscillationMillimeters":"84",
+            "avgGroundContactTimeDuration":"0.245s","avgStrideLengthMillimeters":"1160","avgVerticalRatio":7.2}},
+          "splits":[{"startTime":"2026-09-28T07:00:00Z","endTime":"2026-09-28T07:05:10Z","activeDuration":"310s","splitType":"DISTANCE",
+                     "metricsSummary":{"distanceMillimeters":1000000,"averageHeartRateBeatsPerMinute":"148",
+                                       "mobilityMetrics":{"avgCadenceStepsPerMinute":170}}}],
+          "splitSummaries":[{"startTime":"2026-09-28T07:00:00Z","endTime":"2026-09-28T07:13:00Z","splitType":"MANUAL",
+                             "metricsSummary":{"distanceMillimeters":2500000}}],
+          "exerciseEvents":[{"eventTime":"2026-09-28T07:00:00Z","exerciseEventType":"START"},
+                            {"eventTime":"2026-09-28T07:10:00Z","exerciseEventType":"AUTO_PAUSE"},
+                            {"eventTime":"2026-09-28T07:11:40Z","exerciseEventType":"AUTO_RESUME"},
+                            {"eventTime":"2026-09-28T07:26:00Z","exerciseEventType":"STOP"}]}}]}
+        """
+        let r = try JSONDecoder().decode(ListDataPointsResponse.self, from: Data(json.utf8))
+        let d = try #require(GoogleMapping.activityDetails(r.dataPoints!).first)
+        #expect(d.activityID == "google_health:users/me/dataTypes/exercise/dataPoints/r1")
+        #expect(d.splits.count == 1 && d.splits[0].distanceM == 1000 && d.splits[0].avgHR == 148 && d.splits[0].avgCadence == 170)
+        #expect(d.laps.count == 1 && d.laps[0].kind == "manual" && d.laps[0].distanceM == 2500)
+        #expect(d.events.count == 1 && d.events[0].automatic && d.events[0].end.timeIntervalSince(d.events[0].start) == 100)
+        #expect(d.activeSeconds == 1500 && d.activeZoneMinutes == 31 && d.vo2max == 51.2)
+        #expect(d.zoneSeconds?["vigorous"] == 840 && d.zoneSeconds?["light"] == nil)
+        #expect(d.mobility?.avgCadenceSpm == 172.5 && d.mobility?.avgStrideM == 1.16 && d.mobility?.avgVerticalOscillationCm == 8.4)
+        #expect(d.mobility?.avgGroundContactMs == 245 && d.verticalRatioPct == 7.2)
+    }
+
     @Test func vitalsPreferFitbit() throws {
         let json = """
         {"dataPoints":[

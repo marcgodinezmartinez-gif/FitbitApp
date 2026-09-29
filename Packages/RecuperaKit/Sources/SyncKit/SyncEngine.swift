@@ -42,6 +42,12 @@ public struct SyncReport: Sendable {
     public var snapshot: WidgetSnapshot?
 }
 
+/// Versión de lo que se lee de cada entreno del Apple Watch: al subirla se releen una vez los del periodo.
+struct DetailVersion: Codable, Sendable {
+    static let current = 2
+    var version = 0
+}
+
 /// Motor de sincronización: las dos fuentes a la vez y recálculo (RF-SYN-09, doc. 16 §6).
 public actor SyncEngine {
     public let db: AppDatabase
@@ -161,6 +167,9 @@ public actor SyncEngine {
         guard let apple, apple.isAvailable, settings.healthKitEnabled else { return (.skippedResult, []) }
         let start = now()
         do {
+            // Si esta versión lee más datos de cada entreno (doc. 18), se vuelven a leer una vez todos los del periodo.
+            let detailVersion = (try? db.readState("apple_detail_version", default: DetailVersion())) ?? DetailVersion()
+            if detailVersion.version < DetailVersion.current { try db.setAnchor(nil, for: "workouts") }
             let imp = try await apple.importChanges(anchors: db, backfillDays: max(backfillDays, 180))
             let known = (try? db.activityIDs(source: .appleHealth)) ?? []
             try db.upsertActivities(imp.workouts)
@@ -169,7 +178,9 @@ public actor SyncEngine {
             for (rid, samples) in imp.workoutHeartRate { try db.upsertHRSamples(samples, activityID: "apple_health:\(rid)") }
             for (rid, points) in imp.routes { try db.saveRoute(points, activityID: "apple_health:\(rid)") }
             for (rid, ms) in imp.metricSamples { try db.saveMetricSamples(ms, activityID: "apple_health:\(rid)") }
+            try db.saveActivityDetails(Array(imp.details.values))
             try db.upsertVO2(imp.vo2max)
+            if detailVersion.version < DetailVersion.current { try db.writeState("apple_detail_version", DetailVersion(version: DetailVersion.current)) }
             try db.updateConnection {
                 $0.healthKitLastImportAt = self.now()
                 if $0.healthKitConnectedAt == nil { $0.healthKitConnectedAt = self.now() }
@@ -298,12 +309,21 @@ public actor SyncEngine {
         try db.upsertSleepSessions(sleeps)
         records += sleeps.count
 
-        let exercises = GoogleMapping.activities(try await g.list(.exercise, filter: HealthFilter.make(.exercise, from: from, to: to, utcOffsetSeconds: off)))
+        let exercisePoints = try await g.list(.exercise, filter: HealthFilter.make(.exercise, from: from, to: to, utcOffsetSeconds: off))
+        let exercises = GoogleMapping.activities(exercisePoints)
         try db.upsertActivities(exercises)
+        try db.saveActivityDetails(GoogleMapping.activityDetails(exercisePoints))
         records += exercises.count
-        for e in exercises.suffix(8) where e.durationMinutes >= 10 {
+        // FC segundo a segundo: de todas las carreras que aún no la tienen (análisis de carreras) y de los últimos entrenos.
+        var hrTargets = exercises.filter { $0.kind.isRun && $0.durationMinutes >= 5 }
+        for e in exercises.suffix(8) where e.durationMinutes >= 10 && !hrTargets.contains(where: { $0.id == e.id }) { hrTargets.append(e) }
+        var fetched = 0
+        for e in hrTargets.reversed() where fetched < 60 {
+            let have = (try? db.hrSampleCount(source: .googleHealth, from: e.start, to: e.end)) ?? 0
+            if have >= max(1, Int(e.durationMinutes / 2)) { continue }
+            fetched += 1
             let pts = try? await g.list(.heartRate, filter: HealthFilter.make(.heartRate, from: e.start, to: e.end, utcOffsetSeconds: off),
-                                        pageSize: 10_000, maxPages: 2)
+                                        pageSize: 10_000, maxPages: 3)
             try db.upsertHRSamples(GoogleMapping.hrSamples(pts ?? []), activityID: e.id)
         }
 

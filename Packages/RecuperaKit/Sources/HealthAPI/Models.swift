@@ -246,6 +246,23 @@ public struct SleepPoint: Codable, Sendable, Hashable {
 }
 
 public struct ExercisePoint: Codable, Sendable, Hashable {
+    /// Dinámica de carrera de la pulsera (solo en carreras «avanzadas»).
+    public struct Mobility: Codable, Sendable, Hashable {
+        @FlexDouble public var avgCadenceStepsPerMinute: Double?
+        public var avgVerticalOscillationMillimeters: FlexInt?
+        public var avgGroundContactTimeDuration: String?
+        public var avgStrideLengthMillimeters: FlexInt?
+        @FlexDouble public var avgVerticalRatio: Double?
+    }
+
+    /// Tiempo en las zonas de FC de Fitbit (duraciones "123s").
+    public struct ZoneDurations: Codable, Sendable, Hashable {
+        public var lightTime: String?
+        public var moderateTime: String?
+        public var vigorousTime: String?
+        public var peakTime: String?
+    }
+
     public struct Metrics: Codable, Sendable, Hashable {
         @FlexDouble public var caloriesKcal: Double?
         public var steps: FlexInt?
@@ -254,10 +271,29 @@ public struct ExercisePoint: Codable, Sendable, Hashable {
         @FlexDouble public var elevationGainMillimeters: Double?
         @FlexDouble public var averageSpeedMillimetersPerSecond: Double?
         @FlexDouble public var runVo2Max: Double?
+        @FlexDouble public var averagePaceSecondsPerMeter: Double?
+        public var activeZoneMinutes: FlexInt?
+        public var heartRateZoneDurations: ZoneDurations?
+        public var mobilityMetrics: Mobility?
     }
 
     public struct Metadata: Codable, Sendable, Hashable {
         public var hasGps: Bool?
+    }
+
+    /// Parcial (por km o milla) o vuelta.
+    public struct Split: Codable, Sendable, Hashable {
+        public var startTime: String?
+        public var endTime: String?
+        public var activeDuration: String?
+        public var splitType: String?
+        public var metricsSummary: Metrics?
+    }
+
+    /// Inicio, fin, pausas y reanudaciones.
+    public struct Event: Codable, Sendable, Hashable {
+        public var eventTime: String?
+        public var exerciseEventType: String?
     }
 
     public var exerciseType: String?
@@ -267,6 +303,10 @@ public struct ExercisePoint: Codable, Sendable, Hashable {
     public var exerciseMetadata: Metadata?
     public var notes: String?
     public var updateTime: String?
+    public var activeDuration: String?
+    public var splits: [Split]?
+    public var splitSummaries: [Split]?
+    public var exerciseEvents: [Event]?
 }
 
 public struct IntervalCount: Codable, Sendable, Hashable {

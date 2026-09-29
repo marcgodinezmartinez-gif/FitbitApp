@@ -218,6 +218,7 @@ extension AppDatabase {
                 try db.execute(sql: "DELETE FROM route_point WHERE activity_id = ?", arguments: [id])
                 try db.execute(sql: "DELETE FROM activity_metric_sample WHERE activity_id = ?", arguments: [id])
                 try db.execute(sql: "DELETE FROM hr_sample WHERE activity_id = ?", arguments: [id])
+                try db.execute(sql: "DELETE FROM activity_detail WHERE activity_id = ?", arguments: [id])
             }
         }
     }
@@ -670,7 +671,7 @@ extension AppDatabase {
             var files: [String: String] = [:]
             let tables = ["app_state", "sync_log", "sleep_session", "vitals", "daily_source_totals", "vo2max", "activity",
                           "activity_annotation", "journal_answer", "strain_mode", "cycle_metrics", "fused_activity", "day_analysis",
-                          "report", "coach_thread", "coach_message", "coach_memory", "coach_spend", "privacy_event"]
+                          "report", "coach_thread", "coach_message", "coach_memory", "coach_spend", "privacy_event", "activity_detail"]
             for table in tables {
                 let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(table)")
                 let objects: [[String: Any]] = rows.map { row in
@@ -699,7 +700,8 @@ extension AppDatabase {
             for t in ["app_state", "sync_state", "sync_log", "hk_anchor", "hr_minute", "hr_sample", "activity_minute", "sleep_session",
                       "vitals", "daily_source_totals", "vo2max", "activity", "activity_annotation", "route_point",
                       "activity_metric_sample", "journal_answer", "strain_mode", "cycle_metrics", "fused_activity", "day_analysis",
-                      "report", "coach_message", "coach_thread", "coach_memory", "coach_spend", "privacy_event"] {
+                      "report", "coach_message", "coach_thread", "coach_memory", "coach_spend", "privacy_event",
+                      "activity_detail", "run_summary"] {
                 try db.execute(sql: "DELETE FROM \(t)")
             }
         }

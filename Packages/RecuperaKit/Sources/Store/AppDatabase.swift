@@ -92,6 +92,14 @@ public final class AppDatabase: Sendable {
             CREATE TABLE coach_spend (day TEXT PRIMARY KEY, questions INTEGER NOT NULL DEFAULT 0, cost_usd REAL NOT NULL DEFAULT 0);
             """)
         }
+        // v3 · Carreras (doc. 18): datos ampliados de cada entreno y caché de su análisis.
+        m.registerMigration("v3") { db in
+            try db.execute(sql: """
+            CREATE TABLE activity_detail (activity_id TEXT PRIMARY KEY, json TEXT NOT NULL);
+            CREATE TABLE run_summary (activity_id TEXT PRIMARY KEY, version INTEGER NOT NULL, start_ts REAL NOT NULL, json TEXT NOT NULL);
+            CREATE INDEX run_summary_start ON run_summary(start_ts);
+            """)
+        }
         return m
     }
 

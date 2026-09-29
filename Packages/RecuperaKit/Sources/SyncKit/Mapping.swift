@@ -1,6 +1,7 @@
 import Foundation
 import HealthAPI
 import MetricsKit
+import Store
 
 /// Traduce los recursos de la Google Health API al modelo interno (doc. 09).
 public enum GoogleMapping {
@@ -104,6 +105,71 @@ public enum GoogleMapping {
                                    elevationGainM: m?.elevationGainMillimeters.map { $0 / 1000 }, hasRoute: e.exerciseMetadata?.hasGps ?? false,
                                    isManual: p.dataSource?.recordingMethod == "MANUAL", notes: e.notes)
         }
+    }
+
+    /// Lo que da la Fitbit de cada entreno además del resumen: parciales por km, vueltas, pausas, dinámica de carrera,
+    /// zonas de FC y VO₂ máx. de la carrera (doc. 18).
+    public static func activityDetails(_ points: [APIDataPoint]) -> [ActivityDetail] {
+        points.filter(accepted).compactMap { p in
+            guard let e = p.exercise, let start = GoogleTime.date(e.interval?.startTime) else { return nil }
+            let rid = p.identifier ?? "ex-\(Int(start.timeIntervalSince1970))"
+            let m = e.metricsSummary
+            var detail = ActivityDetail(activityID: "\(DataSourceKind.googleHealth.rawValue):\(rid)")
+            detail.splits = (e.splits ?? []).compactMap { split($0, kind: "km") }
+            detail.laps = (e.splitSummaries ?? []).compactMap { split($0, kind: ($0.splitType ?? "manual").lowercased()) }
+            detail.events = pauses(e.exerciseEvents ?? [])
+            detail.activeSeconds = GoogleTime.seconds(e.activeDuration)
+            detail.activeZoneMinutes = m?.activeZoneMinutes.map { Double($0.value) }
+            if let z = m?.heartRateZoneDurations {
+                var zones: [String: Double] = [:]
+                for (key, value) in [("light", z.lightTime), ("moderate", z.moderateTime), ("vigorous", z.vigorousTime), ("peak", z.peakTime)] {
+                    if let secs = GoogleTime.seconds(value) { zones[key] = secs }
+                }
+                if !zones.isEmpty { detail.zoneSeconds = zones }
+            }
+            if let mob = m?.mobilityMetrics {
+                let dyn = RunningDynamics(avgStrideM: mob.avgStrideLengthMillimeters.map { Double($0.value) / 1000 },
+                                          avgVerticalOscillationCm: mob.avgVerticalOscillationMillimeters.map { Double($0.value) / 10 },
+                                          avgGroundContactMs: GoogleTime.seconds(mob.avgGroundContactTimeDuration).map { $0 * 1000 },
+                                          avgCadenceSpm: mob.avgCadenceStepsPerMinute)
+                if !dyn.isEmpty { detail.mobility = dyn }
+                detail.verticalRatioPct = mob.avgVerticalRatio
+            }
+            detail.vo2max = m?.runVo2Max.flatMap { $0 > 0 ? $0 : nil }
+            return detail
+        }
+    }
+
+    static func split(_ s: ExercisePoint.Split, kind: String) -> SourceSplit? {
+        guard let start = GoogleTime.date(s.startTime), let end = GoogleTime.date(s.endTime) else { return nil }
+        let m = s.metricsSummary
+        return SourceSplit(start: start, end: end, kind: kind, distanceM: m?.distanceMillimeters.map { $0 / 1000 },
+                           activeSeconds: GoogleTime.seconds(s.activeDuration),
+                           avgHR: m?.averageHeartRateBeatsPerMinute.map { Double($0.value) },
+                           avgCadence: m?.mobilityMetrics?.avgCadenceStepsPerMinute,
+                           elevationGainM: m?.elevationGainMillimeters.map { $0 / 1000 }, caloriesKcal: m?.caloriesKcal,
+                           steps: m?.steps.map { Int($0.value) })
+    }
+
+    /// Empareja cada pausa con la reanudación siguiente.
+    static func pauses(_ events: [ExercisePoint.Event]) -> [WorkoutEvent] {
+        let sorted = events.compactMap { e -> (Date, String)? in
+            guard let t = GoogleTime.date(e.eventTime), let type = e.exerciseEventType else { return nil }
+            return (t, type)
+        }.sorted { $0.0 < $1.0 }
+        var out: [WorkoutEvent] = []
+        var open: (Date, Bool)?
+        for (t, type) in sorted {
+            switch type {
+            case "PAUSE", "AUTO_PAUSE":
+                if open == nil { open = (t, type == "AUTO_PAUSE") }
+            case "RESUME", "AUTO_RESUME", "STOP":
+                if let (start, auto) = open, t > start { out.append(WorkoutEvent(kind: .pause, start: start, end: t, automatic: auto)) }
+                open = nil
+            default: break
+            }
+        }
+        return out
     }
 
     public static func hrSamples(_ points: [APIDataPoint]) -> [HRSample] {

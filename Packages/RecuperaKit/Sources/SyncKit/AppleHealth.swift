@@ -10,18 +10,21 @@ public struct AppleHealthImport: Sendable {
     public var heartRateMinutes: [HRMinute]                // FC del Watch agregada por minuto
     public var routes: [String: [RoutePoint]]
     public var metricSamples: [String: [MetricSample]]
+    /// Pausas, vueltas, segmentos, intervalos y meteo de cada entreno (id de origen).
+    public var details: [String: ActivityDetail]
     public var vo2max: [VO2MaxValue]
     public var earliestAuthorized: Date?
 
     public init(workouts: [ActivitySession] = [], deletedWorkoutIDs: [String] = [], workoutHeartRate: [String: [HRSample]] = [:],
                 heartRateMinutes: [HRMinute] = [], routes: [String: [RoutePoint]] = [:], metricSamples: [String: [MetricSample]] = [:],
-                vo2max: [VO2MaxValue] = [], earliestAuthorized: Date? = nil) {
+                details: [String: ActivityDetail] = [:], vo2max: [VO2MaxValue] = [], earliestAuthorized: Date? = nil) {
         self.workouts = workouts
         self.deletedWorkoutIDs = deletedWorkoutIDs
         self.workoutHeartRate = workoutHeartRate
         self.heartRateMinutes = heartRateMinutes
         self.routes = routes
         self.metricSamples = metricSamples
+        self.details = details
         self.vo2max = vo2max
         self.earliestAuthorized = earliestAuthorized
     }

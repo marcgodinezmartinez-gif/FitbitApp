@@ -116,15 +116,18 @@ public struct ActivityAnnotation: Codable, Sendable, Hashable {
     public var nameOverride: String?
     /// Series de fuerza registradas (RF-ENT-05); se guardan en la actividad principal.
     public var strengthSets: [StrengthSet]?
+    /// Zapatillas de la carrera (doc. 18); sin asignar, se usan las predeterminadas.
+    public var shoeID: String?
 
     public init(activityID: String, rpe: Double? = nil, notes: String? = nil, kindOverride: ActivityKind? = nil, nameOverride: String? = nil,
-                strengthSets: [StrengthSet]? = nil) {
+                strengthSets: [StrengthSet]? = nil, shoeID: String? = nil) {
         self.activityID = activityID
         self.rpe = rpe
         self.notes = notes
         self.kindOverride = kindOverride
         self.nameOverride = nameOverride
         self.strengthSets = strengthSets
+        self.shoeID = shoeID
     }
 }
 
@@ -160,7 +163,9 @@ public struct RoutePoint: Codable, Sendable, Hashable {
 }
 
 public struct MetricSample: Codable, Sendable, Hashable {
-    public var metric: String      // power_w, speed_mps, stride_m, vertical_osc_cm, ground_contact_ms
+    /// power_w, speed_mps, stride_m, vertical_osc_cm, ground_contact_ms, cadence_spm, distance_m (tramo que acaba en `time`),
+    /// energy_kcal (tramo que acaba en `time`).
+    public var metric: String
     public var time: Date
     public var value: Double
 
