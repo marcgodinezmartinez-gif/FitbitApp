@@ -105,7 +105,7 @@ Consecuencia de usar `google-wearables`: una actividad que registres **a mano** 
 | **Al terminar una carrera** (RF-SYN-11) | Entrega en segundo plano (`HKObserverQuery` de entrenamientos + `enableBackgroundDelivery`): la app se despierta, importa, fusiona y avisa (NOT-12) | — |
 | Mañana | — | `BGAppRefreshTask` de sueño y recuperación |
 | Noche (cargando) | Revisión de 30 días: borrados que se hubieran perdido y rutas añadidas después | Revisión de 7 días |
-| Primera conexión | 180 días de entrenamientos con sus muestras | 90 días (RF-SYN-01) |
+| Primera conexión | 180 días de entrenamientos con sus muestras | 180 días por fases (RF-SYN-01) |
 
 Detalles que condicionan el diseño (documentación de HealthKit):
 

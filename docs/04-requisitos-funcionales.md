@@ -39,7 +39,7 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-SYN-01 | Al vincular, importar el historial de **90 días** (configurable hasta el máximo que permita la API) de todos los tipos de datos autorizados, con progreso visible; si se cierra la app, la importación continúa en segundo plano. | M | F1 |
+| RF-SYN-01 | Al vincular, importar el historial de **180 días** (lo que usa la edad fisiológica; ampliable hasta el máximo que permita la API) de todos los tipos de datos autorizados, **por fases** (primero noches y vitales, después la FC por minuto de lo más reciente a lo más antiguo) y con progreso visible, de modo que el sueño y la recuperación aparezcan en segundos; si se cierra la app, la importación continúa en segundo plano. | M | F1 |
 | RF-SYN-02 | Sincronización incremental de Google Health al abrir la app, en segundo plano (`BGAppRefreshTask` programada para la hora habitual de despertar y `BGProcessingTask` nocturna) y bajo demanda, re-consultando las últimas 48 h y los huecos (doc. 08 §4.4, doc. 10 §6). | M | F1 |
 | RF-SYN-03 | *Pull-to-refresh* en la app fuerza una sincronización incremental (máx. 1/min por usuario). | M | F1 |
 | RF-SYN-04 | Normalizar todos los datos al modelo interno (doc. 09) guardando UTC + desfase horario de cada muestra. | M | F1 |

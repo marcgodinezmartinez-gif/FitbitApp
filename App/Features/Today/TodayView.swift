@@ -4,6 +4,7 @@ import MetricsKit
 import Insights
 import Store
 import CoachKit
+import SyncKit
 
 /// «Hoy»: tres anillos y una recomendación que explican el día en diez segundos (doc. 11 §4).
 struct TodayView: View {
@@ -31,6 +32,9 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 20) {
                 DaySwitcher()
                 SourceHeader()
+                if let p = model.importProgress, model.output != nil {
+                    ImportProgressCard(progress: p)
+                }
                 if let session = model.liveWorkout.session {
                     LiveWorkoutBanner(session: session) { finished in
                         if finished.kind.isStrength { strengthWorkout = finished } else { finishedWorkout = finished }
@@ -42,8 +46,12 @@ struct TodayView: View {
                 if let cycle = model.displayedCycle, let output = model.output {
                     DayContent(cycle: cycle, output: output, showAnalysis: $showAnalysis)
                 } else if model.output == nil && model.isSyncing {
-                    StateCard(symbol: "arrow.triangle.2.circlepath", title: "Importando tus datos",
-                              message: "Estamos descargando tu historial de la Fitbit Air y del Apple Watch. Puede tardar un minuto.")
+                    if let p = model.importProgress {
+                        ImportProgressCard(progress: p)
+                    } else {
+                        StateCard(symbol: "arrow.triangle.2.circlepath", title: "Importando tus datos",
+                                  message: "Estamos descargando tu historial de la Fitbit Air y del Apple Watch. Puede tardar un minuto.")
+                    }
                 } else {
                     EmptyToday()
                 }
@@ -154,6 +162,27 @@ struct TodayView: View {
         if model.isShowingToday { return "Hoy" }
         if date == today.adding(days: -1) { return "Ayer" }
         return "\(Format.weekdayName(date).capitalized) \(date.day)"
+    }
+}
+
+/// Barra de la primera importación: los datos aparecen por fases (noches y vitales, últimos 14 días y el resto).
+struct ImportProgressCard: View {
+    let progress: ImportProgress
+
+    var body: some View {
+        Card {
+            HStack {
+                Label("Importando tu historial", systemImage: "arrow.down.circle")
+                    .font(.headline)
+                Spacer()
+                Text("\(Int((progress.fraction * 100).rounded())) %").font(.subheadline.weight(.semibold)).monospacedDigit()
+            }
+            ProgressView(value: progress.fraction)
+                .tint(Palette.recoveryHigh)
+            Text("\(progress.phase) · 6 meses de la Fitbit Air y del Apple Watch. Puedes usar la app mientras tanto.")
+                .font(.footnote).foregroundStyle(Palette.textSecondary)
+        }
+        .animation(.snappy, value: progress.fraction)
     }
 }
 

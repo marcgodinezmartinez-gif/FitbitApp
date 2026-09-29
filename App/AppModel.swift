@@ -23,6 +23,8 @@ final class AppModel {
     var connection = ConnectionState()
     var isSyncing = false
     var syncMessage: String?
+    /// Primera importación del historial en curso (fase y fracción), para la barra de progreso de Hoy.
+    var importProgress: ImportProgress?
     /// Día que se está viendo en «Hoy» (`nil` = ciclo actual).
     var selectedDate: LocalDate?
     var coachMonthSpend: Double = 0
@@ -157,8 +159,18 @@ final class AppModel {
     func sync(_ reason: SyncReason, awaitReports: Bool = false) async {
         guard let syncEngine, !settings.demoMode else { return }
         isSyncing = true
-        defer { isSyncing = false }
-        let report = await syncEngine.sync(reason, backfillDays: 90)
+        defer {
+            isSyncing = false
+            importProgress = nil
+        }
+        // La primera vez se importan 6 meses (lo que usa la edad fisiológica) y se enseña cada fase en cuanto está.
+        let firstImport = reason == .backfill
+        var handler: ImportProgressHandler?
+        if firstImport {
+            importProgress = ImportProgress(phase: "Conectando", fraction: 0.05)
+            handler = { [weak self] p in await self?.applyImportProgress(p) }
+        }
+        let report = await syncEngine.sync(reason, backfillDays: firstImport ? 180 : 90, progress: handler)
         if let out = report.output {
             output = out
             dataVersion += 1
@@ -179,6 +191,14 @@ final class AppModel {
         if let e = report.apple.error { problems.append("Apple Health: \(e)") }
         syncMessage = problems.isEmpty ? nil : problems.joined(separator: "\n")
         if reason == .pull { Haptics.soft() }
+    }
+
+    private func applyImportProgress(_ p: ImportProgress) {
+        importProgress = ImportProgress(phase: p.phase, fraction: p.fraction)
+        if let out = p.output {
+            output = out
+            dataVersion += 1
+        }
     }
 
     func recompute() async {

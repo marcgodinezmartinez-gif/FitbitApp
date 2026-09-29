@@ -17,6 +17,22 @@ public struct SourceResult: Sendable, Hashable {
     public static let skippedResult = SourceResult(ok: true, records: 0, error: nil, skipped: true)
 }
 
+/// Avance de la primera importación del historial (RF-SYN-01): fase, fracción y, tras cada fase, las métricas recalculadas
+/// para que la app enseñe tus datos sin esperar al final.
+public struct ImportProgress: Sendable {
+    public var phase: String
+    public var fraction: Double
+    public var output: MetricsOutput?
+
+    public init(phase: String, fraction: Double, output: MetricsOutput? = nil) {
+        self.phase = phase
+        self.fraction = fraction
+        self.output = output
+    }
+}
+
+public typealias ImportProgressHandler = @Sendable (ImportProgress) async -> Void
+
 public struct SyncReport: Sendable {
     public var google: SourceResult
     public var apple: SourceResult
@@ -47,23 +63,25 @@ public actor SyncEngine {
     }
 
     /// Sincroniza las dos fuentes en paralelo, recalcula y decide los avisos. Si ya hay una en curso, espera a esa.
-    public func sync(_ reason: SyncReason, backfillDays: Int = 90) async -> SyncReport {
+    /// En la primera importación (`.backfill`), `progress` recibe cada fase con las métricas ya recalculadas.
+    public func sync(_ reason: SyncReason, backfillDays: Int = 90, progress: ImportProgressHandler? = nil) async -> SyncReport {
         if let inFlight { return await inFlight.value }
-        let task = Task { await self.run(reason, backfillDays: backfillDays) }
+        let task = Task { await self.run(reason, backfillDays: backfillDays, progress: progress) }
         inFlight = task
         let r = await task.value
         inFlight = nil
         return r
     }
 
-    private func run(_ reason: SyncReason, backfillDays: Int) async -> SyncReport {
+    private func run(_ reason: SyncReason, backfillDays: Int, progress: ImportProgressHandler?) async -> SyncReport {
         let start = now()
         let settings = (try? db.settings()) ?? AppSettings()
         // Google como mucho una vez por minuto al volver a la app (RF-SYN-03).
         let googleDue = reason == .backfill || reason == .nightly || reason == .background
             || lastGoogleRun.map { start.timeIntervalSince($0) >= 60 } ?? true
         async let appleResult = runApple(settings: settings, backfillDays: backfillDays, reason: reason)
-        async let googleResult: SourceResult = googleDue ? runGoogle(reason: reason, backfillDays: backfillDays) : .skippedResult
+        async let googleResult: SourceResult = googleDue ? runGoogle(reason: reason, backfillDays: backfillDays, progress: progress)
+            : .skippedResult
         let (a, g) = await (appleResult, googleResult)
         if googleDue { lastGoogleRun = start }
 
@@ -161,7 +179,7 @@ public actor SyncEngine {
 
     // MARK: Google Health (Fitbit Air)
 
-    private func runGoogle(reason: SyncReason, backfillDays: Int) async -> SourceResult {
+    private func runGoogle(reason: SyncReason, backfillDays: Int, progress: ImportProgressHandler?) async -> SourceResult {
         guard let google, await google.isConnected() else { return .skippedResult }
         let start = now()
         let off = utcOffset()
@@ -175,7 +193,9 @@ public actor SyncEngine {
             from = min(recent, lastSynced.map { max($0.addingTimeInterval(-48 * 3600), start.addingTimeInterval(-Double(backfillDays) * 86_400)) } ?? start.addingTimeInterval(-Double(backfillDays) * 86_400))
         }
         do {
-            let records = try await importGoogle(google, from: from, to: start, utcOffset: off)
+            let records = reason == .backfill
+                ? try await backfillGoogle(google, from: from, to: start, utcOffset: off, progress: progress)
+                : try await importGoogle(google, from: from, to: start, utcOffset: off)
             try db.setSynced("google", until: start)
             try db.updateConnection {
                 $0.googleStatus = .active
@@ -199,7 +219,51 @@ public actor SyncEngine {
         }
     }
 
+    /// Sincronización normal: todo el intervalo de una vez.
     func importGoogle(_ g: GoogleHealthClient, from: Date, to: Date, utcOffset off: Int) async throws -> Int {
+        try await importGoogleMinutes(g, from: from, to: to) + importGoogleDaily(g, from: from, to: to, utcOffset: off)
+    }
+
+    /// Primera importación por fases (doc. 10 §5): 1) noches, vitales, entrenamientos y totales de todo el periodo (pocas
+    /// peticiones: el sueño y la recuperación aparecen en segundos); 2) FC y pasos por minuto de los últimos 14 días (carga y
+    /// estrés de hoy); 3) el resto de minutos, de lo más reciente a lo más antiguo. Tras cada fase se recalcula.
+    func backfillGoogle(_ g: GoogleHealthClient, from: Date, to: Date, utcOffset off: Int,
+                        progress: ImportProgressHandler?) async throws -> Int {
+        let fortnight: TimeInterval = 14 * 86_400
+        var records = try await importGoogleDaily(g, from: from, to: to, utcOffset: off)
+        await progress?(ImportProgress(phase: "Tus noches y vitales", fraction: 0.25, output: try? recompute()))
+        let recent = max(from, to.addingTimeInterval(-fortnight))
+        records += try await importGoogleMinutes(g, from: recent, to: to)
+        await progress?(ImportProgress(phase: "Tus últimos 14 días", fraction: 0.4, output: try? recompute()))
+        let older = recent.timeIntervalSince(from)
+        var end = recent
+        while end > from {
+            let start = max(from, end.addingTimeInterval(-fortnight))
+            records += try await importGoogleMinutes(g, from: start, to: end)
+            end = start
+            let done = older > 0 ? recent.timeIntervalSince(end) / older : 1
+            await progress?(ImportProgress(phase: "El resto de tu historial", fraction: 0.4 + 0.6 * done,
+                                           output: end <= from ? try? recompute() : nil))
+        }
+        return records
+    }
+
+    /// FC, pasos y distancia por minuto.
+    func importGoogleMinutes(_ g: GoogleHealthClient, from: Date, to: Date) async throws -> Int {
+        var records = 0
+        let hr = GoogleMapping.hrMinutes(try await g.rollUp(.heartRate, from: from, to: to))
+        try db.upsertHRMinutes(hr)
+        records += hr.count
+        let steps = try await g.rollUp(.steps, from: from, to: to)
+        let dist = try await g.rollUp(.distance, from: from, to: to)
+        let mins = GoogleMapping.activityMinutes(steps: steps, distance: dist)
+        try db.upsertActivityMinutes(mins)
+        records += mins.count
+        return records
+    }
+
+    /// Dispositivo, sueño, entrenamientos, vitales diarios, VO₂ máx. y totales del día.
+    func importGoogleDaily(_ g: GoogleHealthClient, from: Date, to: Date, utcOffset off: Int) async throws -> Int {
         var records = 0
         if let devices = try? await g.pairedDevices() {
             let tracker = devices.first { $0.deviceType == "TRACKER" } ?? devices.first
@@ -209,14 +273,6 @@ public actor SyncEngine {
                 $0.deviceName = tracker?.deviceVersion ?? $0.deviceName
             }
         }
-        let hr = GoogleMapping.hrMinutes(try await g.rollUp(.heartRate, from: from, to: to))
-        try db.upsertHRMinutes(hr)
-        records += hr.count
-        let steps = try await g.rollUp(.steps, from: from, to: to)
-        let dist = try await g.rollUp(.distance, from: from, to: to)
-        let mins = GoogleMapping.activityMinutes(steps: steps, distance: dist)
-        try db.upsertActivityMinutes(mins)
-        records += mins.count
 
         let sleepFilter = HealthFilter.make(.sleep, from: from, to: to.addingTimeInterval(3600), utcOffsetSeconds: off)
         let sleepPoints: [APIDataPoint]

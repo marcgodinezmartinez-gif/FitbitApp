@@ -174,3 +174,36 @@ struct FakeWatch: AppleHealthProvider {
         #expect(try db.weeklyPlanProgress(output: out, today: LocalDate(friday, utcOffsetSeconds: 7200), utcOffsetSeconds: 7200) == nil)
     }
 }
+
+/// Recoge los avisos de progreso de la importación.
+actor ProgressLog {
+    var items: [ImportProgress] = []
+    func add(_ p: ImportProgress) { items.append(p) }
+}
+
+@Suite struct BackfillTests {
+    @Test func firstImportGoesInPhasesWithMetricsAfterEach() async throws {
+        let db = try AppDatabase.inMemory()
+        let now = ISO8601DateFormatter().date(from: "2026-09-29T19:00:00Z")!
+        let tokens = InMemoryTokenStore(TokenSet(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, scope: nil))
+        let google = GoogleHealthClient(config: OAuthConfig(clientID: "c", reversedClientID: "r"), transport: CannedTransport([:]),
+                                        tokens: tokens, sleep: { _ in })
+        let engine = SyncEngine(db: db, google: google, apple: nil, now: { now }, utcOffset: { 7200 })
+        let log = ProgressLog()
+        let report = await engine.sync(.backfill, backfillDays: 45) { p in await log.add(p) }
+        #expect(report.google.ok && !report.google.skipped)
+        let phases = await log.items
+        // Noches y vitales → últimos 14 días → el resto en tramos de 14 días (31 días: 3 tramos).
+        #expect(phases.map(\.phase) == ["Tus noches y vitales", "Tus últimos 14 días", "El resto de tu historial",
+                                         "El resto de tu historial", "El resto de tu historial"])
+        #expect(phases.map(\.fraction) == phases.map(\.fraction).sorted())
+        #expect(phases.last?.fraction == 1)
+        #expect(phases[0].output != nil && phases[1].output != nil && phases.last?.output != nil)
+        #expect(phases[2].output == nil)
+        #expect(try db.connection().backfillCompleted)
+        // Una sincronización normal no informa de fases.
+        let quiet = ProgressLog()
+        _ = await engine.sync(.pull) { p in await quiet.add(p) }
+        #expect(await quiet.items.isEmpty)
+    }
+}

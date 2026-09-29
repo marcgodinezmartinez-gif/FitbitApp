@@ -118,7 +118,7 @@ Las condiciones exigen **guardar los datos con la misma granularidad con la que 
 
 | Momento | Mecanismo | Qué hace |
 |---|---|---|
-| Al conectar | Primer plano + `BGProcessingTask` | Importación de 90 días: primero las últimas 30 noches (sueño y vitales), luego FC por tramos de 14 días y el resto |
+| Al conectar | Primer plano + `BGProcessingTask` | Importación de **180 días** por fases, recalculando tras cada una: 1) sueño, vitales diarios, entrenamientos, VO₂ máx. y totales de todo el periodo (pocas peticiones: sueño y recuperación en segundos); 2) FC y pasos por minuto de los últimos 14 días; 3) el resto, en tramos de 14 días del más reciente al más antiguo, con barra de progreso en Hoy |
 | Al abrir la app y *pull-to-refresh* | Primer plano | Últimas 48 h de cada tipo + huecos desde `sync_state.synced_until` |
 | Mañana | `BGAppRefreshTask` programada para la hora habitual de despertar (reprogramada si aún no hay sueño) | Sueño y vitales de la noche ⇒ recuperación ⇒ notificación local |
 | Noche | `BGProcessingTask` (cargando y con Wi-Fi) | Revisión de 7 días (datos editados o tardíos) y recálculo de líneas base |
