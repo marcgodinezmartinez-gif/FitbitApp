@@ -1,0 +1,32 @@
+name: Paquetes (Linux)
+
+# Tests de la lógica (métricas, fusión, Google Health, BD, sincronización y Coach) en cada push: rápido y barato.
+on:
+  push:
+    paths:
+      - "Packages/**"
+      - ".github/workflows/ci-linux.yml"
+  pull_request:
+    paths:
+      - "Packages/**"
+  workflow_dispatch:
+
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: swift:6.3-noble
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencias del sistema
+        run: apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null
+      - name: Compilar
+        working-directory: Packages/RecuperaKit
+        run: swift build --build-tests
+      - name: Tests
+        working-directory: Packages/RecuperaKit
+        run: swift test --skip-build

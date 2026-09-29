@@ -19,6 +19,25 @@ import Testing
         #expect(merged.coachEnabled && merged.units == .metric && merged.coachDailyLimit == 20)
     }
 
+    @Test func journalRangesAndExport() throws {
+        let db = try AppDatabase.inMemory()
+        let d1 = LocalDate(year: 2026, month: 9, day: 27), d2 = LocalDate(year: 2026, month: 9, day: 28)
+        try db.saveJournalAnswer(JournalAnswer(date: d1, questionKey: "alcohol", yes: true))
+        try db.saveJournalAnswer(JournalAnswer(date: d2, questionKey: "alcohol", yes: false))
+        try db.saveJournalAnswer(JournalAnswer(date: d2, questionKey: "note"), note: "Día largo")
+        #expect(try db.journalAnswers(from: d1, to: d2).map(\.yes) == [true, false])
+        #expect(try db.journalAnswers(from: d2, to: d2).count == 1)
+        #expect(try db.journalNotes(from: d1, to: d2) == ["2026-09-28": "Día largo"])
+        try db.addCoachSpend(day: "2026-09-28", questions: 1, costUSD: 0.05)
+        try db.addCoachSpend(day: "2026-09-28", questions: 1, costUSD: 0.02)
+        let spend = try db.coachSpend(fromDay: "2026-09-01")
+        #expect(spend.questions == 2 && abs(spend.costUSD - 0.07) < 1e-9)
+        let files = try db.exportAll()
+        #expect(files["journal_answer.json"]?.contains("Día largo") == true)
+        #expect(files.keys.contains("coach_message.json"))
+        #expect(!files.keys.contains("hk_anchor.json"))
+    }
+
     @Test func idempotentIngestion() throws {
         let db = try AppDatabase.inMemory()
         let mins = (0..<10).map { HRMinute(minute: 1_790_000_000 + $0 * 60, bpmAvg: 60, source: .googleHealth) }

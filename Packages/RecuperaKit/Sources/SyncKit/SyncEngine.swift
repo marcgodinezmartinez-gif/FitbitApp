@@ -108,7 +108,8 @@ public actor SyncEngine {
         return WidgetSnapshot(date: cur.date.isoString, updatedAt: now(), sleepPerformance: cur.sleep.map { Int($0.performance.rounded()) },
                               recovery: cur.recovery.score, recoveryZone: cur.recovery.zone?.rawValue, strain: cur.strain.strain,
                               targetLow: cur.target?.low, targetHigh: cur.target?.high,
-                              recommendation: TodayRecommendation.text(for: cur, output: out, profile: profile), bedtime: bedtime)
+                              recommendation: TodayRecommendation.text(for: cur, output: out, profile: profile), bedtime: bedtime,
+                              showValuesOnLockScreen: (try? db.settings())?.lockscreenShowsValues)
     }
 
     func sentNotifications() -> [String: Date] {

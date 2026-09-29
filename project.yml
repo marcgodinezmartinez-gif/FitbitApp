@@ -1,0 +1,93 @@
+# Definición del proyecto para XcodeGen (ADR 011). El .xcodeproj se genera en CI y no se versiona.
+# Uso: cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig (y rellenarlo) · xcodegen generate
+name: Recupera
+
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: es
+
+configFiles:
+  Debug: Config/Secrets.xcconfig
+  Release: Config/Secrets.xcconfig
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # La interfaz se escribe en modo Swift 5 (concurrencia mínima); los paquetes, en Swift 6 estricto.
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    TARGETED_DEVICE_FAMILY: "1"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+
+packages:
+  RecuperaKit:
+    path: Packages/RecuperaKit
+
+targets:
+  Recupera:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: RecuperaKit
+        product: MetricsKit
+      - package: RecuperaKit
+        product: HealthAPI
+      - package: RecuperaKit
+        product: Store
+      - package: RecuperaKit
+        product: Insights
+      - package: RecuperaKit
+        product: CoachKit
+      - package: RecuperaKit
+        product: SyncKit
+      - target: RecuperaWidgets
+        embed: true
+      - sdk: HealthKit.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
+        PRODUCT_NAME: Recupera
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/Recupera.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  RecuperaWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+    dependencies:
+      - package: RecuperaKit
+        product: MetricsKit
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).widgets
+        PRODUCT_NAME: RecuperaWidgets
+        INFOPLIST_FILE: Widgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Widgets/RecuperaWidgets.entitlements
+        SKIP_INSTALL: YES
+
+schemes:
+  Recupera:
+    build:
+      targets:
+        Recupera: all
+        RecuperaWidgets: all
+    run:
+      config: Debug
+    archive:
+      config: Release

@@ -443,6 +443,30 @@ extension AppDatabase {
         }
     }
 
+    /// Respuestas del diario entre dos fechas (incluidas), para el Coach y las pantallas.
+    public func journalAnswers(from: LocalDate, to: LocalDate) throws -> [JournalAnswer] {
+        try writer.read { db in
+            try Row.fetchAll(db, sql: "SELECT * FROM journal_answer WHERE date >= ? AND date <= ? AND question_key != 'note' ORDER BY date",
+                             arguments: [from.isoString, to.isoString]).compactMap { r in
+                guard let d = LocalDate(isoString: r["date"]) else { return nil }
+                let yes: Int? = r["yes"]
+                return JournalAnswer(date: d, questionKey: r["question_key"], yes: yes.map { $0 != 0 }, number: r["number"])
+            }
+        }
+    }
+
+    /// Notas libres del diario por fecha ISO.
+    public func journalNotes(from: LocalDate, to: LocalDate) throws -> [String: String] {
+        try writer.read { db in
+            var out: [String: String] = [:]
+            for r in try Row.fetchAll(db, sql: "SELECT date, note FROM journal_answer WHERE question_key = 'note' AND date >= ? AND date <= ?",
+                                      arguments: [from.isoString, to.isoString]) {
+                if let note: String = r["note"], !note.isEmpty { out[r["date"]] = note }
+            }
+            return out
+        }
+    }
+
     public func journalNote(on date: LocalDate) throws -> String? {
         try writer.read { db in
             try String.fetchOne(db, sql: "SELECT note FROM journal_answer WHERE date = ? AND question_key = 'note'", arguments: [date.isoString])
@@ -597,6 +621,35 @@ extension AppDatabase {
 
     public func deleteMemory(category: String, key: String) throws {
         try writer.write { db in try db.execute(sql: "DELETE FROM coach_memory WHERE category = ? AND key = ?", arguments: [category, key]) }
+    }
+
+    /// Exportación completa en JSON legible (RF-PRI-01): un fichero por tabla, sin *tokens* ni claves.
+    public func exportAll() throws -> [String: String] {
+        try writer.read { db in
+            var files: [String: String] = [:]
+            let tables = ["app_state", "sync_log", "sleep_session", "vitals", "daily_source_totals", "vo2max", "activity",
+                          "activity_annotation", "journal_answer", "strain_mode", "cycle_metrics", "fused_activity", "day_analysis",
+                          "report", "coach_thread", "coach_message", "coach_memory", "coach_spend", "privacy_event"]
+            for table in tables {
+                let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(table)")
+                let objects: [[String: Any]] = rows.map { row in
+                    var o: [String: Any] = [:]
+                    for (column, value) in row {
+                        switch value.storage {
+                        case .null: o[column] = NSNull()
+                        case .int64(let i): o[column] = i
+                        case .double(let d): o[column] = d
+                        case .string(let s): o[column] = s
+                        case .blob(let b): o[column] = b.base64EncodedString()
+                        }
+                    }
+                    return o
+                }
+                let data = try JSONSerialization.data(withJSONObject: objects, options: [.prettyPrinted, .sortedKeys])
+                files["\(table).json"] = String(decoding: data, as: UTF8.self)
+            }
+            return files
+        }
     }
 
     /// «Borrar todos los datos» (RF-PRI-02): vacía todas las tablas.

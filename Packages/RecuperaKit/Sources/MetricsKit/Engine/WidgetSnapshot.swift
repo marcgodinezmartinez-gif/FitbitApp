@@ -12,9 +12,11 @@ public struct WidgetSnapshot: Codable, Sendable, Hashable {
     public var targetHigh: Double?
     public var recommendation: String
     public var bedtime: String?
+    /// Mostrar cifras en la pantalla de bloqueo (RF-WID-04); si no, los *widgets* de bloqueo las ocultan.
+    public var showValuesOnLockScreen: Bool?
 
     public init(date: String, updatedAt: Date, sleepPerformance: Int?, recovery: Int?, recoveryZone: String?, strain: Double,
-                targetLow: Double?, targetHigh: Double?, recommendation: String, bedtime: String?) {
+                targetLow: Double?, targetHigh: Double?, recommendation: String, bedtime: String?, showValuesOnLockScreen: Bool? = nil) {
         self.date = date
         self.updatedAt = updatedAt
         self.sleepPerformance = sleepPerformance
@@ -25,6 +27,7 @@ public struct WidgetSnapshot: Codable, Sendable, Hashable {
         self.targetHigh = targetHigh
         self.recommendation = recommendation
         self.bedtime = bedtime
+        self.showValuesOnLockScreen = showValuesOnLockScreen
     }
 
     public static let placeholder = WidgetSnapshot(date: "2026-09-29", updatedAt: Date(timeIntervalSince1970: 1_790_000_000),
