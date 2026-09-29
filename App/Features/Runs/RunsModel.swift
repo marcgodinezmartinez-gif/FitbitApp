@@ -51,7 +51,7 @@ final class RunsModel {
             vo2 = (try? db.vo2maxValues()) ?? []
         } else {
             shoes = Self.demoShoes
-            vo2 = []
+            vo2 = model.demoVO2
         }
         isLoading = false
     }

@@ -127,6 +127,7 @@ enum SyntheticRun {
         // Vueltas del reloj, técnica, comparación y gráficas.
         #expect(r.laps.count == 2 && abs((r.laps[0].distanceM ?? 0) - 3000) < 10)
         #expect(r.form.first { $0.metric == .cadence }?.rating == .good)
+        #expect(r.form.first { $0.metric == .power }?.note.contains(",") == true)
         #expect(abs((r.verticalRatioPct ?? 0) - 8 / 1.16) < 0.1)
         let c = try #require(r.comparison)
         #expect(abs((c.hrBias ?? 0) - 2) < 0.5 && c.fitbitVO2max == 50 && c.fitbitCadence == 170)
@@ -262,6 +263,30 @@ enum SyntheticRun {
         let steady = RunHistory(summaries: (0..<60).map { k in summary(LocalDate(year: 2026, month: 8, day: 1).adding(days: k).isoString, km: 5) })
         let points = steady.fitness(days: 30, today: LocalDate(year: 2026, month: 9, day: 29))
         #expect(points.count == 30 && points.last!.fatigue > points.last!.fitness && points.last!.fitness > 30)
+    }
+
+    @Test func vdotBlendsTrainingEffortsWithEstimates() throws {
+        let today = LocalDate(year: 2026, month: 9, day: 30)
+        // Una marca floja de entrenamiento (5 km en 25:00, VDOT ≈ 38) y VO₂ estimados de 46: se queda a medio camino.
+        var runs = [summary("2026-09-20", km: 6, efforts: [.k5: 25 * 60])]
+        for day in ["2026-09-24", "2026-09-26", "2026-09-28"] {
+            var s = summary(day, km: 8)
+            s.vo2maxEstimate = 46
+            runs.append(s)
+        }
+        let v = try #require(RunHistory(summaries: runs).vdot(today: today))
+        let effort = try #require(RunPhysiology.vdot(meters: 5000, seconds: 25 * 60))
+        #expect(v.blended && !v.fromEstimates && v.distance == .k5 && abs(v.value - (effort + 46) / 2) < 0.01)
+        // Si la marca ya es mejor que lo estimado, manda la marca.
+        let fast = try #require(RunHistory(summaries: [summary("2026-09-20", km: 6, efforts: [.k5: 19 * 60 + 57])] + runs.dropFirst())
+            .vdot(today: today))
+        #expect(!fast.blended && abs(fast.value - 50) < 0.5)
+    }
+
+    @Test func rollingMeanSmoothsPerRunValues() {
+        #expect(RunHistory.rollingMean([1, 2, 3, 4, 5], radius: 1) == [1.5, 2, 3, 4, 4.5])
+        #expect(RunHistory.rollingMean([1, 2, 3, 4, 5]) == [2, 2.5, 3, 3.5, 4])
+        #expect(RunHistory.rollingMean([7, 9]) == [7, 9])
     }
 
     @Test func shoesCountTheirKilometers() {

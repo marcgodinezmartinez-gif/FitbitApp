@@ -165,12 +165,14 @@ struct RunPerformanceCard: View {
     private func basis(_ v: VDOTEstimate) -> String {
         if v.fromEstimates { return "según el VO₂ máx. estimado de tus últimas carreras" }
         guard let d = v.distance, let s = v.seconds, let date = v.date else { return "" }
-        return "por tus \(d.label) en \(RunFormat.time(s)) (\(date.day)/\(date.month))"
+        let effort = "tus \(d.label) en \(RunFormat.time(s)) (\(RunFormat.shortDate(date, today: runs.today)))"
+        // Las marcas de entrenamiento se quedan cortas: si el VO₂ estimado apunta más alto, el VDOT es la media de ambos.
+        return v.blended ? "por \(effort) y por el VO₂ máx. estimado de tus últimas carreras" : "por \(effort)"
     }
 
     private func paceRange(_ p: TrainingPace) -> String {
         p.slowSpeed == p.fastSpeed ? RunFormat.paceFromSpeed(p.fastSpeed) + " /km"
-            : "\(RunFormat.paceFromSpeed(p.slowSpeed))–\(RunFormat.paceFromSpeed(p.fastSpeed)) /km"
+            : "\(RunFormat.paceFromSpeed(p.fastSpeed))–\(RunFormat.paceFromSpeed(p.slowSpeed)) /km"
     }
 
     var body: some View {
@@ -202,28 +204,49 @@ struct RunPerformanceCard: View {
 struct RunVO2Card: View {
     let runs: RunsModel
 
-    private var values: [DatedValue] {
+    private struct Plot {
+        var values: [DatedValue] = []
+        /// Series con un valor por carrera: se dibuja su media móvil.
+        var smoothed: Set<String> = ["Estimado"]
+    }
+
+    private var data: Plot {
         let from = runs.today.adding(days: -180)
+        let recent = runs.summaries.filter { $0.date >= from }
+        var d = Plot()
         let measured = runs.vo2.filter { $0.date >= from }.map { v in
             DatedValue(date: v.date.startDate(utcOffsetSeconds: 0), value: v.value, series: v.source == .appleHealth ? "Apple Watch" : "Fitbit Air")
         }
-        let estimated = runs.summaries.filter { $0.date >= from }.compactMap { s in
-            s.vo2maxEstimate.map { DatedValue(date: s.start, value: $0, series: "Estimado") }
+        d.values = measured + recent.compactMap { s in s.vo2maxEstimate.map { DatedValue(date: s.start, value: $0, series: "Estimado") } }
+        // El que da la Fitbit en cada carrera, solo si no llega el diario (es casi el mismo dato y la línea iría en zigzag).
+        if !measured.contains(where: { $0.series == "Fitbit Air" }) {
+            d.values += recent.compactMap { s in s.fitbitVO2max.map { DatedValue(date: s.start, value: $0, series: "Fitbit Air") } }
+            d.smoothed.insert("Fitbit Air")
         }
-        let fitbitRuns = runs.summaries.filter { $0.date >= from }.compactMap { s in
-            s.fitbitVO2max.map { DatedValue(date: s.start, value: $0, series: "Fitbit Air") }
-        }
-        return (measured + estimated + fitbitRuns).sorted { $0.date < $1.date }
+        d.values.sort { $0.date < $1.date }
+        return d
+    }
+
+    /// El último valor de cada fuente (en las de cada carrera, la media de las 5 últimas).
+    private func latest(_ d: Plot) -> String {
+        ["Apple Watch", "Fitbit Air", "Estimado"].compactMap { series -> String? in
+            let list = d.values.filter { $0.series == series }.map(\.value)
+            guard let last = list.last else { return nil }
+            let v = d.smoothed.contains(series) ? (Stats.mean(Array(list.suffix(5))) ?? last) : last
+            return "\(series) \(Format.decimal(v))"
+        }.joined(separator: " · ")
     }
 
     var body: some View {
-        let list = values
-        if !list.isEmpty {
+        let d = data
+        if !d.values.isEmpty {
             Card {
                 SectionHeader(title: "VO₂ máx.", trailing: "ml/kg/min · 6 meses")
-                DatedValueChart(values: list, formatter: { Format.decimal($0) },
-                                colors: ["Apple Watch": Palette.recoveryLow, "Fitbit Air": Palette.fitbit, "Estimado": Palette.strain])
-                Text("«Estimado» sale del ritmo y la FC de cada carrera: compáralo con lo que dicen el reloj y la pulsera.")
+                Text(latest(d)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                DatedValueChart(values: d.values, formatter: { Format.decimal($0) },
+                                colors: ["Apple Watch": Palette.recoveryLow, "Fitbit Air": Palette.fitbit, "Estimado": Palette.strain],
+                                smoothed: d.smoothed)
+                Text("«Estimado» sale del ritmo y la FC de cada carrera; los puntos son cada carrera y la línea, la media de cinco. Compáralo con lo que dicen el reloj y la pulsera.")
                     .font(.caption).foregroundStyle(Palette.textSecondary)
             }
         }
@@ -234,31 +257,33 @@ struct RunVO2Card: View {
 
 struct RunRecordsCard: View {
     let runs: RunsModel
-    static let shown: [RaceDistance] = [.k1, .mile, .k5, .k10, .half, .marathon]
+    static let shown: [RaceDistance] = [.k1, .mile, .k3, .k5, .k10, .half, .marathon]
+
+    private func row(_ name: String, value: String, date: LocalDate, runID: String, primary: Bool = true) -> some View {
+        NavigationLink(value: DetailRoute.run(runID)) {
+            HStack {
+                Text(name).foregroundStyle(primary ? Palette.textPrimary : Palette.textSecondary)
+                Spacer()
+                Text(RunFormat.shortDate(date, today: runs.today)).font(.caption).foregroundStyle(Palette.textSecondary)
+                Text(value).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Palette.textPrimary)
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Palette.textSecondary)
+            }
+            .font(.subheadline)
+        }
+        .buttonStyle(.plain)
+    }
 
     var body: some View {
         let records = runs.history.records().filter { Self.shown.contains($0.distance) }
         if !records.isEmpty {
             Card {
                 SectionHeader(title: "Récords", trailing: "tus mejores marcas")
-                ForEach(records) { r in
-                    NavigationLink(value: DetailRoute.run(r.runID)) {
-                        HStack {
-                            Text(r.distance.label).foregroundStyle(Palette.textPrimary)
-                            Spacer()
-                            Text("\(r.date.day)/\(r.date.month)/\(String(r.date.year % 100))").font(.caption).foregroundStyle(Palette.textSecondary)
-                            Text(RunFormat.time(r.seconds)).font(.subheadline.weight(.semibold)).monospacedDigit().foregroundStyle(Palette.textPrimary)
-                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Palette.textSecondary)
-                        }
-                        .font(.subheadline)
-                    }
-                    .buttonStyle(.plain)
-                }
+                ForEach(records) { r in row(r.distance.label, value: RunFormat.time(r.seconds), date: r.date, runID: r.runID) }
                 if let longest = runs.history.longestRun {
-                    RunRow(name: "Tirada más larga", value: RunFormat.distance(longest.distanceM), detail: RunFormat.date(longest))
+                    row("Tirada más larga", value: RunFormat.distance(longest.distanceM), date: longest.date, runID: longest.id, primary: false)
                 }
                 if let climb = runs.history.biggestClimb, let gain = climb.elevationGainM {
-                    RunRow(name: "Más desnivel", value: "\(Int(gain.rounded())) m", detail: RunFormat.date(climb))
+                    row("Más desnivel", value: "\(Int(gain.rounded())) m", date: climb.date, runID: climb.id, primary: false)
                 }
             }
         }
@@ -307,7 +332,7 @@ struct RunTrendsCard: View {
                 .pickerStyle(.menu)
             }
             if list.count >= 2 {
-                DatedValueChart(values: list, reversed: !metric.higherIsBetter, formatter: format)
+                DatedValueChart(values: list, reversed: !metric.higherIsBetter, formatter: format, smoothed: ["Valor"])
                 if let text = change(list) { Text(text).font(.subheadline).foregroundStyle(Palette.textSecondary) }
                 if metric == .efficiency {
                     Text("Eficiencia: metros por minuto (ajustados por pendiente) por cada latido. Si sube, corres más rápido con el mismo pulso.")

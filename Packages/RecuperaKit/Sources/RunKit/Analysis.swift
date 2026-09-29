@@ -541,7 +541,7 @@ public enum RunAnalyzer {
     static func form(_ r: RunAnalysis, weightKg: Double?) -> [FormMetric] {
         var out: [FormMetric] = []
         if let c = r.avgCadence {
-            let rating: FormMetric.Rating = c >= 170 && c <= 192 ? .good : (c >= 162 ? .fair : (c > 192 ? .good : .poor))
+            let rating: FormMetric.Rating = c >= 170 ? .good : (c >= 162 ? .fair : .poor)
             out.append(FormMetric(metric: .cadence, value: c, rating: rating,
                                   note: c < 170 ? "Más pasos cortos (5–10 % más de cadencia) reducen el impacto." : "Buena frecuencia de paso."))
         }
@@ -566,7 +566,8 @@ public enum RunAnalyzer {
         if let p = r.avgPower {
             let perKg = weightKg.map { p / $0 }
             out.append(FormMetric(metric: .power, value: p, rating: .info,
-                                  note: perKg.map { "\(String(format: "%.2f", $0)) W/kg" } ?? "Potencia media en movimiento."))
+                                  note: perKg.map { "\(String(format: "%.2f", $0).replacingOccurrences(of: ".", with: ",")) W/kg de media en movimiento." }
+                                      ?? "Potencia media en movimiento."))
         }
         return out
     }

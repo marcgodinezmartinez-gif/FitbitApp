@@ -53,6 +53,8 @@ final class AppModel {
     @ObservationIgnored private var deliveryStarted = false
     @ObservationIgnored private var demoProfile = UserProfile()
     @ObservationIgnored private var demoJournal: [JournalAnswer] = []
+    /// VO₂ máx. de los datos de ejemplo (la pestaña Correr los dibuja como si vinieran del reloj).
+    @ObservationIgnored private(set) var demoVO2: [VO2MaxValue] = []
     @ObservationIgnored private var demoStrength: [String: [StrengthSet]] = [:]
     /// Último intento fallido de cada informe (no se reintenta antes de 3 h) y si hay uno en curso.
     @ObservationIgnored private var reportFailures: [String: Date] = [:]
@@ -314,6 +316,7 @@ final class AppModel {
         }.value
         demoProfile = result.0.profile
         demoJournal = result.0.journal
+        demoVO2 = result.0.vo2max
         output = result.1
         weeklyPlan = WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness, createdAt: Date())
         loadDemoReports()

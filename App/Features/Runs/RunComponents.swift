@@ -37,6 +37,12 @@ enum RunFormat {
     static func date(_ s: RunSummary) -> String {
         "\(Format.weekdayName(s.date).capitalized) \(s.date.day) \(Format.monthName(s.date.month).prefix(3))"
     }
+
+    /// «7 jul» (con el año si no es el actual).
+    static func shortDate(_ d: LocalDate, today: LocalDate) -> String {
+        let text = "\(d.day) \(Format.monthName(d.month).prefix(3))"
+        return d.year == today.year ? text : "\(text) \(d.year)"
+    }
 }
 
 extension FormMetric.Rating {
@@ -210,18 +216,44 @@ struct DatedValueChart: View {
     var reversed = false
     var formatter: (Double) -> String = { Format.decimal($0) }
     var colors: KeyValuePairs<String, Color> = ["Valor": Palette.strain]
+    /// Series con un valor por carrera (ruidosas): puntos tenues y, encima, su media móvil.
+    var smoothed: Set<String> = []
+
+    /// Una línea por serie: tal cual o, si es ruidosa, su media móvil de 5 valores.
+    private var lines: [DatedValue] {
+        Dictionary(grouping: values, by: \.series).values.flatMap { list -> [DatedValue] in
+            let sorted = list.sorted { $0.date < $1.date }
+            guard let series = sorted.first?.series, smoothed.contains(series), sorted.count >= 4 else { return sorted }
+            return zip(sorted, RunHistory.rollingMean(sorted.map(\.value))).map { DatedValue(date: $0.date, value: $1, series: series) }
+        }
+    }
+
+    /// Más de dos meses y medio: una marca por mes («jul», «ago»…).
+    private var monthly: Bool {
+        guard let a = values.map(\.date).min(), let b = values.map(\.date).max() else { return false }
+        return b.timeIntervalSince(a) > 75 * 86_400
+    }
 
     var body: some View {
-        Chart(values) { v in
-            LineMark(x: .value("Fecha", v.date), y: .value("Valor", v.value), series: .value("Serie", v.series))
-                .foregroundStyle(by: .value("Serie", v.series))
-                .interpolationMethod(.monotone)
-                .opacity(0.5)
-            PointMark(x: .value("Fecha", v.date), y: .value("Valor", v.value))
-                .foregroundStyle(by: .value("Serie", v.series))
-                .symbolSize(24)
+        let lines = self.lines
+        let xValues: AxisMarkValues = monthly ? .stride(by: .month) : .automatic(desiredCount: 4)
+        let xFormat: Date.FormatStyle = monthly ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated)
+        Chart {
+            ForEach(values) { v in
+                PointMark(x: .value("Fecha", v.date), y: .value("Valor", v.value))
+                    .foregroundStyle(by: .value("Serie", v.series))
+                    .symbolSize(smoothed.contains(v.series) ? 14 : 22)
+                    .opacity(smoothed.contains(v.series) ? 0.35 : 0.9)
+            }
+            ForEach(lines) { v in
+                LineMark(x: .value("Fecha", v.date), y: .value("Valor", v.value), series: .value("Serie", v.series))
+                    .foregroundStyle(by: .value("Serie", v.series))
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+            }
         }
         .chartForegroundStyleScale(colors)
+        .chartLegend(Set(values.map(\.series)).count > 1 ? .visible : .hidden)
         .chartYScale(domain: .automatic(includesZero: false, reversed: reversed))
         .chartYAxis {
             AxisMarks { value in
@@ -229,7 +261,7 @@ struct DatedValueChart: View {
                 AxisValueLabel { if let v = value.as(Double.self) { Text(formatter(v)) } }
             }
         }
-        .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
+        .chartXAxis { AxisMarks(values: xValues) { _ in AxisValueLabel(format: xFormat) } }
         .frame(height: 180)
     }
 }
@@ -318,6 +350,28 @@ struct RunMetricChart: View {
         return valid.min { abs(x($0) - selected) < abs(x($1) - selected) }
     }
 
+    /// Franja que se dibuja, sin que un pico suelto (un parón, un salto del GPS) aplaste la gráfica.
+    /// La del ritmo va de medio minuto en medio minuto.
+    private var band: ClosedRange<Double>? {
+        guard metric != .altitude, metric != .heartRate else { return nil }
+        let vs = valid.compactMap { metric.value($0) }.sorted()
+        guard vs.count >= 10 else { return nil }
+        let lo = vs[Int(Double(vs.count - 1) * 0.02)], hi = vs[Int(Double(vs.count - 1) * 0.98)]
+        if metric == .pace {
+            let a = ((lo - 10) / 30).rounded(.down) * 30
+            return a...max(((hi + 10) / 30).rounded(.up) * 30, a + 60)
+        }
+        let pad = max((hi - lo) * 0.1, abs(hi) * 0.01)
+        return (lo - pad)...(hi + pad)
+    }
+
+    /// Valor que se dibuja: recortado a la franja y, en el ritmo, con el signo cambiado para que lo rápido quede arriba.
+    private func plotted(_ v: Double, _ band: ClosedRange<Double>?) -> Double {
+        guard let band else { return v }
+        let c = min(max(v, band.lowerBound), band.upperBound)
+        return metric == .pace ? -c : c
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -338,7 +392,8 @@ struct RunMetricChart: View {
     }
 
     private var chart: some View {
-        Chart {
+        let band = self.band
+        return Chart {
             if metric == .heartRate, let zones {
                 ForEach(Array(zones.lowerBounds.enumerated()), id: \.offset) { i, lb in
                     RuleMark(y: .value("Zona", lb))
@@ -357,12 +412,12 @@ struct RunMetricChart: View {
                     LineMark(x: .value("X", x(p)), y: .value("lpm", p.hrFitbit ?? 0), series: .value("Fuente", "Fitbit Air"))
                         .foregroundStyle(by: .value("Fuente", "Fitbit Air"))
                 } else {
-                    LineMark(x: .value("X", x(p)), y: .value(metric.label, metric.value(p) ?? 0))
+                    LineMark(x: .value("X", x(p)), y: .value(metric.label, plotted(metric.value(p) ?? 0, band)))
                         .foregroundStyle(metric.color)
                         .interpolationMethod(.monotone)
                 }
                 if metric == .pace, let g = p.gap {
-                    LineMark(x: .value("X", x(p)), y: .value("GAP", g), series: .value("Serie", "GAP"))
+                    LineMark(x: .value("X", x(p)), y: .value("GAP", plotted(g, band)), series: .value("Serie", "GAP"))
                         .foregroundStyle(Palette.textSecondary.opacity(0.6))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                 }
@@ -374,19 +429,43 @@ struct RunMetricChart: View {
         .chartForegroundStyleScale(["Apple Watch": Palette.recoveryLow, "Fitbit Air": Palette.fitbit])
         .chartLegend(metric == .heartRate ? .visible : .hidden)
         .chartXSelection(value: $selected)
-        .chartYScale(domain: .automatic(includesZero: false, reversed: metric == .pace))
-        .chartYAxis {
-            AxisMarks { value in
-                AxisGridLine().foregroundStyle(Palette.separator)
-                AxisValueLabel { if let v = value.as(Double.self) { Text(metric.format(v)) } }
-            }
-        }
+        .modifier(RunChartYAxis(metric: metric, paceBand: metric == .pace ? band : nil))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 5)) { value in
                 AxisValueLabel { if let v = value.as(Double.self) { Text(byDistance ? "\(Format.decimal(v, digits: v < 10 ? 1 : 0))" : "\(Int(v))′") } }
             }
         }
         .frame(height: 200)
+    }
+}
+
+/// Eje Y de las gráficas de una carrera. El ritmo va con lo rápido arriba y una marca cada medio minuto (o cada minuto).
+private struct RunChartYAxis: ViewModifier {
+    var metric: RunChartMetric
+    var paceBand: ClosedRange<Double>?
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if let band = paceBand {
+            let step: Double = band.upperBound - band.lowerBound > 180 ? 60 : 30
+            let ticks: [Double] = stride(from: band.lowerBound, through: band.upperBound, by: step).map { -$0 }
+            content
+                .chartYScale(domain: -band.upperBound ... -band.lowerBound)
+                .chartYAxis {
+                    AxisMarks(values: ticks) { value in
+                        AxisGridLine().foregroundStyle(Palette.separator)
+                        AxisValueLabel { if let v = value.as(Double.self) { Text(metric.format(-v)) } }
+                    }
+                }
+        } else {
+            content
+                .chartYScale(domain: .automatic(includesZero: false, reversed: metric == .pace))
+                .chartYAxis {
+                    AxisMarks { value in
+                        AxisGridLine().foregroundStyle(Palette.separator)
+                        AxisValueLabel { if let v = value.as(Double.self) { Text(metric.format(v)) } }
+                    }
+                }
+        }
     }
 }
 

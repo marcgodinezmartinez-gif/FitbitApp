@@ -82,7 +82,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 | Desacoplamiento | (EF 1.ª mitad − EF 2.ª mitad) / EF 1.ª mitad, con 20 min o más y FC en al menos el 70 % del tiempo | Friel |
 | Potencia crítica | 95 % de la mejor media de 20 min (o 90 % de la de 10 min) de los últimos 90 días | — |
 
-**VDOT actual.** Es la mejor marca de 3 km o más de los últimos 120 días. Si la mediana de los VO₂ máx. estimados de tus últimas carreras es más alta, se usa la media de los dos: las marcas de entrenamiento lo infravaloran.
+**VDOT actual.** Es la mejor marca de 3 km o más de los últimos 120 días. Si la mediana de los VO₂ máx. estimados de tus últimas carreras es más alta, se usa la media de los dos: las marcas de entrenamiento lo infravaloran. La tarjeta dice de dónde sale (la marca, con su fecha, y si se ha promediado con lo estimado).
 
 ## 4. Análisis de una carrera
 
@@ -101,6 +101,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 
 - Ritmo con GAP, FC con las dos fuentes, altitud, cadencia, potencia, zancada, oscilación y contacto.
 - Por distancia o por tiempo, con selección al deslizar el dedo.
+- La escala no se deja aplastar por un pico suelto (un parón, un salto del GPS): se dibuja entre los percentiles 2 y 98. El ritmo va con lo rápido arriba y marcas cada medio minuto.
 
 **Tramos:**
 
@@ -156,12 +157,12 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 **Rendimiento:**
 
 - VDOT, predicciones de 5 km a maratón y ritmos de entrenamiento con su propósito.
-- VO₂ máx. de 6 meses: el del Watch, el de la Fitbit (diario y por carrera) y el estimado por la app.
+- VO₂ máx. de 6 meses: el del Watch, el de la Fitbit (el diario o, si no llega, el de cada carrera) y el estimado por la app. Los valores de cada carrera se ven como puntos, con una línea que es su media móvil de cinco carreras, y arriba el último valor de cada fuente.
 
 **Marcas y tendencias:**
 
-- Récords y tirada más larga.
-- Tendencias de 6 meses: ritmo, eficiencia, VO₂ máx., FC, cadencia, zancada, contacto, oscilación, potencia y desacoplamiento, con la mejora o el empeoramiento.
+- Récords (1 km, milla, 3, 5 y 10 km, media y maratón), tirada más larga y carrera con más desnivel; cada fila abre su carrera.
+- Tendencias de 6 meses: ritmo, eficiencia, VO₂ máx., FC, cadencia, zancada, contacto, oscilación, potencia y desacoplamiento, con la mejora o el empeoramiento. Cada carrera es un punto y la línea es la media móvil de cinco.
 
 **Configuración:**
 

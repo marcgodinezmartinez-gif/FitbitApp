@@ -171,6 +171,8 @@ public struct VDOTEstimate: Sendable, Hashable {
     public var date: LocalDate?
     /// true si sale de la media de VO₂ máx. estimados (no hay marcas buenas recientes).
     public var fromEstimates: Bool
+    /// true si la marca se ha promediado con los VO₂ máx. estimados (que apuntaban más alto).
+    public var blended = false
 }
 
 public enum RunTrendMetric: String, CaseIterable, Sendable, Identifiable {
@@ -331,7 +333,10 @@ public struct RunHistory: Sendable {
         let estimates = recent.suffix(10).compactMap(\.vo2maxEstimate)
         if let median = Stats.median(estimates), estimates.count >= 3 {
             // Las marcas de entrenamiento infravaloran el VDOT: si los VO₂ estimados apuntan más alto, se usan (a medio camino).
-            if let b = best, median > b.value { best?.value = (b.value + median) / 2 }
+            if let b = best, median > b.value {
+                best?.value = (b.value + median) / 2
+                best?.blended = true
+            }
             if best == nil { best = VDOTEstimate(value: median, fromEstimates: true) }
         }
         return best
@@ -360,6 +365,15 @@ public struct RunHistory: Sendable {
 
     public func trend(_ metric: RunTrendMetric, days: Int, today: LocalDate) -> [(date: Date, value: Double)] {
         summaries.filter { $0.date >= today.adding(days: -days) && $0.movingS >= 600 }.compactMap { s in metric.value(s).map { (s.start, $0) } }
+    }
+
+    /// Media móvil centrada (`radius` valores a cada lado): la línea de tendencia de una serie con un valor por carrera.
+    public static func rollingMean(_ values: [Double], radius: Int = 2) -> [Double] {
+        guard radius > 0, values.count > 2 else { return values }
+        return values.indices.map { i in
+            let lo = max(0, i - radius), hi = min(values.count - 1, i + radius)
+            return values[lo...hi].reduce(0, +) / Double(hi - lo + 1)
+        }
     }
 
     // MARK: Carreras parecidas

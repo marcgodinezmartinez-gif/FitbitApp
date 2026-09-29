@@ -93,7 +93,7 @@ public enum SyntheticData {
                 let km = runEnd.timeIntervalSince(runStart) / 60 / 5.2
                 acts.append(ActivitySession(source: .googleHealth, sourceRecordID: "ex-\(day.isoString)", kind: .running,
                                             start: runStart.addingTimeInterval(120), end: runEnd.addingTimeInterval(-60),
-                                            utcOffsetSeconds: utcOffsetSeconds, avgHR: 152, caloriesKcal: km * 70))
+                                            utcOffsetSeconds: utcOffsetSeconds, avgHR: 152, caloriesKcal: km * 70, distanceM: km * 1030))
                 if withWatch {
                     acts.append(ActivitySession(source: .appleHealth, sourceRecordID: "hk-\(day.isoString)", kind: .running,
                                                 start: runStart, end: runEnd, utcOffsetSeconds: utcOffsetSeconds, avgHR: 154,
