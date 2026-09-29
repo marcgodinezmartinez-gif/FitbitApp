@@ -86,10 +86,10 @@ En modo *Prueba*, Google pide volver a conectar cada 7 días (un toque en la app
 ## Parte E · Compilar y subir a TestFlight (≈ 30 min de espera)
 
 1. *Actions* → **iOS** → *Run workflow* → deja la rama que sale (`claude/whoop-like-fitbit-air-app-q7no7j`, la única del repositorio) → marca **«Firmar y subir a TestFlight»** → *Run workflow*.
-2. Tarda unos 15–20 min. Cuando esté en verde, App Store Connect procesa la *build* (10–30 min más) y te llega un email.
-3. Si no hiciste B3: *TestFlight* → *Pruebas internas* → tu grupo → añade la *build*.
+2. En ≈ 5 min compila, firma y sube la app. Después, el paso **Estado de TestFlight** (en Linux) espera a que Apple procese la *build* (10–30 min; te llega un email) y la añade a tu grupo interno. Cuando todo esté en verde, ya puedes instalarla.
+3. Si su resumen dice ⚠️ «aún no está lista», espera el email de Apple y lanza *Actions* → **Estado de TestFlight** → *Run workflow*.
 
-Cada subida gasta ≈ 15–20 min de los ≈ 200 minutos de macOS gratis al mes.
+Cada subida gasta ≈ 6 min de los ≈ 200 minutos de macOS gratis al mes (la espera va en Linux).
 
 ## Parte F · En tu iPhone (≈ 5 min)
 
@@ -114,6 +114,7 @@ Cada subida gasta ≈ 15–20 min de los ≈ 200 minutos de macOS gratis al mes.
 | Síntoma | Qué hacer |
 |---|---|
 | «Comprobar configuración» con ❌ | Corrige lo que indica esa línea y vuelve a lanzarlo |
+| «Estado de TestFlight» con ⚠️ o ❌ | Haz lo que indica su resumen; si Apple no acepta la *build*, el motivo llega por email |
 | El *workflow* iOS falla en «Archivar» | Casi siempre es un App ID o una capacidad; ejecuta «Comprobar configuración» y, si todo sale ✅, pásame el error |
 | Google: «Acceso bloqueado» | Tu Gmail no está en *Usuarios de prueba* (C4) o entraste con otra cuenta |
 | Google: «Error 400: redirect_uri_mismatch» | El cliente no es de tipo iOS o su *bundle ID* no coincide (C6) |

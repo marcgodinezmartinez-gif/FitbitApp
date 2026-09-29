@@ -1,0 +1,42 @@
+name: Estado de TestFlight
+
+# Espera a que Apple procese una build subida a TestFlight y la añade a tus grupos internos (doc. 17, parte E).
+# Corre en Linux (no gasta minutos de macOS) y nunca imprime los secretos. La lanza sola cada subida del workflow iOS;
+# a mano sirve para una build concreta o para la última.
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Número de build (vacío: la última subida)"
+        type: string
+        required: false
+  workflow_call:
+    inputs:
+      build:
+        type: string
+        required: false
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependencias
+        run: pip install --quiet "pyjwt[crypto]"
+
+      - name: Esperar el procesado de Apple
+        env:
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          BUILD_NUMBER: ${{ inputs.build }}
+          WAIT_MINUTES: "40"
+        run: python scripts/testflight_status.py

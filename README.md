@@ -75,7 +75,8 @@ Packages/RecuperaKit/     Toda la lógica, compilable y probada también en Linu
   CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas, costes e informes redactados)
 project.yml               proyecto de Xcode generado con XcodeGen
 .github/workflows/        ci-linux.yml (tests en cada push) · ios.yml (compilación iOS y TestFlight) ·
-                          preflight.yml («Comprobar configuración»: revisa los secretos sin compilar)
+                          preflight.yml («Comprobar configuración»: revisa los secretos sin compilar) ·
+                          testflight-status.yml (espera el procesado de Apple y añade la build a tu grupo)
 ```
 
 **Probar la lógica** (Linux o macOS con Swift 6): `cd Packages/RecuperaKit && swift test`.
@@ -84,7 +85,7 @@ project.yml               proyecto de Xcode generado con XcodeGen
 
 1. Guarda los secretos del [doc. 15 §4](docs/15-entorno-y-prerrequisitos.md#4-configuración-y-secretos) en *Settings › Secrets and variables › Actions* y compruébalos con el *workflow* **Comprobar configuración** (Linux, no gasta minutos de macOS). Sin secretos la app compila igualmente con valores de ejemplo y funciona en **modo demostración**.
 2. Lanza el *workflow* **iOS** a mano (*Actions › iOS › Run workflow*) o incluye `[macos]` en el mensaje de un commit. Los minutos de macOS cuentan ×10, por eso no se ejecuta en cada *push*.
-3. Para instalarla, lanza el mismo *workflow* marcando **«Firmar y subir a TestFlight»** (necesita la clave de API de App Store Connect y el App ID con HealthKit y App Groups). La *build* aparece en la app TestFlight de tu iPhone.
+3. Para instalarla, lanza el mismo *workflow* marcando **«Firmar y subir a TestFlight»** (necesita la clave de API de App Store Connect y el App ID con HealthKit y App Groups). El mismo *workflow* espera a que Apple procese la *build* y la añade a tu grupo interno; después aparece en la app TestFlight de tu iPhone.
 
 **Compilar en un Mac** (si algún día tienes uno): `scripts/write-secrets-xcconfig.sh && xcodegen generate && open Recupera.xcodeproj`.
 

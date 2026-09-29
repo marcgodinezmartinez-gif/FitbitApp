@@ -103,6 +103,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.testflight
     runs-on: macos-26
     timeout-minutes: 60
+    outputs:
+      uploaded: ${{ steps.check.outputs.ok }}
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -190,3 +192,12 @@ jobs:
       - name: Resumen de errores
         if: failure()
         run: grep -E "error:" archive.log | sort -u | head -100 || true
+
+  # Espera en Linux a que Apple procese la build y la añade a tus grupos internos de TestFlight.
+  testflight-status:
+    needs: testflight
+    if: needs.testflight.outputs.uploaded == 'true'
+    uses: ./.github/workflows/testflight-status.yml
+    with:
+      build: ${{ github.run_number }}
+    secrets: inherit
