@@ -2,7 +2,7 @@
 
 Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes, **análisis del día** y un **Coach IA con Claude o Gemini**— y que además **fusione las carreras de tu Apple Watch**, **sin pagar Google Health Premium ni ninguna cuota nueva** y con un diseño muy superior al de la app oficial.
 
-> Estado: **v0.1 — código completo y compilando en macOS** (app, *widgets*, Live Activity, lógica con 124 pruebas y CI) sobre los requisitos verificados a 28/09/2026. Incluye también «Mi panel», plan semanal, registro de fuerza, respiración guiada, alarma inteligente con AlarmKit, Live Activity de entrenamiento, VO₂ máx. sin ejercicio (HUNT) y el resumen matinal e informe semanal redactados por la IA. Pendiente: instalarla con TestFlight y hacer el *spike* con tus datos reales.
+> Estado: **v0.1 — código completo y compilando en macOS** (app, *widgets*, Live Activity, lógica con 139 pruebas y CI) sobre los requisitos verificados a 28/09/2026. Incluye también «Mi panel», plan semanal, registro de fuerza, respiración guiada, alarma inteligente con AlarmKit, Live Activity de entrenamiento, VO₂ máx. sin ejercicio (HUNT), el resumen matinal e informe semanal redactados por la IA y la pestaña **Correr**: cada carrera analizada con todos los datos del Apple Watch y la Fitbit Air, forma, récords, VDOT, predicciones y zapatillas (doc. 18). Pendiente: instalarla con TestFlight y hacer el *spike* con tus datos reales.
 > Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program), **Coach IA con Claude o Gemini** y **Apple Watch para correr** con sus datos fusionados.
 
 ## Resumen en 10 puntos
@@ -39,6 +39,7 @@ Especificación completa de requisitos para construir una **app personal para iP
 | 15 | [Entorno y prerrequisitos](docs/15-entorno-y-prerrequisitos.md) | Cuentas, herramientas, configuración y lista de tareas de F0 |
 | 16 | [Apple Watch y fusión de datos](docs/16-apple-watch-y-fusion-de-datos.md) | Carreras del Watch vía Salud, reglas para no duplicar nada, sincronización al abrir |
 | 17 | [**Puesta en marcha paso a paso**](docs/17-puesta-en-marcha.md) | Todo lo que hay que hacer para tener la app en tu iPhone con tus datos: Apple, Google Cloud, GitHub y TestFlight |
+| 18 | [**Análisis de carreras**](docs/18-analisis-de-carreras.md) | Pestaña Correr: cada carrera segundo a segundo con los dos dispositivos, fórmulas (VDOT, GAP, TRIMP, rTSS, forma), IA y zapatillas |
 | — | [Glosario](docs/glosario.md) · [Referencias](docs/referencias.md) | Términos y bibliografía científica |
 
 Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.example.xcconfig).
@@ -71,6 +72,7 @@ Packages/RecuperaKit/     Toda la lógica, compilable y probada también en Linu
   HealthAPI               cliente de la Google Health API v4 con OAuth PKCE
   Store                   base de datos local (SQLite con GRDB)
   SyncKit                 sincronización de las dos fuentes, avisos y widgets
+  RunKit                  análisis de carreras: serie por segundo, parciales, zonas, marcas, VDOT, forma y GPX
   Insights                análisis del día, recomendaciones, informes, plan semanal, fuerza, «Mi panel» y respiración
   CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas, costes e informes redactados)
 project.yml               proyecto de Xcode generado con XcodeGen
