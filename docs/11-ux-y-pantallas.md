@@ -217,6 +217,20 @@ Todos los pares se validan con RNF-ACC-03 antes de congelar la paleta; las zonas
 
 Todos respetan el ajuste de privacidad de la pantalla de bloqueo (RF-WID-04).
 
+> **Implementación en la v0.1:** la Live Activity se abre con *Hoy › + › Empezar entrenamiento* y muestra el tipo de actividad, el cronómetro (lo dibuja el sistema, sin actualizaciones) y la carga del día al empezar con su objetivo. La FC en vivo espera al *spike* de la emisión por Bluetooth (RF-ENT-07). Al terminar se valora el RPE y se guarda como actividad manual; si es de fuerza, se abre el registro de series.
+
+### 10.1 Dónde está cada función nueva (v0.1)
+
+| Función | Dónde |
+|---|---|
+| «Mi panel» | Al final de Hoy; «Editar» elige y ordena las tarjetas; cada una abre su tendencia |
+| Plan semanal | Hoy › + › Plan semanal y tarjeta en Hoy mientras hay plan; aviso NOT-11 el viernes |
+| Registro de fuerza | Hoy › + › Registrar fuerza, y en el detalle de cualquier actividad de fuerza |
+| Respiración guiada | Hoy › + › Respiración guiada y al tocar el aviso NOT-09 |
+| Alarma inteligente (AlarmKit) | Sueño › debajo del planificador: «Me voy a dormir» |
+| VO₂ máx. (medido o estimado) | Salud; cintura y cuestionario de actividad en Perfil › Tus datos |
+| Resumen matinal e informe semanal de la IA | En Hoy (sustituye a la recomendación) y en Tendencias › Semana pasada; se activan en Perfil › Coach IA |
+
 ## 11. Guía de redacción
 
 - Tuteo, frases cortas, verbos de acción («Acuéstate a las 23:10»).

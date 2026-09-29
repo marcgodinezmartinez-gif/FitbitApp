@@ -165,7 +165,8 @@ final class AppModel {
         if let snapshot = report.snapshot { SharedSnapshot.write(snapshot) }
         scheduleBedtimeReminder()
         loadReports()
-        await generateReportsIfNeeded()
+        // Los informes de la IA se redactan aparte para no alargar la sincronización.
+        Task { await generateReportsIfNeeded() }
         var problems: [String] = []
         if let e = report.google.error { problems.append("Google Health: \(e)") }
         if let e = report.apple.error { problems.append("Apple Health: \(e)") }

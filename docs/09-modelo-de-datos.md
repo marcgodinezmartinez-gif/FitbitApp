@@ -35,7 +35,7 @@ erDiagram
 
 | Tabla | Campos principales | Notas |
 |---|---|---|
-| `profile` (1 fila) | `birth_date`, `sex` (`male`/`female`/`unspecified`), `height_cm`, `weight_kg`, `waist_cm` (opcional, ALG-EDA-02), `activity_index` (opcional), `sports` | |
+| `profile` (1 fila) | `birth_date`, `sex` (`male`/`female`/`unspecified`), `height_cm`, `weight_kg`, `waist_cm` (opcional, ALG-EDA-02), `activity_questionnaire` (opcional: frecuencia, intensidad y duración del cuestionario HUNT, de las que sale el índice PA-I), `sports` | |
 | `settings` (1 fila) | `units`, `theme`, `notifications` (JSON por tipo), `quiet_hours`, `lockscreen_values`, `hr_zones`, `hr_max_override`, `sleep_goal`, `wake_times` (por día de la semana), `journal_questions_enabled`, `coach_enabled`, `coach_mode` (`personal`/`educativo`), `coach_provider` (`anthropic`/`gemini`), `coach_model`, `coach_daily_limit`, `gemini_paid_tier_confirmed`, `exclude_from_icloud_backup`, `healthkit_enabled`, `hr_workout_priority` (`apple_watch`/`fitbit_air`, RF-FUS-07) | Las claves de IA no están aquí, sino en el Llavero |
 | `connection` (1 fila) | `health_user_id`, `granted_scopes`, `status` (`active`/`needs_reauth`/`revoked`), `connected_at`, `last_success_sync_at`, `device_last_sync_at`, `time_zone` (de `settings` de Google), `healthkit_connected_at`, `healthkit_last_import_at`, `healthkit_earliest_authorized` (iOS 27+) | Sin *tokens* (están en el Llavero) |
 | `hk_anchors` | `sample_type`, `anchor` (BLOB), `updated_at` | Una fila por tipo de Salud: ancla de la consulta incremental (doc. 16 §6) |
@@ -106,6 +106,8 @@ Los nombres exactos de los campos de origen se fijan tras el *spike* de F0.
 | `coach_threads` / `coach_messages` | `id`, `title`, `provider` (`anthropic`/`gemini`), `model`, `created_at` / `thread_id`, `role`, `model` (el que respondió, por si hubo *fallback*), `content` (JSON con los bloques **tal como los devolvió el proveedor**, incluidos los de razonamiento, para reenviarlos sin cambios), `tool_calls` (JSON), `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd_est`, `rating`, `created_at` — un hilo pertenece a un único proveedor y a un único modelo elegido (RF-COA-22) |
 | `coach_memory` | `category` (objetivos, estilo de vida, preferencias, eventos, salud declarada), `key`, `value`, `updated_at` |
 | `privacy_events` | `at`, `action` (vinculación, desvinculación, exportación, borrado, Coach activado/desactivado) |
+
+> **Implementación en la v0.1** (esquema simplificado, `Store/AppDatabase.swift`): las series de fuerza van en el JSON de `activity_annotation` (`strengthSets`) de la actividad principal; las actividades creadas en la app (entrenamiento con Live Activity o sesión de fuerza) son filas de `activity` con `source = manual`; el plan semanal se guarda en `app_state` con la clave `weekly_plan`, y el resumen matinal y el informe semanal de la IA en `report` con `type` `ai_morning` (`period_start` = el día) o `ai_weekly` (`period_start` = el lunes de la semana). Los informes deterministas se recalculan al vuelo.
 
 ## 6. Volumen y retención
 

@@ -338,9 +338,23 @@ Alternativa futura: edad biológica de Klemera–Doubal [R63] (requiere regresio
 
 ### ALG-EDA-02 · VO₂ máx. estimado sin ejercicio
 
-El Apple Watch estima el VO₂ máx. en carreras y caminatas al aire libre, y Google solo con carreras al aire libre con GPS. Si no hay valor de ninguno de los dos en 180 días (ALG-FUS-06), se puede usar el modelo sin ejercicio del estudio HUNT [R44], que necesita **perímetro de cintura** y un **índice de actividad física** autodeclarado (frecuencia, duración e intensidad) además de edad, sexo y FC en reposo. Esos dos datos son **opcionales** en el perfil (F3); si faltan, el factor de forma física se omite y se indica.
+El Apple Watch estima el VO₂ máx. en carreras y caminatas al aire libre, y Google solo con carreras al aire libre con GPS. Si no hay valor de ninguno de los dos en 180 días (ALG-FUS-06), se usa el modelo sin ejercicio del estudio HUNT [R44], que necesita **perímetro de cintura** y un **índice de actividad física** autodeclarado además de edad, sexo y FC en reposo. Esos dos datos son **opcionales** en el perfil; si faltan, el factor de forma física se omite y se indica.
 
-> **Estado (v0.1.0):** no implementado. No se pudieron verificar los coeficientes publicados del modelo HUNT, así que, sin VO₂ máx. del Apple Watch ni de Google, la edad fisiológica omite el factor de forma física y lo indica (`omittedFitness`). Se añadirá cuando se validen los coeficientes.
+```
+Hombres: VO₂máx = 100,27 − 0,296·edad − 0,369·cintura(cm) − 0,155·FCR + 0,226·PA-I
+Mujeres: VO₂máx =  74,74 − 0,247·edad − 0,259·cintura(cm) − 0,114·FCR + 0,198·PA-I
+PA-I = frecuencia × intensidad × duración   (0–15)
+  frecuencia: nunca o < 1/semana 0 · 1/semana 1 · 2–3/semana 2,5 · casi a diario 5
+  intensidad: sin sudar ni perder el aliento 1 · hasta perder el aliento y sudar 2 · casi al agotamiento 3
+  duración:   < 15 min 0,1 · 15–29 min 0,38 · 30–60 min 0,75 · > 60 min 1,0
+```
+
+- Coeficientes y puntuaciones verificados en publicaciones que aplican el modelo (p. ej. Mayo Clin Proc Innov Qual Outcomes 2026, PMC13429898; PLoS One 2013, PMC3654926; PLoS One 2012, PMC3516514).
+- La FCR es la media de las noches de los últimos 30 días. El estudio midió la FC en reposo sentado, que suele ser algo más alta que la de la pulsera durante la noche, así que el modelo puede sobrestimar un poco el VO₂ máx.: se muestra como **estimación orientativa** y solo cuando no hay un valor medido.
+- El modelo es específico de cada sexo: con «prefiero no decirlo» no se estima. Tampoco con menos de 18 años ni con valores fuera de rango.
+- En la edad fisiológica, el factor aparece como «Forma cardiorrespiratoria (estimada)» (`fitnessEstimated`).
+
+> **Estado (v0.1):** implementado (`NonExerciseVO2`, `MetricsOutput.estimatedVO2`) con pruebas de los ejemplos de las ecuaciones.
 
 ### ALG-EDA-03 · Ritmo de envejecimiento
 
