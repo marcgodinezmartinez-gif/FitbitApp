@@ -99,7 +99,7 @@ POST https://health.googleapis.com/v4/users/me/dataTypes/heart-rate/dataPoints:r
 - Filtros AIP-160 sobre el tiempo del dato (físico RFC 3339, civil local o `date`). **No hay filtro por fecha de modificación ni *feed* de cambios**: se re-consultan ventanas recientes.
 - `rollUp`: rango máximo de **14 días** para `heart-rate`, `active-minutes`, `total-calories` y `calories-in-heart-rate-zone`; 90 días para el resto.
 - Histórico: sin límite impuesto por la API.
-- Familias de fuentes: `all-sources` (por defecto), `google-wearables` (solo pulseras/relojes de Google), `google-sources`. Para las líneas base se usa **`google-wearables`**.
+- Familias de fuentes (`dataSourceFamily`, en `reconcile`, `rollUp` y `dailyRollUp`): `all-sources` (por defecto: todas, incluidas las de terceros), `google-wearables` (solo pulseras y relojes de Google y Fitbit, sin registros manuales ni estimaciones del móvil) y `google-sources` (pulseras, Health Connect y registros manuales en apps de Google). La app usa **`google-wearables` en todas las lecturas**: líneas base coherentes y sin las copias que Google importa de Salud (§8).
 - Zonas horarias: los intervalos incluyen desfase UTC y hora civil; los datos diarios se indexan por fecha local.
 
 ### 5.3 Cuotas ([Rate limits](https://developers.google.com/health/rate-limits))
@@ -123,7 +123,7 @@ Las condiciones exigen **guardar los datos con la misma granularidad con la que 
 | Mañana | `BGAppRefreshTask` programada para la hora habitual de despertar (reprogramada si aún no hay sueño) | Sueño y vitales de la noche ⇒ recuperación ⇒ notificación local |
 | Noche | `BGProcessingTask` (cargando y con Wi-Fi) | Revisión de 7 días (datos editados o tardíos) y recálculo de líneas base |
 
-- Antes de consultar, `pairedDevices.lastSyncTime` indica si la pulsera ha subido algo nuevo.
+- Antes de consultar, `pairedDevices.lastSyncTime` (ámbito `.settings.readonly`) indica si la pulsera ha subido algo nuevo. La app no puede forzar la sincronización de la pulsera; el botón «Abrir Google Health» usa el enlace universal documentado `https://www.fitbit.com/in-app/today` ([enlaces universales](https://developers.google.com/health/universal-app-links)), y Google Health sincroniza la pulsera al abrirse si está cerca ([ayuda](https://support.google.com/googlehealth/answer/14237221)).
 - iOS decide cuándo ejecuta las tareas en segundo plano (mejor cuanto más se usa la app); por eso el refresco al abrir es el camino principal y debe ser rápido (RNF-REN-04).
 - Sin servidor no hay *webhooks* ni *push*: es una limitación aceptada (doc. 08 ADR 002).
 
@@ -140,11 +140,14 @@ Fuentes: [Términos para desarrolladores](https://developers.google.com/health/p
 - [ ] Al desconectar: revocar el *token*, borrarlo y preguntar si se conservan los datos (RL-47).
 - [ ] Coach IA: los datos de la API solo van al proveedor de IA como parte de esa función, activada por ti, y sin entrenamiento de modelos (RL-48).
 
-## 8. Apple Health (HealthKit) — opcional (F3)
+## 8. Apple Health y el Apple Watch
 
-- La app Google Health escribe en Apple Health (iOS 16.4+): pasos, distancia, entrenamientos y rutas, sueño con fases, FC, SpO₂, FR, FC en reposo, VO₂ máx., entre otros; **no escribe HRV ni temperatura cutánea** ([ayuda](https://support.google.com/googlehealth/answer/17037331)).
-- Por eso HealthKit **no sustituye** a la API (sin HRV no hay recuperación), pero puede servir de respaldo local para FC, sueño y entrenamientos (RF-CON-06), marcado `source = apple_health` y deduplicado con la API por intervalo.
-- Requiere permisos de lectura por tipo y la capacidad HealthKit en el proyecto.
+Los datos del Apple Watch se leen directamente de Salud (HealthKit) en el iPhone ([doc. 16](16-apple-watch-y-fusion-de-datos.md)). Del lado de Google importa esto:
+
+- La app Google Health puede **conectarse con Salud en los dos sentidos** (iOS 16.4+): **lee** de Salud pasos, VO₂ máx., pisos, calorías activas, distancia, ejercicio y rutas, sueño, temperatura, FC, VFC, SpO₂, FR, FC en reposo, etc. (hasta 3 meses de historial), y **escribe** en Salud casi lo mismo, salvo VFC y temperatura ([ayuda](https://support.google.com/googlehealth/answer/17037331)). Lo importado de Salud se guarda en tu cuenta de Google Health.
+- Por eso todas las lecturas de la API usan la familia **`google-wearables`** («datos grabados por pulseras y relojes de Google y Fitbit»; excluye lo registrado a mano y lo estimado por el móvil), y así las carreras del Watch no vuelven por Google [verificar en el *spike*]. `dataSourceFamily` solo está publicado para `reconcile`, `rollUp` y `dailyRollUp`; si un tipo se lee con `list`, se descartan en la app los puntos cuyo `dataSource.platform` sea `HEALTH_KIT` (ALG-FUS-08). Cada punto trae `dataSource` con `platform` (`FITBIT`, `HEALTH_KIT`, `HEALTH_CONNECT`…), `recordingMethod`, `device` (`formFactor`, `manufacturer`, `displayName`) y `application` ([referencia](https://developers.google.com/health/reference/rest/v4/users.dataTypes.dataPoints)).
+- La Fitbit Air **detecta sola las carreras** (SmartTrack; en `pairedDevices`, la función `AUTORUN`), así que la misma carrera puede llegar por Google y por Salud: se fusionan por solape (ALG-FUS-02) ([ayuda](https://support.google.com/googlehealth/answer/14236510)).
+- Salud **no sustituye** a la API: Google Health no escribe allí ni VFC ni temperatura, así que sin la API no habría recuperación.
 
 ## 9. FC en vivo por Bluetooth (opcional, F3)
 

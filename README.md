@@ -1,21 +1,21 @@
 # FitbitApp — tu «WHOOP» gratis para la Google Fitbit Air, en tu iPhone
 
-Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes y un **Coach IA con Claude o Gemini**— **sin pagar Google Health Premium ni ninguna cuota nueva**, y con un diseño muy superior al de la app oficial.
+Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes, **análisis del día** y un **Coach IA con Claude o Gemini**— y que además **fusione las carreras de tu Apple Watch**, **sin pagar Google Health Premium ni ninguna cuota nueva** y con un diseño muy superior al de la app oficial.
 
 > Estado: **requisitos (fase F0)** — aún no hay código. Información verificada a 28/09/2026.
-> Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program) y **Coach IA con Claude o Gemini**.
+> Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program), **Coach IA con Claude o Gemini** y **Apple Watch para correr** con sus datos fusionados.
 
 ## Resumen en 10 puntos
 
-1. **Los datos salen de la Google Health API** (REST v4), llamada **directamente desde tu iPhone** con tu cuenta de Google. La antigua Fitbit Web API se apaga el **30/09/2026**.
+1. **Los datos de la Fitbit Air salen de la Google Health API** (REST v4), llamada **directamente desde tu iPhone** con tu cuenta de Google (la antigua Fitbit Web API se apaga el **30/09/2026**); los del **Apple Watch**, de **Salud** en el propio iPhone. Se **fusionan sin contar nada dos veces**: el Watch manda en sus carreras (ruta, ritmo, FC) y la Fitbit en el resto del día y en la noche (doc. 16).
 2. **No hace falta Google Health Premium**: la API da gratis los datos brutos de la pulsera (FC, HRV nocturna, FC en reposo, sueño por fases, SpO₂, respiración, temperatura, actividad y entrenamientos). Las puntuaciones de Google (*Readiness*, *Sleep Score*, *Cardio Load*) ni siquiera están en la API.
 3. **Todas las puntuaciones se calculan en el iPhone** con algoritmos abiertos basados en literatura científica verificada: **Recuperación 0–100 %**, **Carga 0–21**, **Sueño** (necesidad, suficiencia, eficiencia, constancia, deuda, planificador) y **Estrés 0–3**.
-4. **Sin servidor y sin coste mensual**: base de datos local cifrada por iOS, sincronización al abrir la app y en segundo plano, notificaciones locales.
+4. **Sin servidor y sin coste mensual**: base de datos local cifrada por iOS, **las dos fuentes se sincronizan cada vez que abres la app** (y en segundo plano), notificaciones locales y botón **«Analizar mi día»** (sin IA o con el Coach).
 5. **App nativa SwiftUI (iOS 26+)** con Liquid Glass, anillos animados, Swift Charts, *widgets* de inicio y de pantalla de bloqueo y Live Activities.
 6. **Sin Mac**: el proyecto se genera con XcodeGen y **GitHub Actions** compila en macOS en la nube (Xcode 26), ejecuta los tests, adjunta **capturas de cada pantalla** a los PR para revisar el diseño y **sube la app a TestFlight**, desde donde la instalas en tu iPhone.
 7. **Coach IA con Claude o Gemini** y **tu propia clave** (pago por uso): con una pregunta al día, ≈ 2,7 $/mes con Claude Opus 5.5 o ≈ 0,5–1 $/mes con Gemini. Con Gemini, **solo clave de nivel de pago** (en el gratuito Google puede usar y revisar tus datos).
 8. **Para uso personal** apenas aplica normativa (RGPD, producto sanitario, tiendas); sí las **condiciones de la Google Health API** y del proveedor de IA, que se cumplen con poco esfuerzo.
-9. Plan: **F0** preparación y tubería TestFlight (2 sem) → **F1** MVP con Hoy/Sueño/Recuperación/Carga (6) → **F2** paridad con WHOOP y *widgets* (6) → **F3** hábitos, edad fisiológica y Coach (6).
+9. Plan: **F0** preparación y tubería TestFlight (2 sem) → **F1** MVP con Hoy/Sueño/Recuperación/Carga (6) → **F2** paridad con WHOOP, Apple Watch, análisis del día y *widgets* (9) → **F3** hábitos, edad fisiológica y Coach (7).
 10. **Coste nuevo obligatorio: 0 €/mes** (el Apple Developer Program ya lo tienes; ≈ 200 min/mes de compilación macOS gratis en GitHub).
 
 ## Documentos
@@ -37,14 +37,15 @@ Especificación completa de requisitos para construir una **app personal para iP
 | 13 | [Pruebas y validación](docs/13-pruebas-y-validacion.md) | Pruebas y validación científica de las métricas y del Coach |
 | 14 | [Plan de proyecto y riesgos](docs/14-plan-de-proyecto-y-riesgos.md) | Hitos, épicas, riesgos, indicadores |
 | 15 | [Entorno y prerrequisitos](docs/15-entorno-y-prerrequisitos.md) | Cuentas, herramientas, configuración y lista de tareas de F0 |
+| 16 | [Apple Watch y fusión de datos](docs/16-apple-watch-y-fusion-de-datos.md) | Carreras del Watch vía Salud, reglas para no duplicar nada, sincronización al abrir |
 | — | [Glosario](docs/glosario.md) · [Referencias](docs/referencias.md) | Términos y bibliografía científica |
 
 Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.example.xcconfig).
 
 ## Qué necesitas para empezar (F0)
 
-1. Fitbit Air emparejada con la app **Google Health** y llevándola día y noche; iPhone con **iOS 26** o posterior y la app **TestFlight**.
-2. En tu cuenta de **Apple Developer**: App ID, ficha en App Store Connect, tú como probador interno y una clave de API para el CI.
+1. Fitbit Air emparejada con la app **Google Health** y llevándola día y noche; iPhone con **iOS 26** o posterior y la app **TestFlight**; y, para correr, el **Apple Watch** grabando tus carreras (app Entreno).
+2. En tu cuenta de **Apple Developer**: App ID (con HealthKit para el Apple Watch), ficha en App Store Connect, tú como probador interno y una clave de API para el CI.
 3. **Tubería sin Mac** en GitHub Actions: un *merge* a `main` genera una *build* en TestFlight ([doc. 08 §6](docs/08-arquitectura-tecnica.md#6-compilación-pruebas-e-instalación-sin-mac-github-actions--testflight)).
 4. Proyecto gratuito de **Google Cloud** con la Google Health API y un cliente OAuth de tipo iOS ([doc. 10 §2](docs/10-integracion-google-health-api.md#2-alta-del-proyecto-f0-gratis)), y una página de privacidad sencilla (GitHub Pages).
 5. Hacer el ***spike* de datos** con tu cuenta (hito H0) antes de construir nada más.
@@ -54,7 +55,7 @@ Lista completa en [docs/15-entorno-y-prerrequisitos.md](docs/15-entorno-y-prerre
 
 ## Decisiones que aún debes confirmar
 
-Ver [doc. 01 §8](docs/01-vision-y-alcance.md#8-decisiones-abiertas-para-el-propietario): nombre de la app, deportes principales, modo de la app en Google Cloud, qué hacer si se agotan los minutos gratuitos de compilación y el proveedor por defecto del Coach (lo decidirá la evaluación).
+Ver [doc. 01 §8](docs/01-vision-y-alcance.md#8-decisiones-abiertas-para-el-propietario): nombre de la app, deportes principales, modo de la app en Google Cloud, qué hacer si se agotan los minutos gratuitos de compilación, el proveedor por defecto del Coach (lo decidirá la evaluación) y si adelantar el Apple Watch y el análisis del día a F1.
 
 ## Convenciones
 

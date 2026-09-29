@@ -7,6 +7,7 @@ Convenciones:
 - **Alg.**: especificación del cálculo en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.md).
 - Los datos de entrada de cada módulo y su disponibilidad en la Fitbit Air están en [03-dispositivo-y-fuentes-de-datos.md](03-dispositivo-y-fuentes-de-datos.md).
 - Los requisitos del Coach IA (`RF-COA-*`) están en [06-coach-ia.md](06-coach-ia.md).
+- La integración con el **Apple Watch** (vía Apple Health) y cómo se combinan sus datos con los de la Fitbit Air están en [16-apple-watch-y-fusion-de-datos.md](16-apple-watch-y-fusion-de-datos.md).
 
 ---
 
@@ -14,13 +15,13 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-ONB-01 | **Sin cuentas propias**: la app es de un solo usuario y sus datos viven en el iPhone; el único inicio de sesión es el de Google para leer los datos de la pulsera (RF-CON-01). | M | F1 |
+| RF-ONB-01 | **Sin cuentas propias**: la app es de un solo usuario y sus datos viven en el iPhone; el único inicio de sesión es el de Google para leer los datos de la pulsera (RF-CON-01). Los datos del Apple Watch se leen de Apple Health con un permiso de iOS, sin cuenta (RF-CON-06). | M | F1 |
 | RF-ONB-02 | Perfil: fecha de nacimiento, sexo (hombre/mujer/prefiero no decirlo), altura, peso, deportes principales, hora habitual de despertar. Editable en todo momento; los cambios recalculan lo que dependa de ellos (FC máx., coeficientes de carga, necesidad de sueño base). | M | F1 |
 | RF-ONB-03 | Aceptación versionada del aviso de bienestar y de la política de privacidad; si cambia la versión, se vuelve a pedir. | M | F1 |
 | RF-ONB-04 | Tutorial breve (≤ 4 pantallas, saltable) de Sueño, Recuperación y Carga. | S | F1 |
-| RF-ONB-05 | **Restaurar** tras reinstalar o cambiar de iPhone: volver a importar el histórico desde Google y recuperar diario, ajustes y actividades manuales desde una copia exportada (RF-PRI-01). | S | F2 |
+| RF-ONB-05 | **Restaurar** tras reinstalar o cambiar de iPhone: volver a importar el histórico desde Google y desde Salud y recuperar diario, ajustes, actividades manuales y anotaciones desde una copia exportada (RF-PRI-01). | S | F2 |
 
-## 2. Conexión con Google Health (CON)
+## 2. Conexión con Google Health y Apple Health (CON)
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
@@ -29,22 +30,42 @@ Convenciones:
 | RF-CON-03 | «Desconectar» accesible en 1–2 toques: revoca el *token* en Google, detiene la sincronización y pregunta si se conservan o borran los datos importados (RL-47). | M | F1 |
 | RF-CON-04 | Detectar *token* revocado/caducado o ámbitos retirados ⇒ estado «Reconectar» y aviso NOT-07. | M | F1 |
 | RF-CON-05 | Solicitud **incremental** de ámbitos cuando el usuario activa una función que los necesite; si los deniega, la función queda desactivada con explicación. | S | F2 |
-| RF-CON-06 | Lectura opcional de **Apple Health** (HealthKit, solo lectura) como respaldo para FC, sueño y entrenamientos si la API no responde (Google Health no escribe allí HRV ni temperatura, así que no sustituye a la API). | C | F3 |
+| RF-CON-06 | Conectar **Apple Health** (HealthKit, **solo lectura**; la app nunca escribe en Salud) para importar los datos del **Apple Watch**: entrenamientos con ruta, FC, ritmo, dinámica de carrera, VO₂ máx. y FC de recuperación (doc. 16 §3). Se ofrece en el onboarding y en Ajustes; la app funciona igual sin él. | M | F2 |
 | RF-CON-07 | Información del dispositivo (modelo, última sincronización y batería, si la API lo expone). | C | F2 |
 | RF-CON-08 | Si la API responde que el usuario no tiene perfil de Google Health (HTTP 412), guiarle a configurarlo en la app Google Health y reintentar. | M | F1 |
+| RF-CON-09 | Estado de Apple Health en **Ajustes › Fuentes de datos**: última importación, tipos con datos y ayuda si no llega nada («Revisa Salud › Compartir › Apps»), porque iOS no revela a la app si se denegó la lectura. | M | F2 |
 
 ## 3. Sincronización de datos (SYN)
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
 | RF-SYN-01 | Al vincular, importar el historial de **90 días** (configurable hasta el máximo que permita la API) de todos los tipos de datos autorizados, con progreso visible; si se cierra la app, la importación continúa en segundo plano. | M | F1 |
-| RF-SYN-02 | Sincronización incremental al abrir la app, en segundo plano (`BGAppRefreshTask` programada para la hora habitual de despertar y `BGProcessingTask` nocturna) y bajo demanda, re-consultando las últimas 48 h y los huecos (doc. 08 §4.4, doc. 10 §6). | M | F1 |
+| RF-SYN-02 | Sincronización incremental de Google Health al abrir la app, en segundo plano (`BGAppRefreshTask` programada para la hora habitual de despertar y `BGProcessingTask` nocturna) y bajo demanda, re-consultando las últimas 48 h y los huecos (doc. 08 §4.4, doc. 10 §6). | M | F1 |
 | RF-SYN-03 | *Pull-to-refresh* en la app fuerza una sincronización incremental (máx. 1/min por usuario). | M | F1 |
 | RF-SYN-04 | Normalizar todos los datos al modelo interno (doc. 09) guardando UTC + desfase horario de cada muestra. | M | F1 |
 | RF-SYN-05 | Ingesta idempotente y sin duplicados (misma muestra recibida varias veces ⇒ una fila). | M | F1 |
 | RF-SYN-06 | Datos tardíos o modificados en origen (p. ej. el usuario edita su sueño en Google Health) ⇒ recálculo automático de los ciclos y líneas base afectados. | M | F1 |
-| RF-SYN-07 | Indicador global «Actualizado hace X» y estado de sincronización en la pantalla Hoy. | M | F1 |
+| RF-SYN-07 | Indicador «Actualizado hace X» y estado de sincronización **de cada fuente** en la pantalla Hoy («Fitbit Air · 7:02», «Apple Watch · 18:40»). | M | F1 |
 | RF-SYN-08 | Registrar lagunas de datos con su causa probable (sin pulsera, sin sincronizar, dato no disponible) para mostrarlas en la UI. | S | F2 |
+| RF-SYN-09 | **Todo sincronizado al abrir**: cada vez que abres la app o vuelve a primer plano se sincronizan **las dos fuentes a la vez**, sin tocar nada: Apple Health (local e incremental, ≤ 1 s) y Google Health (red, ≤ 3 s si la pulsera ya subió sus datos). Lo local se muestra al momento y la pantalla se actualiza sola, con los datos fusionados y las puntuaciones recalculadas, cuando llega lo de Google. | M | F1 (Google) / F2 (Apple Health) |
+| RF-SYN-10 | La app no puede obligar a la Fitbit Air a sincronizar: eso lo hace la app Google Health. Si la pulsera lleva tiempo sin subir datos (`pairedDevices`), se indica la hora de su última sincronización y cómo forzarla («Abre Google Health») (doc. 11 §7). | M | F1 |
+| RF-SYN-11 | **Carrera nueva sin abrir la app**: cuando el Apple Watch pasa una carrera al iPhone, la app se despierta en segundo plano (si iOS lo permite), la importa, la fusiona, calcula su carga y avisa (NOT-12). Si no, se importa al abrir la app. | S | F2 |
+
+## 3 bis. Fusión de Fitbit Air y Apple Watch (FUS)
+
+La Fitbit Air se lleva 24/7; el Apple Watch, solo para correr. Reglas completas en [doc. 16 §5](16-apple-watch-y-fusion-de-datos.md#5-reglas-de-fusión-quién-manda-en-cada-dato) y ALG-FUS (doc. 05).
+
+| ID | Requisito | Prio. | Fase | Alg. |
+|---|---|---|---|---|
+| RF-FUS-01 | Cada dato guarda su **fuente** (Fitbit Air vía Google Health, Apple Watch vía Apple Health o manual) y la app la muestra con una insignia en detalles, gráficos y actividades. | M | F2 | FUS-01 |
+| RF-FUS-02 | **Nada se cuenta dos veces**: para cada dato y cada minuto manda una sola fuente (FC, pasos, distancia, calorías, actividades), según la tabla de prioridades del doc. 16 §5. | M | F2 | FUS-01 |
+| RF-FUS-03 | **Una carrera, una actividad**: si la Fitbit Air detecta la misma carrera que grabó el Apple Watch, se muestran como una sola actividad que combina ambas (ruta, distancia, ritmo y FC del Watch). | M | F2 | FUS-02 |
+| RF-FUS-04 | **FC fusionada** por minuto para la carga, las zonas y el estrés: durante los entrenamientos del Watch manda el Watch (si tiene buena cobertura); el resto del tiempo, la Fitbit Air; los huecos de una se rellenan con la otra. | M | F2 | FUS-03 |
+| RF-FUS-05 | **La noche y las líneas base, solo con la Fitbit Air**: sueño, VFC, FC en reposo, SpO₂, FR y temperatura nunca se mezclan con datos del Watch (su VFC se mide como SDNN, no comparable con el RMSSD de la pulsera). | M | F2 | FUS-05 |
+| RF-FUS-06 | **Sin duplicados por la conexión Google Health ↔ Apple Health**, si la tienes activada: la app ignora en Apple Health lo que escribió Google Health y, de Google, solo lee los datos de sus pulseras. No hace falta desconectar nada. | M | F2 | FUS-08 |
+| RF-FUS-07 | Ajustes › **Fuentes de datos**: estado de cada fuente, qué aporta cada una y preferencia de FC en entrenamientos (Apple Watch por defecto o Fitbit Air), con una explicación de cómo se evitan los duplicados. | S | F2 | FUS-03 |
+| RF-FUS-08 | **VO₂ máx. y FC máxima con ambas fuentes**: el VO₂ máx. se muestra en series separadas por dispositivo (principal, el del Watch si es reciente); la FC máxima observada sale de los entrenamientos de los dos. | S | F2 | FUS-06, FUS-07 |
+| RF-FUS-09 | Si un día falta una de las dos fuentes, la app funciona con la otra e indica qué falta (p. ej., carrera con el Watch sin la pulsera puesta: la carga de la carrera usa la FC del Watch). | M | F2 | FUS-09 |
 
 ## 4. Sueño (SUE)
 
@@ -79,21 +100,23 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase | Alg. |
 |---|---|---|---|---|
-| RF-CAR-01 | Calcular la **carga del ciclo (0–21)** a partir de la FC intradía, actualizada en cada sincronización. | M | F1 | CAR-01 |
+| RF-CAR-01 | Calcular la **carga del ciclo (0–21)** a partir de la FC intradía (fusionada con la del Apple Watch desde F2, RF-FUS-04), actualizada en cada sincronización. | M | F1 | CAR-01 |
 | RF-CAR-02 | Calcular la **carga de cada actividad** (0–21) con la FC del intervalo de la actividad. | S | F2 | CAR-02 |
 | RF-CAR-03 | Zonas de FC (5 zonas) por % de FC de reserva por defecto, o % de FC máx., o personalizadas; minutos en cada zona por ciclo y actividad. | S | F2 | CAR-06 |
 | RF-CAR-04 | **Carga objetivo** del día en función de la recuperación (banda mostrada en el dial), con estado «por debajo / en objetivo / por encima» durante el día y ajuste manual del modo (Mantener, Progresar, Descargar). | S | F2 | CAR-03 |
 | RF-CAR-05 | Aviso opcional al alcanzar la carga objetivo (NOT-03). | C | F2 | — |
 | RF-CAR-06 | Carga semanal, carga crónica y relación aguda/crónica (solo como indicador de cambios bruscos). | S | F2 | CAR-04 |
-| RF-CAR-07 | FC máxima estimada por edad, sustituible por la máxima observada validada o por un valor manual. | M | F1 | CAR-06 |
-| RF-CAR-08 | Mostrar pasos, distancia y calorías del día como contexto (tal como los proporciona Google). | S | F1 | — |
-| RF-ENT-01 | Listar entrenamientos (automáticos o registrados en Google Health) con tipo, hora, duración, FC media/máx., calorías y distancia si existe. | S | F2 | — |
+| RF-CAR-07 | FC máxima estimada por edad, sustituible por la máxima observada validada (en entrenamientos de la Fitbit Air o del Apple Watch) o por un valor manual. | M | F1 | CAR-06 |
+| RF-CAR-08 | Mostrar pasos, distancia y calorías del día como contexto (los de Google, completados con los del Apple Watch si no llevabas la pulsera, ALG-FUS-04). | S | F1 | FUS-04 |
+| RF-ENT-01 | Listar entrenamientos (detectados por la Fitbit Air, registrados en Google Health o grabados con el Apple Watch, fusionados si coinciden) con tipo, hora, duración, FC media/máx., calorías, distancia y fuente. | S | F2 | FUS-02 |
 | RF-ENT-02 | Detalle del entrenamiento con curva de FC coloreada por zonas y carga de actividad. | S | F2 | CAR-02 |
 | RF-ENT-03 | Preguntar el **esfuerzo percibido (RPE 0–10)** tras cada entrenamiento y guardar el sRPE. | S | F2 | CAR-05 |
 | RF-ENT-04 | Crear una actividad manual (tipo, inicio, fin, RPE); su carga se calcula con la FC registrada en ese intervalo. | S | F2 | CAR-02 |
 | RF-ENT-05 | **Registro de fuerza**: ejercicios, series, repeticiones y peso (volumen) + RPE; carga muscular estimada por sRPE, mostrada junto a la cardiovascular. | C | F3 | CAR-05 |
 | RF-ENT-06 | Editar el tipo o el nombre de una actividad detectada. | C | F2 | — |
 | RF-ENT-07 | **FC en vivo** durante un entrenamiento iniciado en la app, leyendo la emisión estándar de FC por Bluetooth de la Fitbit Air (CoreBluetooth; si el *spike* confirma que es viable, doc. 10 §9), con Live Activity en la pantalla de bloqueo y la Dynamic Island (RF-WID-03). | C | F3 | CAR-06 |
+| RF-ENT-08 | **Detalle de carrera** con los datos del Apple Watch: mapa de la ruta coloreado por ritmo o zona, distancia, ritmo medio y por km, desnivel, cadencia, potencia, zancada, oscilación vertical y tiempo de contacto con el suelo (los que existan), FC por zonas, carga de la actividad, FC de recuperación a 1 min y esfuerzo de Apple junto a tu RPE. | S | F2 | CAR-02 |
+| RF-ENT-09 | Récords y evolución de carrera: mejores tiempos en 1/5/10 km y ritmo frente a tu media de las últimas 4 semanas a FC parecida. | C | F3 | — |
 
 ## 7. Estrés (EST)
 
@@ -114,7 +137,7 @@ Convenciones:
 | RF-SAL-02 | Mostrar el **rango habitual personal** de cada vital (banda) y marcar valores fuera de rango. | S | F2 | SAL-01 |
 | RF-SAL-03 | Aviso combinado cuando ≥ 2 vitales están fuera de rango en la misma noche, con texto de bienestar (RL-02) y sin mencionar enfermedades. | S | F2 | SAL-01 |
 | RF-SAL-04 | Historial de vitales (7/30/90/365 días). | S | F2 | — |
-| RF-SAL-05 | VO₂ máx. y su tendencia: el de Google (solo se actualiza con carreras al aire libre con GPS del móvil) y, si no hay, una estimación propia sin ejercicio marcada como tal. | C | F2 | EDA-02 |
+| RF-SAL-05 | VO₂ máx. y su tendencia, en series separadas por fuente: el del Apple Watch (carreras y caminatas al aire libre) y el de Google (carreras con GPS del móvil); si no hay ninguno, una estimación propia sin ejercicio marcada como tal. | S | F2 | FUS-06, EDA-02 |
 | RF-SAL-06 | **Informe de salud** en PDF (30 y 180 días) con vitales, rangos y tendencias, para compartir por decisión del usuario. | C | F3 | SAL-01 |
 
 ## 9. Diario de hábitos (DIA)
@@ -149,12 +172,22 @@ Convenciones:
 | RF-PLA-02 | Barra de progreso semanal (todos los objetivos pesan igual) y tarjeta en «Hoy». | C | F3 |
 | RF-PLA-03 | Revisión a mitad de semana (viernes) y resumen del lunes (integrado en el informe semanal). | C | F3 |
 
+## 10 ter. Análisis del día (ANA)
+
+| ID | Requisito | Prio. | Fase | Alg. |
+|---|---|---|---|---|
+| RF-ANA-01 | Botón **«Analizar mi día»** en Hoy y en cualquier día pasado: análisis del ciclo con los datos fusionados de los dos dispositivos —sueño frente a tu necesidad, por qué la recuperación es la que es, carga frente al objetivo, entrenamientos (la carrera del Watch con ritmo, zonas y carga), estrés, hábitos del diario y vitales fuera de rango— en **3–5 claves**, con una recomendación para esta noche y otra para mañana y la lista de «Datos usados». | M | F2 | ANA-01 |
+| RF-ANA-02 | **Sin Coach**, el análisis es determinista (plantillas de `Insights`), gratis y sin conexión. **Con el Coach activado**, lo redacta la IA con los mismos datos y el mismo formato (RF-COA-18) y se puede seguir preguntando en el chat. | M | F2 (determinista) / F3 (IA) | ANA-01 |
+| RF-ANA-03 | Se puede pedir en cualquier momento: antes sincroniza las dos fuentes (RF-SYN-09) y, si el día está en curso, indica hasta qué hora hay datos; se puede actualizar más tarde. | M | F2 | — |
+| RF-ANA-04 | Cada análisis se guarda con su fecha, las fuentes y los huecos de datos que tuvo en cuenta, para volver a verlo. | S | F2 | — |
+| RF-ANA-05 | Análisis automático opcional por la tarde-noche, con la franja recomendada para acostarse (NOT-10). | C | F2 | ANA-01 |
+
 ## 11. Edad fisiológica (EDA)
 
 | ID | Requisito | Prio. | Fase | Alg. |
 |---|---|---|---|---|
 | RF-EDA-01 | Estimar semanalmente una **edad fisiológica** con medias de 6 meses de VO₂ máx., FC en reposo, pasos diarios, minutos semanales en zonas moderadas y altas, tiempo de fuerza, duración y regularidad del sueño, mostrando cuántos años suma o resta cada factor, y el **ritmo de envejecimiento** de los últimos 30 días. | C | F3 | EDA-01 |
-| RF-EDA-02 | Disponible tras ≥ 21 días con datos válidos en 31; «calibrada» a los 90 días; siempre con aviso de incertidumbre e intervalo. Sin VO₂ máx. de Google se usa la estimación sin ejercicio (ALG-EDA-02) y se indica. | C | F3 | EDA-01, EDA-02 |
+| RF-EDA-02 | Disponible tras ≥ 21 días con datos válidos en 31; «calibrada» a los 90 días; siempre con aviso de incertidumbre e intervalo. Sin VO₂ máx. (ni del Apple Watch ni de Google) se usa la estimación sin ejercicio (ALG-EDA-02) y se indica. | C | F3 | EDA-01, EDA-02 |
 
 ## 12. Notificaciones (NOT)
 
@@ -178,8 +211,8 @@ Convenciones:
 
 | ID | Requisito | Prio. | Fase |
 |---|---|---|---|
-| RF-PRI-01 | Exportar todos los datos (brutos normalizados, puntuaciones, diario, ajustes, actividades manuales, conversaciones del Coach) en JSON + CSV con la hoja de compartir de iOS (Archivos, iCloud Drive, AirDrop), y copia de seguridad del diario y ajustes restaurable (RF-ONB-05). | M | F2 |
-| RF-PRI-02 | **Borrar todos los datos** del iPhone y desconectar Google (revocando el *token*), con confirmación (RNF-PRI-04). | M | F1 |
+| RF-PRI-01 | Exportar todos los datos (brutos normalizados de las dos fuentes, puntuaciones, diario, ajustes, actividades manuales, análisis del día, conversaciones del Coach) en JSON + CSV, con las rutas del Apple Watch en GPX, con la hoja de compartir de iOS (Archivos, iCloud Drive, AirDrop), y copia de seguridad del diario y ajustes restaurable (RF-ONB-05). | M | F2 |
+| RF-PRI-02 | **Borrar todos los datos** del iPhone y desconectar Google (revocando el *token*), con confirmación (RNF-PRI-04). Los datos de Salud no se tocan: son tuyos en la app Salud y esta app nunca escribe allí. | M | F1 |
 | RF-PRI-03 | Ajustes de privacidad: activar/desactivar el Coach IA y el envío de datos al proveedor de IA, cifras en la pantalla de bloqueo y en *widgets*, y exclusión opcional de la BD de las copias de iCloud. | M | F1 |
 | RF-PRI-04 | Registro local de eventos de privacidad (vinculaciones, exportaciones, borrados, activación del Coach). | C | F3 |
 
@@ -204,6 +237,7 @@ Convenciones:
 | RF-W-06 | Seguimiento del ciclo menstrual y embarazo (y su efecto en recuperación y objetivos) | La Google Health API solo permite **escribir** datos menstruales, no leerlos; se podría añadir un registro propio en la app si se desea |
 | RF-W-07 | Integraciones directas con Strava, Peloton, TrainingPeaks, etc. | Google Health ya agrega datos de otras apps |
 | RF-W-08 | Publicación en la App Store, cuentas de usuario y servidor | App de uso personal (doc. 08 §7) |
+| RF-W-09 | App propia para el Apple Watch (esfera con la recuperación, carga en directo en la muñeca) | Usas el Watch solo para correr y ya graba la carrera con la app Entreno; sus datos llegan por Apple Health (doc. 16). Se puede valorar más adelante |
 
 ---
 
@@ -234,6 +268,45 @@ Dado que estoy conectado y tengo datos hasta ayer
 Cuando la pulsera ya ha sincronizado la noche con Google Health y abro la app
 Entonces en ≤ 3 s veo el sueño, los vitales y la recuperación de hoy
 Y si repito la sincronización no se crean datos duplicados
+```
+
+**RF-SYN-09 · Todo sincronizado al abrir**
+
+```gherkin
+Dado que tengo conectados Google Health y Apple Health
+Y el Apple Watch acaba de pasar al iPhone una carrera que aún no está en la app
+Cuando abro la app
+Entonces en ≤ 1 s veo la carrera con su carga (datos locales de Apple Health)
+Y en ≤ 3 s la pantalla se actualiza con los datos de la Fitbit Air si ya están en Google
+Y la cabecera muestra la última sincronización de cada dispositivo
+```
+
+**RF-FUS-03 / RF-FUS-02 · Una carrera, una actividad**
+
+```gherkin
+Dado que corrí 45 min con el Apple Watch (app Entreno) llevando también la Fitbit Air
+Y la Fitbit Air detectó automáticamente una carrera de 43 min en el mismo intervalo
+Cuando se sincronizan las dos fuentes
+Entonces veo una sola actividad «Carrera» con la ruta, la distancia y el ritmo del Apple Watch y la insignia «Apple Watch + Fitbit Air»
+Y cada minuto de la carrera aporta carga una sola vez, con la FC del Watch
+Y si repito la sincronización no aparece ninguna actividad duplicada
+```
+
+```gherkin
+Dado que la app Google Health está conectada con Apple Health en los dos sentidos
+Cuando se sincronizan las dos fuentes
+Entonces ningún dato de la Fitbit Air llega dos veces (por la API y por Apple Health)
+Y ninguna carrera del Watch llega dos veces (por Apple Health y por Google)
+```
+
+**RF-ANA-01 · Análisis del día**
+
+```gherkin
+Dado un ciclo con sueño, recuperación, una carrera del Apple Watch y respuestas del diario
+Cuando pulso «Analizar mi día» sin el Coach activado
+Entonces en ≤ 1 s veo entre 3 y 5 claves, una recomendación para esta noche y otra para mañana
+Y cada cifra del análisis coincide con la de su pantalla de detalle
+Y «Datos usados» lista las métricas con su fuente (Fitbit Air o Apple Watch)
 ```
 
 **RF-REC-01 / RF-REC-03 · Recuperación y calibración**

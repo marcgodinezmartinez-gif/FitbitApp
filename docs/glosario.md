@@ -4,8 +4,11 @@
 |---|---|
 | **ACWR** | *Acute:Chronic Workload Ratio*. Cociente entre la carga reciente (≈7 días) y la carga crónica (≈28 días). Útil como indicador de cambios bruscos de carga; su valor predictivo de lesiones es discutido. |
 | **AlarmKit** | Marco de iOS 26 que permite a una app programar alarmas que suenan aunque el iPhone esté en silencio. |
+| **Análisis del día** | Resumen de tu ciclo en 3–5 claves con recomendaciones para esta noche y mañana, a petición («Analizar mi día»); sin IA o redactado por el Coach (RF-ANA, ALG-ANA-01). |
+| **Ancla (HealthKit)** | Marca que guarda hasta dónde se ha leído cada tipo de dato de Salud, para pedir después solo lo nuevo y lo borrado (`HKAnchoredObjectQuery`). |
 | **API de Gemini** | API de Google para usar los modelos Gemini (alternativa a la de Claude para el Coach). Para datos de salud, solo con el nivel de pago. |
 | **App Store Connect** | Portal web de Apple para gestionar la app, sus *builds* de TestFlight y las claves de API que usa el CI. |
+| **Apple Health (Salud)** | App de salud de Apple en el iPhone, donde el Apple Watch guarda sus datos; las apps la leen con HealthKit. |
 | **AZM** | *Active Zone Minutes* (Minutos en Zona Activa) de Google/Fitbit: minutos en zonas de FC moderada o alta, con doble valor en zonas altas. |
 | **Backfill** | Importación inicial del historial de datos al conectar Google Health. |
 | **Calibración** | Periodo inicial (≥ 4 noches válidas) antes de mostrar la recuperación; la línea base se considera estable a partir de 14 noches. Calendario completo en el doc. 05 §11. |
@@ -14,20 +17,25 @@
 | **Ciclo fisiológico** | Periodo entre dos despertares del sueño principal. Unidad temporal de la app (doc. 08 §4.3). |
 | **Confianza** | Indicador alta/media/baja de la calidad de datos detrás de una puntuación (RNF-CAL-01). |
 | **Deuda de sueño** | Acumulado ponderado de la diferencia entre necesidad de sueño y sueño real de las noches recientes. |
+| **Dinámica de carrera** | Métricas del Apple Watch al correr: potencia, velocidad, longitud de zancada, oscilación vertical y tiempo de contacto con el suelo. |
 | **DPA** | *Data Processing Agreement*: contrato de encargado del tratamiento (art. 28 RGPD). |
 | **Eficiencia del sueño** | Tiempo dormido / tiempo en cama × 100. |
 | **EIPD / DPIA** | Evaluación de impacto relativa a la protección de datos (art. 35 RGPD). |
+| **Entrega en segundo plano (HealthKit)** | Aviso con el que iOS despierta la app cuando se guarda un dato nuevo en Salud (p. ej. una carrera del Watch); requiere un permiso especial de la app. |
 | **Estrés (0–3)** | Nuestra estimación de la activación fisiológica diurna no explicada por actividad física, a partir de la FC. |
+| **Familia de fuentes** | Filtro de la Google Health API por origen de los datos: `all-sources`, `google-sources` o `google-wearables` (solo pulseras y relojes de Google y Fitbit, la que usa la app). |
 | **FC / HR** | Frecuencia cardiaca, en latidos por minuto (lpm). |
+| **FC de recuperación** | Cuánto baja la FC en el minuto siguiente a terminar un entrenamiento; la mide el Apple Watch. |
 | **FC máx. / HRmax** | Frecuencia cardiaca máxima (estimada por edad o medida). |
 | **FCR / RHR** | Frecuencia cardiaca en reposo. |
 | **FCRes / HRR** | Frecuencia cardiaca de reserva: FC máx. − FC en reposo (método de Karvonen). |
 | **FR / RR** | Frecuencia respiratoria nocturna, en respiraciones por minuto (rpm). |
+| **Fusión de fuentes** | Reglas que combinan los datos de la Fitbit Air y del Apple Watch sin contar nada dos veces (ALG-FUS, doc. 16). |
 | **GitHub Actions** | Servicio de integración continua de GitHub; aquí compila la app en máquinas macOS en la nube (sin Mac propio) y la sube a TestFlight. |
 | **Google Health (app)** | App oficial de Google con la que se empareja y sincroniza la Fitbit Air. |
 | **Google Health API** | API REST de Google para que apps de terceros lean (y en algunos casos escriban) datos de salud y actividad de los usuarios; sustituye a la Fitbit Web API. |
 | **Health Connect** | Almacén de datos de salud en el propio dispositivo Android, compartido entre apps con permiso del usuario. |
-| **HealthKit** | Equivalente de Apple en iOS. |
+| **HealthKit** | Marco de iOS con el que las apps leen (y, si se les permite, escriben) datos de Salud; esta app solo lee. |
 | **healthUserId** | Identificador del usuario en la Google Health API. |
 | **HRV / VFC** | Variabilidad de la frecuencia cardiaca. En esta app, **RMSSD** nocturno. |
 | **Limited Use** | Requisitos de «Uso Limitado» de la política de datos de usuario de las APIs de Google. |
@@ -46,6 +54,7 @@
 | **Ritmo de envejecimiento** | Velocidad a la que cambia la edad fisiológica respecto al calendario (1,0 = normal; negativo = disminuye). |
 | **RMSSD** | Raíz cuadrática media de las diferencias sucesivas entre intervalos RR; refleja la actividad parasimpática. |
 | **RPE / sRPE** | Esfuerzo percibido (escala CR-10) y su producto por la duración de la sesión (método de Foster). |
+| **SDNN** | Desviación típica de los intervalos entre latidos; es la VFC que guarda Salud, no comparable con el RMSSD de la Fitbit Air. |
 | **SpO₂** | Saturación periférica de oxígeno. |
 | **SRI** | *Sleep Regularity Index*: probabilidad de estar en el mismo estado (dormido/despierto) en dos instantes separados 24 h (0–100). |
 | **Sueño reparador** | Tiempo en sueño profundo + REM. |

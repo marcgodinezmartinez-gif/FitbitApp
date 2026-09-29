@@ -43,7 +43,8 @@ flowchart TB
     HOY --> SUE["Sueño"]
     HOY --> REC["Recuperación"]
     HOY --> CAR["Carga"]
-    CAR --> ACT["Actividad"]
+    CAR --> ACT["Actividad · Carrera (mapa, parciales)"]
+    HOY --> ANA["Análisis del día"]
     HOY --> SAL["Salud: monitor · estrés · edad fisiológica"]
     HOY --> PLS["Plan semanal (F3)"]
     SUE --> PLA["Planificador de sueño"]
@@ -54,7 +55,7 @@ flowchart TB
     MAS --> FUE["Registrar fuerza (F3)"]
     MAS --> RES["Respiración guiada (F3)"]
     DIA --> IMP["Impacto de hábitos (F3)"]
-    PER --> CON["Conectado a Google Health · última sincronización · Desconectar"]
+    PER --> CON["Fuentes de datos: Fitbit Air (Google Health) · Apple Watch (Apple Health) · última sincronización · Desconectar"]
     PER --> AJU["Ajustes: unidades, avisos, zonas de FC, Face ID"]
     PER --> CIA["Coach IA: proveedor (Claude/Gemini), clave, modelo, límite de gasto"]
     PER --> PRI["Privacidad: exportar, borrar todo"]
@@ -67,8 +68,8 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 
 ```
 ┌──────────────────────────────────────────┐
-│ Lunes 28 sep            ◉ Google Health · │
-│                          sincronizado 6:52│
+│ Lunes 28 sep        ◉ Fitbit Air · 6:52  │
+│                     ⌚ Apple Watch · 18:40│
 │                                          │
 │      ╭───╮        ╭─────╮        ╭───╮   │
 │      │92%│        │ 72% │        │8,4│   │
@@ -86,8 +87,12 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 │ SpO₂ 96 % =  Temp. +0,1 °C =             │
 │                                          │
 │ Estrés  ▁▂▂▃▅▂▁▁   medio 1,1 (bajo)      │
-│ Actividades  🏃 Carrera 45 min · 11,2    │
+│ Actividades  🏃 Carrera 8,2 km · 5:12/km │
+│              45 min · carga 11,2  ⌚+◉    │
 │ Esta noche: acuéstate a las 23:10    ›   │
+│ ┌──────────────────────────────────────┐ │
+│ │        ✦ Analizar mi día             │ │
+│ └──────────────────────────────────────┘ │
 │ Mi panel  (VFC · Pasos · Zonas · Sueño…) │
 └──────────────────────────────────────────┘
    Hoy     Tendencias     Coach     Perfil   (+)
@@ -97,6 +102,9 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 - Deslizar lateralmente para días anteriores; «Hoy» vuelve al ciclo actual.
 - Anillo de Carga con la **banda objetivo** superpuesta.
 - Recomendación del día: plantillas deterministas y gratuitas (F1–F2); redactada por el Coach si está activado (F3, RF-COA-05).
+- **Cabecera con el estado de cada fuente** (Fitbit Air y Apple Watch). Al abrir la app o volver a ella se sincronizan las dos sin tocar nada (RF-SYN-09): lo de Apple Health aparece al instante y lo de Google, en cuanto llega, con una animación suave de los anillos y las cifras.
+- Las actividades muestran su fuente: ⌚ Apple Watch, ◉ Fitbit Air o las dos si se han fusionado (RF-FUS-01/03).
+- Botón **«Analizar mi día»** (RF-ANA-01): abre el análisis en una hoja; con el Coach activado, con «Seguir preguntando».
 - «Mi panel»: tarjetas de métricas elegibles y reordenables, cada una abre su tendencia.
 
 ## 5. Pantallas de detalle
@@ -107,7 +115,10 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 | **Planificador de sueño** | «Alcanzar mi necesidad» (hora de despertar por día y objetivo 100/85/70 %) o «Mejorar mi constancia»; hora recomendada, recordatorio y alarma opcional (AlarmKit) | F2 / F3 |
 | **Recuperación** | Puntuación y zona; contribución de cada componente frente a tu base (barras divergentes); tendencia de 30 días; carga objetivo; confianza y calibración | F1 |
 | **Carga** | Carga y objetivo; minutos por zona; curva de FC del día; actividades con su carga; carga aguda y crónica | F1 / F2 |
-| **Actividad** | Tipo, duración, FC media/máx., curva de FC por zonas, carga, RPE editable, notas | F2 |
+| **Actividad** | Tipo, duración, FC media/máx., curva de FC por zonas, carga, RPE editable, notas y fuentes (con aviso si las dos pulseras no coinciden) | F2 |
+| **Carrera** (Apple Watch) | Mapa de la ruta coloreado por ritmo o zona de FC; distancia, tiempo, ritmo medio y parciales por km; desnivel; cadencia, potencia, zancada, oscilación vertical y contacto con el suelo; FC por zonas y carga; FC de recuperación a 1 min; esfuerzo de Apple y tu RPE (RF-ENT-08) | F2 |
+| **Análisis del día** | Titular; 3–5 claves con su tono (positivo ◆, a vigilar ▲); tus actividades; «Esta noche» y «Mañana»; «Datos usados» con su fuente; hasta qué hora hay datos; «Seguir preguntando» al Coach (F3) | F2 / F3 |
+| **Fuentes de datos** | Fitbit Air (Google Health) y Apple Watch (Apple Health): estado, última sincronización, qué aporta cada una, preferencia de FC en entrenamientos y «Cómo evitamos duplicados» (RF-FUS-07, RF-CON-09) | F2 |
 | **Salud** | Vitales nocturnos con tu rango habitual y avisos; estrés del día (0–3); edad fisiológica y ritmo de envejecimiento (F3) | F2 / F3 |
 | **Tendencias** | Métrica y periodo (7 d – 1 año), medias móviles, comparación de dos métricas, calendario coloreado por recuperación, informes | F2 |
 | **Plan semanal** | Objetivos, progreso, revisión del viernes | F3 |
@@ -122,16 +133,19 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 2. Aviso breve: bienestar, no medicina; tus datos se quedan en tu iPhone.
 3. Perfil: fecha de nacimiento, sexo (o «prefiero no decirlo»), altura, peso, deportes, hora habitual de despertar.
 4. **Conectar Google Health**: divulgación → consentimiento de Google en el navegador del sistema → vuelta a la app (RF-CON-01). Si falta el perfil de Google Health, guía para configurarlo (RF-CON-08).
-5. Permiso de notificaciones (explicando cuáles).
-6. Importación del historial con animación de progreso («Hemos encontrado 86 noches»). Con ≥ 4 noches válidas, la recuperación ya está disponible.
-7. Primer «Hoy» (con estados de calibración si faltan datos). Sugerencia de añadir el *widget*.
+5. **¿Corres con Apple Watch?** (opcional): «Conectar Apple Health» abre la hoja de permisos de iOS solo con los tipos de lectura necesarios (RF-CON-06). Se puede hacer más tarde desde Ajustes › Fuentes de datos.
+6. Permiso de notificaciones (explicando cuáles).
+7. Importación del historial con animación de progreso («Hemos encontrado 86 noches y 23 carreras»). Con ≥ 4 noches válidas, la recuperación ya está disponible.
+8. Primer «Hoy» (con estados de calibración si faltan datos). Sugerencia de añadir el *widget*.
 
 ## 7. Estados especiales (en todas las pantallas de métricas)
 
 | Estado | Mensaje de ejemplo | Acción |
 |---|---|---|
 | Calibrando | «Estamos conociendo tu cuerpo: 2 de 4 noches» | Explicación |
-| Esperando sincronización | «Aún no ha llegado tu sueño. Abre Google Health para enviar los datos de la pulsera.» | Botón que abre Google Health |
+| Esperando sincronización | «Aún no ha llegado tu sueño. La Fitbit Air sincronizó por última vez a las 23:10: abre Google Health para enviar sus datos.» | Botón «Abrir Google Health» (enlace universal documentado `https://www.fitbit.com/in-app/today`; al abrirse, Google Health sincroniza la pulsera si está cerca) |
+| Apple Health sin datos | «No vemos entrenamientos del Apple Watch. Si corres con él, revisa Salud › Compartir › Apps › {app}.» | Ayuda paso a paso (iOS no revela si se denegó el permiso) |
+| Fuentes que no coinciden | «En esta carrera, la FC del Apple Watch y la de la Fitbit Air difieren. Usamos la del Watch.» | Cambiar la preferencia (RF-FUS-07) |
 | Datos antiguos | «Última actualización hace 9 h» | *Pull-to-refresh* |
 | Sin datos | «No llevabas la pulsera esta noche» | — |
 | Confianza baja | «Datos parciales (58 % de la noche)» | Detalle del motivo |
@@ -151,8 +165,9 @@ El botón flotante **«+»** agrupa las acciones de registro. El Coach también 
 | NOT-07 | Conexión con Google caducada/revocada | «Vuelve a conectar Google Health» | Siempre | F1 |
 | NOT-08 | Recordatorio del diario | «¿Cómo fue ayer? 3 preguntas rápidas» | Desactivada | F2 |
 | NOT-09 | Estrés alto sostenido | «Llevas un rato con estrés alto. ¿Un minuto de respiración?» | Desactivada | F2 |
-| NOT-10 | Resumen de estrés / revisión del día | «Hoy: estrés medio 1,2. Acuéstate entre 23:00 y 23:20» | Desactivada | F2/F3 |
+| NOT-10 | Resumen de estrés / análisis del día (RF-ANA-05) | «Tu análisis de hoy está listo: buen día de carga. Acuéstate entre 23:00 y 23:20» | Desactivada | F2/F3 |
 | NOT-11 | Plan semanal | «Vas al 60 % de tu plan semanal» (viernes) | Activada si hay plan | F3 |
+| NOT-12 | Carrera nueva del Apple Watch importada (en segundo plano o al abrir, RF-SYN-11) | «Carrera de 8,2 km importada · carga 13,4» | Activada | F2 |
 
 Reglas: máximo 3 no críticas al día, horas de silencio (22:30–07:00 salvo NOT-02) y sin cifras en la pantalla de bloqueo salvo que lo actives. Las que dependen de datos nuevos solo pueden salir cuando iOS ejecuta la tarea en segundo plano o al abrir la app (doc. 10 §6).
 

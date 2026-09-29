@@ -4,7 +4,7 @@ Equivalente funcional de «WHOOP Coach»: un asistente que conoce tus datos, res
 
 - **Proveedor a elegir**: **Claude** (Anthropic) o **Gemini** (Google), con **tu propia clave de API**. Se puede cambiar en Ajustes en cualquier momento.
 - **Pago por uso**, sin cuota; la app es completa y gratuita sin el Coach (recomendaciones deterministas del módulo `Insights`).
-- Fase: **F3** (requiere métricas estables de F1–F2). Requisitos legales: RL-34, RL-35 y RL-48 ([doc. 12](12-privacidad-seguridad-y-legal.md)).
+- Fase: **F3** (requiere métricas estables de F1–F2). Requisitos legales: RL-34, RL-35, RL-48 y RL-82 ([doc. 12](12-privacidad-seguridad-y-legal.md)).
 
 ---
 
@@ -12,6 +12,7 @@ Equivalente funcional de «WHOOP Coach»: un asistente que conoce tus datos, res
 
 | Caso | Ejemplo de pregunta | Datos que necesita |
 |---|---|---|
+| Analizar el día | Botón «Analizar mi día» o «¿Qué tal ha ido hoy?» | Todo el ciclo con los datos fusionados de la Fitbit Air y el Apple Watch (`get_day_detail`) |
 | Explicar el día | «¿Por qué mi recuperación es del 34 % si dormí 8 horas?» | Recuperación y componentes, línea base, sueño, diario de ayer |
 | Planificar | «Mañana quiero hacer series. ¿A qué hora me acuesto?» | Necesidad y deuda de sueño, planificador, carga reciente |
 | Tendencias | «¿Cómo ha evolucionado mi VFC este mes?» | Serie diaria de HRV, medias móviles |
@@ -40,7 +41,7 @@ Equivalente funcional de «WHOOP Coach»: un asistente que conoce tus datos, res
 | RF-COA-15 | Desactivado por defecto; desactivado, no se envía ningún dato a ningún proveedor de IA. | M |
 | RF-COA-16 | **Modo solo educativo**: responde sobre sueño, entrenamiento y recuperación en general **sin acceder a tus datos**. | S |
 | RF-COA-17 | **Contexto de pantalla**: al abrir el Coach desde un detalle se le pasan la fecha y la métrica como contexto. | S |
-| RF-COA-18 | **Revisión del día** (tarde-noche, opcional): carga y estrés del día y franja para acostarse. | C |
+| RF-COA-18 | **Análisis del día con IA** (RF-ANA-01/02): con el botón «Analizar mi día», con una pregunta o, si lo activas, por la tarde-noche. La IA recibe los hechos del ciclo con `get_day_detail`, responde con el esquema JSON de ALG-ANA-01 (validado; si no cumple, se muestra la versión determinista) y después se puede seguir preguntando en el mismo hilo. | M |
 | RF-COA-19 | Memoria por categorías (objetivos, estilo de vida, preferencias, eventos, salud declarada) visible, editable y desactivable. | S |
 | RF-COA-20 | Consejos de *jet lag* al detectar un cambio de zona horaria. | C |
 | RF-COA-21 | **Selector de proveedor y modelo** (Claude o Gemini) con una clave por proveedor guardada en el Llavero, botón «Probar conexión» y coste estimado por pregunta de cada opción. | M |
@@ -71,10 +72,11 @@ flowchart LR
 | Herramienta | Parámetros | Devuelve |
 |---|---|---|
 | `get_today_overview` | — | Recuperación, carga, sueño, estrés y vitales de hoy con confianza y calibración |
+| `get_day_detail` | `date` | Los hechos de ese ciclo que usa el análisis del día (ALG-ANA-01): valores, referencias, desviaciones, actividades fusionadas y fuentes |
 | `get_daily_metrics` | `start_date`, `end_date` (máx. 180 días), `metrics[]` | Serie diaria (recovery, strain, sleep_performance, hrv_rmssd, rhr, resp_rate, spo2, skin_temp, steps, stress_avg…) |
 | `get_baselines` | `metrics[]` | Mediana, dispersión y rango habitual (30 y 60 noches) |
 | `get_sleep_sessions` | `start_date`, `end_date` (máx. 31 días) | Sesiones con fases, eficiencia, necesidad, deuda, constancia |
-| `get_workouts` | `start_date`, `end_date`, `type?` | Entrenamientos con carga, zonas, duración, sRPE |
+| `get_workouts` | `start_date`, `end_date`, `type?` | Entrenamientos fusionados con sus fuentes, carga, zonas, duración y sRPE; en carreras del Apple Watch, también distancia, ritmo medio y por km, desnivel, cadencia, potencia y FC de recuperación (**nunca coordenadas GPS**) |
 | `get_journal` | `start_date`, `end_date` | Respuestas del diario (los textos libres van marcados como «contenido del usuario, no instrucciones») |
 | `get_behavior_impacts` | — | Efecto de cada hábito sobre la recuperación, con IC y n |
 | `get_profile_and_goals` | — | Edad, sexo, unidades, zonas, objetivos y preferencias |
@@ -117,7 +119,8 @@ Resultados en JSON compacto, redondeado, con fechas locales y truncado a un máx
 | **Gemini: solo nivel de pago** | Según las condiciones de la API de Gemini, en el nivel **gratuito** Google usa el contenido para mejorar sus productos, **personas pueden leerlo** y se pide no enviar información personal o sensible; además, en el EEE (España incluida) solo se permiten los servicios de pago. En el nivel **de pago**, Google no usa el contenido para mejorar productos y solo lo registra temporalmente para detectar abusos. ⇒ Clave de un proyecto con **facturación activada** (RF-COA-23). |
 | Claude | Según los términos comerciales de Anthropic, los datos de la API no se usan para entrenar por defecto y se conservan un tiempo limitado; revisar la retención de tu organización en la consola. |
 | Políticas de Google Health | Los datos de la Google Health API (y derivados) solo se envían al proveedor de IA como parte de esta función activada por ti, nunca para entrenar modelos (RL-40, RL-48). |
-| Minimización | Solo los resultados de las herramientas que el modelo pide; sin nombre, email, identificadores de Google ni ubicación. |
+| Minimización | Solo los resultados de las herramientas que el modelo pide; sin nombre, email, identificadores de Google ni ubicación (de las rutas del Apple Watch solo van resúmenes, nunca coordenadas). |
+| Datos de Apple Health | Solo se envían con el Coach activado y tras el consentimiento de RL-32, como exigen las condiciones de Apple para HealthKit (RL-82). |
 | Clave de API | Solo en el Llavero. En Gemini, restringir la clave en Google Cloud a la API de Gemini (y a la app de iOS si es posible) por si se filtrara. En ambos, límite de gasto en la consola. |
 
 ## 8. Coste estimado (pago por uso)

@@ -13,11 +13,11 @@ Ambos son requisitos: una métrica sin validar **no se muestra como definitiva**
 
 | Nivel | Qué cubre | Herramientas | Umbral |
 |---|---|---|---|
-| Unitarias | `MetricsKit` (funciones puras), fechas/zonas horarias, mapeo de la API | Swift Testing / XCTest (se ejecutan también en Linux en CI) | ≥ 90 % de líneas en `MetricsKit` (RNF-MAN-02) |
+| Unitarias | `MetricsKit` (funciones puras, incluidas la fusión de fuentes y el análisis del día), fechas/zonas horarias, mapeo de la API | Swift Testing / XCTest (se ejecutan también en Linux en CI) | ≥ 90 % de líneas en `MetricsKit` (RNF-MAN-02) |
 | Propiedades | Invariantes de los algoritmos (§2) | Generadores aleatorios con semilla fija en Swift Testing | Todas las invariantes en CI |
 | *Golden files* | Resultado exacto de cada `algorithm_version` sobre datasets fijos | Ficheros JSON versionados | 0 diferencias no explicadas |
 | Contrato | Forma de las respuestas de la Google Health API | Respuestas grabadas + decodificación estricta (`Codable`) | Ejecutar también contra la API real con tu cuenta antes de cada versión |
-| Integración | `HealthAPI` + `Store` + `Sync` con la API simulada | `URLProtocol` de prueba, BD SQLite en memoria | Sincronización, idempotencia, reanudación, reintentos |
+| Integración | `HealthAPI` + `Store` + `Sync` con la API simulada; `AppleHealth` con muestras de prueba de HealthKit | `URLProtocol` de prueba, BD SQLite en memoria; almacén de HealthKit del simulador en el CI de macOS [verificar] | Sincronización, idempotencia, reanudación, reintentos, anclas y borrados |
 | UI | Flujos críticos (onboarding, conexión, Hoy, diario, borrar todo) | XCUITest en el simulador del CI de macOS | En cada PR de interfaz y en `main` |
 | Instantáneas | Aspecto de pantallas y *widgets* en claro/oscuro y 3 tamaños de letra | swift-snapshot-testing; las capturas se adjuntan al PR (sustituyen a las vistas previas de Xcode al no haber Mac) | Sin cambios visuales no intencionados (RNF-EST-05) |
 | No funcionales | Rendimiento, fluidez, accesibilidad, batería | Tests de rendimiento XCTest y auditoría de accesibilidad en el CI; MetricKit y prueba manual en tu iPhone vía TestFlight | Objetivos del doc. 07 |
@@ -35,6 +35,7 @@ Con el resto de entradas fijas:
 - **Estrés** ∈ [0, 3]; minutos con actividad física detectada no suman estrés.
 - Cambiar la zona horaria de visualización no cambia ningún valor calculado (solo su presentación).
 - Los recálculos con datos repetidos (misma muestra dos veces) dan el mismo resultado (idempotencia de la ingesta).
+- **Fusión** (ALG-FUS, RNF-DIS-09): ningún minuto tiene FC, pasos o carga de dos fuentes; cada entrenamiento del Watch aparece en exactamente una actividad; sin datos del Watch, todo es idéntico al resultado con la Fitbit sola; el orden en que llegan las fuentes no cambia el resultado final; la recuperación y las líneas base no cambian al añadir o quitar datos del Watch.
 
 ## 3. Datasets de prueba
 
@@ -45,6 +46,7 @@ Con el resto de entradas fijas:
 | `synthetic/overreaching` | 3 semanas de carga creciente con HRV descendente | Recuperación, relación carga aguda/crónica |
 | `synthetic/gaps` | Noches sin datos, días sin llevar la pulsera, sincronizaciones tardías | Estados de «datos insuficientes», recálculo |
 | `synthetic/dst-travel` | Cambio de hora y viaje con cambio de zona horaria | Cálculo de ciclos y noches |
+| `synthetic/watch-runs` | Escenarios del doc. 16 §8: solo Fitbit, solo Watch, los dos a la vez (con y sin discrepancia), carrera partida en dos, carrera más paseo, copias cruzadas por Google y por Salud, borrado en Salud, carrera en cinta | Fusión (ALG-FUS) y análisis del día |
 | `real/owner` | Exportación de tus propios datos | Calibración y validación (§6) — **nunca** en el repositorio (`data/` está en `.gitignore`) |
 
 ## 4. Pruebas de la integración con la Google Health API
@@ -53,11 +55,17 @@ Con el resto de entradas fijas:
 - Casos obligatorios: primera conexión, refresco del *token*, caducidad a los 7 días en *Testing*, revocación desde la cuenta de Google, ámbitos denegados parcialmente, HTTP 412 sin perfil de Google Health, 429 con `Retry-After`, 5xx, sincronización interrumpida (app cerrada o sin red), campo nuevo desconocido en la respuesta (se ignora sin fallar).
 - Antes de cada versión, prueba real contra la API que confirma que el contrato no ha cambiado.
 
+## 4 bis. Pruebas de la integración con Salud (Apple Watch)
+
+- Tus carreras reales con el Apple Watch durante el *spike* (doc. 16 §9).
+- Casos obligatorios: permiso concedido, denegado (la app no puede saberlo: debe mostrar la ayuda de RF-CON-09) y concedido solo para datos recientes (iOS 27); primera importación de 180 días; consulta incremental con ancla (nuevos y borrados); ruta que llega después del entrenamiento; iPhone bloqueado durante la entrega en segundo plano (`errorDatabaseInaccessible`, se reintenta al abrir); muestras escritas por Google Health (se ignoran); Watch en modo de bajo consumo (pocas muestras de FC).
+- Comprobación de que la app nunca escribe en Salud.
+
 ## 5. Seguridad y privacidad
 
 - Checklist OWASP MASTG de lo aplicable (almacenamiento, red, plataforma, privacidad).
 - Revisión de que *tokens* y clave de IA solo están en el Llavero y nunca en BD, `UserDefaults` ni logs.
-- Inspección del tráfico con un proxy (p. ej. Proxyman) en un flujo completo: solo debe haber conexiones a Google y, con el Coach activado, a Anthropic.
+- Inspección del tráfico con un proxy (p. ej. Proxyman) en un flujo completo: solo debe haber conexiones a Google y, con el Coach activado, a Anthropic o a la API de Gemini; nunca con coordenadas de rutas.
 - «Borrar todos los datos»: tras ejecutarlo no queda BD, instantánea de *widgets*, conversaciones ni *tokens*, y el acceso aparece revocado en tu cuenta de Google.
 
 ## 6. Validación científica de las métricas
@@ -72,6 +80,9 @@ Objetivo: demostrar que las puntuaciones son **estables, sensibles y coherentes*
 | Carga diaria | Calibración con escenarios de referencia: día sedentario, 60 min de carrera suave, competición | Sedentario 2–8; 60 min suave 10–14; esfuerzo máximo prolongado ≥ 17 |
 | Sueño | Diario de sueño (hora de acostarse/levantarse) | Diferencia media de duración ≤ 20 min |
 | Estrés | Etiquetado manual de episodios (reunión tensa, calma) durante 2 semanas | Mayor estrés medio en episodios etiquetados como estresantes (prueba de Wilcoxon, p < 0,05) |
+| FC en carrera (Apple Watch frente a Fitbit Air) | ≥ 5 carreras con los dos dispositivos, minuto a minuto (Bland-Altman) | Sesgo medio ≤ 5 lpm; si no, se revisa `hr_workout_priority` (ALG-FUS-03) |
+| Fusión de actividades | 4 semanas de carreras reales con los dos | 100 % de carreras del Watch emparejadas cuando la Fitbit también las detecta; 0 duplicadas |
+| Análisis del día | 14 análisis revisados junto a tu diario | Cifras 100 % coincidentes con sus pantallas; utilidad media ≥ 4/5 |
 | Todas | Fiabilidad test–retest: recálculo con 10 % de datos eliminados al azar | Cambio medio ≤ 5 % del rango de la escala |
 
 Proceso:
@@ -92,6 +103,7 @@ Requisitos detallados del Coach en [06-coach-ia.md](06-coach-ia.md). Se evalúa 
 | **Utilidad** | Evaluación con rúbrica (claridad, accionabilidad, tono) por humano o LLM juez | Media ≥ 4/5 |
 | **Idioma** | Responde en el idioma del usuario | 100 % |
 | **Uso de herramientas** | Llama a las herramientas correctas con argumentos válidos y respeta el historial solo-anexado (bloques de razonamiento reenviados sin cambios) | 100 % de conversaciones sin errores de protocolo |
+| **Análisis del día** | Respuestas de RF-COA-18 que validan el esquema de ALG-ANA-01 y citan las mismas cifras que la versión determinista | ≥ 99 % (si no valida, se muestra la versión determinista) |
 | **Coste y latencia** | Gasto medio por pregunta y tiempo hasta la primera palabra, con cada nivel de esfuerzo probado (`effort` en Claude, `thinking_level` en Gemini) | Registrados para decidir el proveedor, el modelo y el nivel de esfuerzo por defecto |
 
 La suite se ejecuta ante cualquier cambio del *prompt* de sistema, las herramientas, el proveedor o el modelo (tiene un coste pequeño por ejecución, pagado con tus claves; con Gemini, siempre con clave de nivel de pago), y sus resultados se guardan para comparar versiones. Es un programa de línea de comandos que puede ejecutarse en Linux (por ejemplo, desde el CI de forma manual o desde Claude Code).

@@ -13,6 +13,7 @@ Convención de IDs: `RL-<nn>`. Columna **Cuándo**: `F1` = aplica ya en uso pers
 | **Condiciones de la Google Health API** (RL-40 a RL-48) | **Sí** | Aplican a cualquier app que use la API, aunque la use solo su autor. En la práctica: uso solo para ti, divulgación antes de conectar, página de privacidad con la declaración de *Limited Use* (vale una página gratuita en GitHub Pages), cifrado (Llavero + protección de datos de iOS), granularidad y marca |
 | Términos del proveedor de IA elegido para el Coach (RL-35) | **Sí** | Anthropic (Claude) o Google (API de Gemini). Con Gemini, **solo el nivel de pago**: en el gratuito Google puede usar y revisar el contenido, y en el EEE solo se admiten servicios de pago |
 | Términos del Apple Developer Program y TestFlight | **Sí** | Distribución a ti mismo como probador interno; sin App Store |
+| Condiciones de Apple para los datos de Salud (RL-80 a RL-82) | **Sí**, si conectas Apple Health | Uso solo para salud y forma física visibles en la app, sin publicidad ni cesión a terceros, nada de datos de salud en iCloud desde la app y consentimiento antes de enviarlos a la IA (§9) |
 | No usar protocolos propietarios de la pulsera (RL-62) | **Sí** | Términos de Google |
 | RGPD / LOPDGDD (§3) | No | Exención doméstica: tratamiento «exclusivamente personal» por una persona física (art. 2.2.c RGPD) |
 | Producto sanitario (MDR, §2) | No en la práctica | No se comercializa ni se pone a disposición de terceros; aun así se mantiene el lenguaje de bienestar (RL-01, RL-02) como buena práctica |
@@ -108,3 +109,13 @@ Detalle técnico y lista de comprobación en [doc. 10 §7](10-integracion-google
 | RL-70 | Condiciones de servicio con limitación de uso a bienestar, requisitos de edad, política de suscripción/cancelación (si la hay) y derecho de desistimiento según la normativa de consumo. | F4 |
 | RL-71 | Afirmaciones comerciales veraces y demostrables: no «tan preciso como…», no promesas de resultados de salud. | F4 |
 | RL-72 | Valorar la aplicabilidad de la Ley Europea de Accesibilidad (Directiva (UE) 2019/882) si se venden servicios digitales en la app; en todo caso se cumple WCAG 2.2 AA (RNF-ACC-01). | F4 |
+
+## 9. Condiciones de Apple para los datos de Salud (HealthKit)
+
+Aplican **también en uso personal**, porque forman parte del acuerdo de licencia del Apple Developer Program (sección 3.3.3(H), *HealthKit APIs*); las guías de la App Store solo obligarían si se publicara, pero se siguen como buena práctica. Integración técnica en el [doc. 16](16-apple-watch-y-fusion-de-datos.md). Fuentes: [Apple Developer Program License Agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/), [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) (5.1.2(i) y 5.1.3).
+
+| ID | Requisito | Cuándo |
+|---|---|---|
+| RL-80 | Usar HealthKit y sus datos **solo para funciones de salud y forma física** de la app, visibles en su interfaz; nunca para publicidad, y nunca compartirlos ni venderlos a plataformas publicitarias, intermediarios de datos o revendedores. Explicar con claridad cómo se usan y usarlos solo como hayas consentido (acuerdo de licencia, 3.3.3(H)). | F2 |
+| RL-81 | No guardar datos de salud en **iCloud** desde la app (ni CloudKit, ni iCloud Drive, ni almacenamiento clave-valor; guía 5.1.3(ii)). La copia de seguridad del iPhone y las exportaciones quedan a tu elección (RF-PRI-01, RF-PRI-03). | F2 |
+| RL-82 | Enviar datos de Salud al proveedor de IA del Coach solo con el Coach activado y tras el consentimiento explícito de RL-32 (guía 5.1.2(i)); sin coordenadas GPS, solo resúmenes. | F3 |

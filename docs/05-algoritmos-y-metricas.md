@@ -24,6 +24,22 @@ Notación: `clip(x, a, b)` limita x al intervalo [a, b]; `Φ` es la función de 
 | Cobertura de FC nocturna | Minutos con FC válida / minutos dormidos |
 | Día válido para carga | ≥ 10 h de FC válida en el ciclo (si no, confianza baja) |
 
+## 0 bis. Fusión de fuentes (ALG-FUS)
+
+Dos fuentes: **`fitbit`** (Fitbit Air vía Google Health API, llevada 24/7) y **`watch`** (Apple Watch vía Apple Health, solo al correr). Los datos brutos de cada fuente se guardan intactos; la fusión es un dato **derivado**, determinista y recalculable, que se rehace para la ventana afectada en cada sincronización (doc. 16). **Nunca se promedian dos fuentes**: en cada dato y minuto manda una.
+
+| Regla | Especificación |
+|---|---|
+| **ALG-FUS-01 · Prioridades** | Noche y vitales (sueño, VFC, FC en reposo, SpO₂, FR, temperatura) → `fitbit`. FC dentro de un entrenamiento del Watch → `watch` (*parámetro* `hr_workout_priority`); fuera → `fitbit`. Totales diarios de pasos, distancia y calorías → `fitbit`, con relleno de huecos del `watch`. Datos propios del entrenamiento (ruta, distancia, ritmo, dinámica de carrera, calorías) → `watch`. Tabla completa en el doc. 16 §5. |
+| **ALG-FUS-02 · Emparejar actividades** | Una sesión de la Fitbit F (detección automática) y un entrenamiento del Watch W son la misma actividad si `solape(F, W) / min(duración F, duración W) ≥ 0,5` (*parámetro* `match_overlap`), sea cual sea el tipo detectado. La actividad fusionada toma de W el intervalo, el tipo, la ruta, la distancia, el ritmo, las calorías y la dinámica de carrera, y guarda F como fuente secundaria. Si F se sale de W ≥ 10 min (*parámetro* `min_leftover_min`), esa parte queda como actividad aparte; si no, se absorbe. Una F puede emparejar con varios W y al revés (p. ej., la pulsera partió la carrera en dos). El identificador estable es el del entrenamiento del Watch, así que el RPE y las notas se conservan al re-sincronizar. Las actividades creadas a mano en la app nunca se fusionan solas. |
+| **ALG-FUS-03 · FC por minuto fusionada** | Para cada minuto m: si m cae dentro de un entrenamiento del Watch y el Watch tiene minuto válido (≥ 2 muestras válidas, ALG-VAL; *parámetro* `watch_min_samples`) ⇒ media del Watch; si no, la FC de la Fitbit si su minuto es válido; si no, la del Watch si existe (pulsera no puesta); si no, hueco. Si las dos fuentes son válidas y difieren > 15 lpm durante ≥ 5 min seguidos (*parámetros* `disagreement_bpm`, `disagreement_min`), la actividad se marca «las fuentes no coinciden» y se sigue la preferencia. Es la serie que usan la carga (ALG-CAR), las zonas y el estrés (ALG-EST-01). La preferencia por el Watch en carrera se apoya en que el Apple Watch fue el reloj con menor error de FC en un estudio de laboratorio con siete dispositivos [R73]; se valida con tus carreras (doc. 13 §6). |
+| **ALG-FUS-04 · Pasos, distancia y calorías** | Totales del día: los de la Fitbit (Google). Si durante un entrenamiento del Watch la Fitbit no registra ni FC ni pasos (no la llevabas), se suman los pasos, la distancia y la energía activa del Watch de esos minutos. La distancia, el ritmo y las calorías **del entrenamiento** son siempre los del Watch. |
+| **ALG-FUS-05 · Noche y líneas base** | Solo `fitbit`. La VFC del Watch (SDNN, no RMSSD), su FC en reposo y su sueño no entran en la recuperación ni en las líneas base: mezclar dispositivos rompería la comparación con tu propia normalidad. |
+| **ALG-FUS-06 · VO₂ máx.** | Una serie por fuente, nunca promediadas. Valor principal: el del Watch si tiene < 60 días; si no, el de Google. La edad fisiológica usa una sola fuente en su ventana de 180 días (la que tenga más valores) e indica cuál. |
+| **ALG-FUS-07 · FC máxima observada** | ALG-CAR-06 con los entrenamientos de las dos fuentes (tras sus filtros de artefactos); la propuesta indica de qué dispositivo y fecha procede. |
+| **ALG-FUS-08 · Copias entre Google Health y Apple Health** | La app Google Health puede copiar datos en los dos sentidos (doc. 10 §8). En Apple Health solo se leen muestras **registradas por un Apple Watch** (doc. 16 §4); lo que escriben Google Health u otras apps se ignora. De Google se lee la familia de fuentes `google-wearables` (solo pulseras de Google y Fitbit); si algún tipo se lee con `list`, se descartan los puntos cuyo `dataSource.platform` sea `HEALTH_KIT`. Red de seguridad: un entrenamiento del Watch que llegara también por Google se fusiona por solape (ALG-FUS-02). |
+| **ALG-FUS-09 · Fuentes ausentes** | Sin Watch, todo funciona solo con la Fitbit. Si falta la Fitbit en un periodo, la FC, los pasos y la energía del Watch lo cubren; la confianza del ciclo refleja las horas sin datos (ALG-VAL). |
+
 ## 1. Ciclo fisiológico (ALG-CIC-01)
 
 Un ciclo va del **fin del sueño principal** de una noche al fin del sueño principal de la siguiente (doc. 08 §4). El ciclo «abierto» es el actual. Si no se detecta sueño principal en 30 h, se crea un ciclo de reserva 04:00–04:00 hora local (`is_fallback = true`). Siestas y actividades pertenecen al ciclo en el que empiezan.
@@ -106,7 +122,7 @@ Recuperación = round( 100 · Φ( (C − c₀) / s ) )
 
 ### ALG-CAR-06 · FC máxima, FC de reserva y zonas
 
-- FC máx.: preferentemente la **máxima observada robusta** (mediana móvil de 30 s de la FC de 1 s en ≥ 2 entrenamientos distintos de los últimos 180 días, confirmada por el usuario) o un valor manual. Sin ella: `208 − 0,7·edad` [R10] por defecto; alternativas `207 − 0,7·edad` (Gellish, la que usa WHOOP) [R42], `211 − 0,64·edad` [R49] y, en mujeres, `206 − 0,88·edad` [R50].
+- FC máx.: preferentemente la **máxima observada robusta** (mediana móvil de 30 s de la FC de alta resolución —1 s en la Fitbit, cada pocos segundos en el Apple Watch— en ≥ 2 entrenamientos distintos de los últimos 180 días, de cualquiera de las dos fuentes, confirmada por el usuario; ALG-FUS-07) o un valor manual. Sin ella: `208 − 0,7·edad` [R10] por defecto; alternativas `207 − 0,7·edad` (Gellish, la que usa WHOOP) [R42], `211 − 0,64·edad` [R49] y, en mujeres, `206 − 0,88·edad` [R50].
 - `FCR_ref` = media de 7 días de la FC en reposo.
 - Fracción de FC de reserva de cada minuto (Karvonen [R11]): `x = clip((FC − FCR_ref) / (FCmáx − FCR_ref), 0, 1)`.
 - Zonas por defecto (% de FC de reserva): Z1 50–60 · Z2 60–70 · Z3 70–80 · Z4 80–90 · Z5 90–100; alternativa por % de FC máx. o personalizada (RF-CAR-03).
@@ -121,7 +137,7 @@ Recuperación = round( 100 · Φ( (C − c₀) / s ) )
 
    `(a, b) = (0,64; 1,92)` en hombres y `(0,86; 1,67)` en mujeres [R7]; sexo no indicado: `(0,75; 1,795)`. Google usa `(0,64; 1,92)` para todos en su *Cardio Load* [R51] (*parámetro* `banister_mode`). `x_min = 0,30`: como el *Cardio Load* de Google, que no acumula carga por debajo del 30 % de la FC de reserva [R51], para que la vigilia sedentaria no sume. Alternativas evaluables: TRIMP por zonas de Edwards [R8] o por umbrales de Lucía [R9].
 
-2. **Carga bruta** `L = Σ y` sobre los minutos del ciclo (FC media de cada minuto, `hr_minute`). A diferencia del *Cardio Load*, **no** se exige movimiento: como el *Day Strain* de WHOOP, la carga del día incluye también la activación no deportiva (*parámetro* `require_motion = false`).
+2. **Carga bruta** `L = Σ y` sobre los minutos del ciclo (FC media de cada minuto de la serie fusionada, ALG-FUS-03; solo Fitbit si no hay Apple Watch). A diferencia del *Cardio Load*, **no** se exige movimiento: como el *Day Strain* de WHOOP, la carga del día incluye también la activación no deportiva (*parámetro* `require_motion = false`).
 
 3. **Escala 0–21** (no lineal, «cuesta más pasar de 16 a 17 que de 4 a 5», como la escala de WHOOP inspirada en la de esfuerzo percibido de Borg [R52]) **[heurístico]**:
 
@@ -270,6 +286,25 @@ Recuperación_{t+1} = β₀ + β_h · h_t + β_c · Carga_t + β_f · FinDeSeman
 
 Mínimos cuadrados; `β_h` = efecto en puntos de recuperación; IC 95 % por *bootstrap* por bloques de 7 días (1 000 remuestreos). Solo con ≥ 5 días «sí» y ≥ 5 «no» (mismo umbral que WHOOP). Si el IC incluye 0: «Sin efecto claro todavía». No se ajusta por el sueño de esa noche porque es parte del mecanismo. Es una asociación personal, no causalidad. Los efectos medios de [R48] sirven de referencia en los textos («en otras personas el alcohol reduce la VFC en torno a un 12 %»).
 
+## 8 bis. Análisis del día (ALG-ANA-01)
+
+Versión **determinista** (sin IA) del análisis que pides con «Analizar mi día» (RF-ANA-01). Si el Coach está activado, recibe los mismos hechos y devuelve el mismo formato (RF-COA-18).
+
+1. **Hechos del ciclo**, cada uno con valor, referencia (tu línea base o tu objetivo), desviación y fuente: sueño (rendimiento, suficiencia frente a la necesidad, deuda); recuperación (zona y los 2 componentes que más la mueven); carga frente a la banda objetivo; cada actividad (carga y duración y, en las carreras del Watch, distancia, ritmo frente a la mediana de tus carreras de distancia parecida —±20 %— de los últimos 60 días, FC media y minutos en Z4–Z5); estrés medio frente a tu base; vitales fuera de rango (ALG-SAL-01); hábitos del diario respondidos, con su impacto si ya se conoce (ALG-DIA-01).
+2. **Relevancia**: `|z|` frente a tu base, o distancia al objetivo medida en anchos de banda. Se descartan los hechos con confianza baja.
+3. **Claves**: la más relevante de cada bloque (sueño, recuperación, carga y actividad) y hasta 2 más, entre 3 y 5 en total; al menos una positiva si la hay (principio «sin culpa», doc. 11 §1).
+4. **Recomendaciones por reglas**. *Esta noche*: la hora de acostarse del planificador (ALG-SUE-05), adelantada 15–30 min si la carga superó el objetivo o la deuda pasa de 60 min. *Mañana*: «suave o descanso» si la carga superó la banda o hay vitales fuera de rango; «margen para apretar» si la recuperación fue alta y la carga quedó por debajo; «mantener» en el resto.
+5. **Salida**: un JSON con esquema fijo, el mismo con el que se valida la respuesta del Coach. Cada cifra procede de un hecho (RNF-CAL-02):
+
+```json
+{ "titular": "…", "datos_hasta": "2026-09-29T18:40:00+02:00",
+  "claves": [ { "tono": "positivo | a_vigilar | neutro", "texto": "…", "metricas": ["sleep_performance"] } ],
+  "actividades": [ { "tipo": "carrera", "distancia_km": 8.2, "ritmo_min_km": "5:12", "carga": 13.4,
+                     "fuentes": ["apple_watch", "fitbit_air"] } ],
+  "esta_noche": "…", "manana": "…",
+  "datos_usados": [ { "metrica": "hrv_rmssd", "fecha": "2026-09-29", "fuente": "fitbit_air" } ] }
+```
+
 ## 9. Edad fisiológica y ritmo de envejecimiento (ALG-EDA)
 
 ### ALG-EDA-01 · Edad fisiológica
@@ -302,7 +337,7 @@ Alternativa futura: edad biológica de Klemera–Doubal [R63] (requiere regresio
 
 ### ALG-EDA-02 · VO₂ máx. estimado sin ejercicio
 
-Google solo actualiza el VO₂ máx. con carreras al aire libre con GPS. Si no hay valor de Google en 180 días, se puede usar el modelo sin ejercicio del estudio HUNT [R44], que necesita **perímetro de cintura** y un **índice de actividad física** autodeclarado (frecuencia, duración e intensidad) además de edad, sexo y FC en reposo. Esos dos datos son **opcionales** en el perfil (F3); si faltan, el factor de forma física se omite y se indica.
+El Apple Watch estima el VO₂ máx. en carreras y caminatas al aire libre, y Google solo con carreras al aire libre con GPS. Si no hay valor de ninguno de los dos en 180 días (ALG-FUS-06), se puede usar el modelo sin ejercicio del estudio HUNT [R44], que necesita **perímetro de cintura** y un **índice de actividad física** autodeclarado (frecuencia, duración e intensidad) además de edad, sexo y FC en reposo. Esos dos datos son **opcionales** en el perfil (F3); si faltan, el factor de forma física se omite y se indica.
 
 ### ALG-EDA-03 · Ritmo de envejecimiento
 
@@ -321,6 +356,7 @@ No hay aún validaciones publicadas de la **Fitbit Air** en concreto; lo siguien
 | Sueño/vigilia | Fitbit con fases vs polisomnografía: sin sesgo significativo en tiempo total, eficiencia ni vigilia; sensibilidad 0,95–0,96, especificidad 0,58–0,69 [R37]; los dispositivos empeoran en noches alteradas [R36] | La duración es fiable; la vigilia intra-sueño, menos |
 | Fases | Charge 2: ligero 0,81, profundo 0,49, REM 0,74; sobreestima ligero (+34 min) e infraestima profundo (−24 min) [R38]; algoritmo de Fitbit: 69 % de acierto por época, κ 0,52 [R65] | Fases con peso ≤ 10–15 %; sin «notas» por fase |
 | FC | Error ≈ 30 % mayor en actividad que en reposo [R66] | Filtros de artefactos; edición de actividades |
+| FC del Apple Watch en ejercicio | El de menor error de FC (y de gasto energético) entre siete relojes y pulseras en laboratorio, aunque ninguno midió bien el gasto (error > 20 %) [R73] | Manda en sus entrenamientos (ALG-FUS-03), validado con tus carreras |
 | HRV | La variabilidad del pulso óptico es adecuada en reposo y sueño, no en movimiento [R67] | HRV solo nocturna y relativa a la base |
 | SpO₂ | Fitbit Sense 2 en pacientes: sesgo +1,7 %, CCI 0,47 [R70]; la oximetría falla más en pieles oscuras [R68] | SpO₂ solo como tendencia y con peso mínimo |
 | VO₂ máx. | Límites de concordancia ≈ ±10 ml/kg/min [R69] | Bandas y tendencias (ALG-EDA-01) |
@@ -379,7 +415,12 @@ Con la importación inicial de 90 días de historial (RF-SYN-01), si ya llevabas
                       "resp_rate_delta_bpm": 3, "hrv_z_low": -1.5, "temp_z_high": 2.0 },
   "physio_age": { "gompertz_doubling_years": 8, "shrinkage": 0.5,
                   "cap_per_factor_years": 5, "cap_total_years": 10,
-                  "window_days": 180, "min_valid_days": 21, "calibrated_days": 90, "pace_window_days": 30 }
+                  "window_days": 180, "min_valid_days": 21, "calibrated_days": 90, "pace_window_days": 30 },
+  "fusion": { "match_overlap": 0.5, "min_leftover_min": 10, "hr_workout_priority": "apple_watch",
+              "watch_min_samples": 2, "disagreement_bpm": 15, "disagreement_min": 5,
+              "vo2max_watch_max_age_days": 60 },
+  "day_analysis": { "min_keys": 3, "max_keys": 5, "run_pace_window_days": 60, "run_similar_distance": 0.2,
+                    "bedtime_advance_min": [15, 30], "debt_threshold_min": 60 }
 }
 ```
 

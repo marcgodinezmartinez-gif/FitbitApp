@@ -1,6 +1,6 @@
 # Referencias
 
-Citadas como **[R#]** en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.md). Todos los DOI se comprobaron en Crossref o Europe PMC el 28/09/2026. Las fuentes técnicas (Google, WHOOP, reseñas) se enlazan en cada documento; la normativa va al final.
+Citadas como **[R#]** en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.md). Todos los DOI se comprobaron en Crossref o Europe PMC el 28 y el 29/09/2026. Las fuentes técnicas (Google, WHOOP, reseñas) se enlazan en cada documento; la normativa va al final.
 
 ## Variabilidad de la frecuencia cardiaca y preparación diaria
 
@@ -91,6 +91,7 @@ Citadas como **[R#]** en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.
 - **[R68]** Sjoding MW, Dickson RP, Iwashyna TJ, Gay SE, Valley TS. Racial bias in pulse oximetry measurement. *N Engl J Med.* 2020;383(25):2477–2478. doi:10.1056/NEJMc2029240
 - **[R69]** Molina-Garcia P, Notbohm HL, Schumann M, et al. Validity of estimating the maximal oxygen consumption by consumer wearables: a systematic review with meta-analysis and expert statement of the INTERLIVE Network. *Sports Med.* 2022;52(7):1577–1597. doi:10.1007/s40279-021-01639-y
 - **[R70]** Lee S, et al. Fitbit Sense 2 in hospitalized general medicine patients: a pilot study. *Int J Med Inform.* 2026;222:106704. doi:10.1016/j.ijmedinf.2026.106704
+- **[R73]** Shcherbina A, Mattsson CM, Waggott D, Salisbury H, Christle JW, Hastie T, Wheeler MT, Ashley EA. Accuracy in wrist-worn, sensor-based measurements of heart rate and energy expenditure in a diverse cohort. *J Pers Med.* 2017;7(2):3. doi:10.3390/jpm7020003
 
 ## Normativa y estándares
 

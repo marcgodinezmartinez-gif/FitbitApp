@@ -21,7 +21,7 @@ Leyenda de viabilidad: ✅ equivalente completo · 🟡 equivalente parcial (lim
 | 4 | **Strain Target** (antes *Strain Coach*) | Objetivo diario según recuperación, carga acumulada, sueño y fase del ciclo; estados óptimo/sobrecarga/restaurador; ajustable; aviso al alcanzarlo | **Carga objetivo** (ALG-CAR-03) con modos Mantener/Progresar/Descargar | Derivado | ✅ | S / F2 |
 | 5 | Carga muscular y *Strength Trainer* | Carga muscular estimada por tipo × duración o por series/repeticiones/peso registrados; récords | **sRPE + registro de fuerza** (ALG-CAR-05, RF-ENT-05) | No hay acelerómetro bruto en la API | 🟡 | C / F3 |
 | 6 | Zonas de FC 0–5 | Por FC de reserva; FC máx. por fórmula de Gellish ajustada por picos observados | **Zonas de FC** (ALG-CAR-06) | FC | ✅ | S / F2 |
-| 7 | Detección automática de actividades | 45 tipos automáticos, mínimo 10 min, fusión de fragmentos, recorte en el gráfico | Actividades detectadas por Google (andar, correr, bici, deportes, elíptica, remo, bici estática) + edición y creación manual | `exercise` | 🟡 | S / F2 |
+| 7 | Detección automática de actividades | 45 tipos automáticos, mínimo 10 min, fusión de fragmentos, recorte en el gráfico | Actividades detectadas por Google (andar, correr, bici, deportes, elíptica, remo, bici estática), entrenamientos del Apple Watch fusionados con ellas (ALG-FUS-02) + edición y creación manual | `exercise` + Salud | 🟡 | S / F2 |
 | 8 | Pasos y calorías | Pasos por acelerómetro; calorías = metabolismo basal + gasto activo por FC | Pasos, distancia y calorías de Google | `steps`, `distance`, `total-calories` | ✅ | S / F1 |
 | 9 | **Sleep Performance** (rediseño 05/2025) | Combinación ponderada de suficiencia (horas vs necesidad), constancia, eficiencia y estrés durante el sueño; bandas óptimo/suficiente/bajo | **Rendimiento de sueño** compuesto (ALG-SUE-07) con suficiencia, eficiencia y constancia | Sueño con fases | ✅ (estrés en sueño 🟡) | M / F1 (constancia en F2) |
 | 10 | Fases, perturbaciones, ciclos, FR del sueño | Hipnograma, despertares, nº de ciclos, FR mediana | Detalle de sueño (RF-SUE-01/05/11) | `sleep`, FR | ✅ | M / F1 |
@@ -32,7 +32,7 @@ Leyenda de viabilidad: ✅ equivalente completo · 🟡 equivalente parcial (lim
 | 15 | **Stress Monitor** (Peak/Life) | 0–3 en vivo con FC y HRV frente a base de 14 días, descontando movimiento; respiración guiada (relajación/activación); resumen nocturno | **Estrés** (ALG-EST-01) + respiración guiada | Solo FC diurna (HRV solo nocturna) | 🟡 | S / F2 |
 | 16 | **Health Monitor** (Peak/Life) | Vitales de la noche frente a la base con indicador verde/naranja/rojo; informe PDF de 30/180 días | **Monitor de salud** (ALG-SAL-01) + informe PDF | Vitales nocturnos | ✅ | S / F2 (PDF: C / F3) |
 | 17 | **Healthspan / WHOOP Age / Pace of Aging** (Peak/Life) | Edad a partir de medias de 6 meses de 9 métricas (horas y constancia del sueño, tiempo en zonas 1–3 y 4–5, fuerza, pasos, FCR, VO₂ máx., masa magra) convertidas con razones de riesgo de mortalidad y corrección de solapamiento (Gompertz); ritmo de envejecimiento de 30 días; semanal | **Edad fisiológica** y ritmo de envejecimiento (ALG-EDA-01) | Pasos, zonas, sueño, FCR, VO₂ máx. (solo con carreras con GPS); sin masa magra | 🟡 | C / F3 |
-| 18 | VO₂ máx. | Estimación semanal con FCR, HRV, ejercicio, carreras GPS y perfil | VO₂ máx. de Google + estimación propia sin ejercicio como alternativa | `vo2-max`, `run-vo2-max` | 🟡 | C / F2 |
+| 18 | VO₂ máx. | Estimación semanal con FCR, HRV, ejercicio, carreras GPS y perfil | VO₂ máx. del Apple Watch y de Google (series separadas) + estimación propia sin ejercicio como alternativa | `vo2-max`, `run-vo2-max`, `vo2Max` de Salud | 🟡 | S / F2 |
 | 19 | *Heart Screener* (ECG) y notificaciones de ritmo irregular (Life/MG) | ECG de 30 s con autorización FDA; cribado pasivo de FA | — (la app Google Health ya ofrece avisos de ritmo irregular con la Air) | Sin ECG | ❌ | W (RL-03) |
 | 20 | *Blood Pressure Insights* (Life/MG) | Estimación matinal de tensión calibrada con tensiómetro; carta de advertencia de la FDA (07/2025) cerrada en 06/2026 tras cambiar la presentación | — | — | ❌ | W |
 | 21 | *Advanced Labs* y registros médicos | Analíticas de sangre (EE. UU.) y subida de resultados; importación de historia clínica | — | — | ❌ | W |
@@ -40,10 +40,10 @@ Leyenda de viabilidad: ✅ equivalente completo · 🟡 equivalente parcial (lim
 | 23 | *Weekly Plan* | Planes predefinidos u objetivos propios (sueño, carga, minutos en zona, frecuencia, hábitos, pasos, fuerza); revisión el viernes y resumen el lunes | **Plan semanal** (RF-PLA) | Derivado | ✅ | C / F3 |
 | 24 | *Trends* | Vistas semanal/mensual/6 meses con resumen IA | **Tendencias** (RF-TEN) + resumen IA | Derivado | ✅ | S / F2 |
 | 25 | Informes | Las evaluaciones semanales/mensuales en la app se retiraron en 05/2025; ahora «Month in Review» por email y resumen anual | **Informes semanal y mensual en la app** + resumen anual | Derivado | ✅ | S / F2–F3 |
-| 26 | **WHOOP AI** | Chat con contexto de pantalla, perspectiva matinal, revisión del día con franja para acostarse, análisis de actividades, creación de entrenamientos y hábitos, gráficos, *jet lag*, avisos proactivos; memoria editable; modo «solo educativo» | **Coach IA** con Claude o Gemini y tu propia clave (doc. 06); sin él, recomendaciones automáticas gratuitas | Derivado | ✅ | S / F3 |
+| 26 | **WHOOP AI** | Chat con contexto de pantalla, perspectiva matinal, revisión del día con franja para acostarse, análisis de actividades, creación de entrenamientos y hábitos, gráficos, *jet lag*, avisos proactivos; memoria editable; modo «solo educativo» | **Coach IA** con Claude o Gemini y tu propia clave (doc. 06) y **«Analizar mi día»** a un toque (RF-ANA; sin IA desde F2); sin Coach, recomendaciones automáticas gratuitas | Derivado | ✅ | S / F3 (análisis del día sin IA: M / F2) |
 | 27 | Salud femenina | Fases del ciclo (registro + FCR + temperatura), síntomas, embarazo/posparto; ajusta recuperación y objetivos | — | La API solo permite **escribir** datos menstruales | ❌ (por ahora) | W |
 | 28 | Comunidad | Equipos, clasificaciones, chat, rachas | Rachas (C); equipos no (app personal) | — | 🟡 | C / F2; W |
-| 29 | Integraciones | Apple Health, Health Connect, Strava, Peloton, TrainingPeaks… | Google Health ya agrega datos de otras apps; Apple Health como respaldo de lectura (RF-CON-06) | — | 🟡 | C / F3 |
+| 29 | Integraciones | Apple Health, Health Connect, Strava, Peloton, TrainingPeaks… | **Apple Watch vía Salud**, fusionado con la Fitbit Air sin duplicados (doc. 16); otras plataformas, no | Salud (HealthKit) | 🟡 | M / F2 |
 | 30 | Emisión de FC en vivo | La pulsera emite FC por Bluetooth | La Air ya la emite; nuestra app puede mostrar FC en vivo | Perfil estándar de FC | 🟡 | C / F3+ |
 | 31 | *Widgets* y Live Activities | iOS (inicio, bloqueo, Live Activities) y Android | *Widgets* de inicio y de pantalla de bloqueo, StandBy y Live Activity de entrenamiento (RF-WID) | Derivado | ✅ | S / F2 (Live Activity F3) |
 | 32 | Exportación | CSV por email en 24 h | Exportación JSON + CSV al instante desde el iPhone (RF-PRI-01) | — | ✅ | M / F2 |
@@ -58,6 +58,7 @@ Leyenda de viabilidad: ✅ equivalente completo · 🟡 equivalente parcial (lim
 - **Informes semanales y mensuales dentro de la app** (WHOOP los pasó a email).
 - **Tus datos en tu iPhone**, exportación completa y borrado inmediato.
 - **Coach con «Datos usados»** bajo cada respuesta, modo solo educativo y gasto visible.
+- **Fitbit Air y Apple Watch en una sola app**, con reglas de fusión explicadas y la fuente de cada dato a la vista.
 
 ## 4. Diferencias de datos que hay que asumir
 

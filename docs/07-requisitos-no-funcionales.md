@@ -30,6 +30,8 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 | RNF-REN-05 | Cálculo completo de un ciclo (recuperación, carga, sueño, estrés) ≤ 200 ms en el iPhone. | Test de rendimiento de `MetricsKit` | M | F1 |
 | RNF-REN-06 | Importación inicial de 90 días ≤ 5 min con la app abierta (continúa en segundo plano si se cierra). | Registro local | S | F1 |
 | RNF-REN-07 | Primera palabra del Coach IA (*streaming*) ≤ 4 s (p90). | Registro local | S | F3 |
+| RNF-REN-08 | Al abrir la app, los datos nuevos del Apple Watch (lectura local de Salud) aparecen en ≤ 1 s, sin depender de la red. | Registro local de tiempos | M | F2 |
+| RNF-REN-09 | «Analizar mi día» sin IA responde en ≤ 1 s con datos locales. | Test de rendimiento + registro local | M | F2 |
 
 ## 3. Fiabilidad (DIS)
 
@@ -40,9 +42,10 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 | RNF-DIS-03 | Ingesta **idempotente**: la misma muestra descargada varias veces produce una sola fila (claves únicas por tipo e instante/intervalo). | Test repitiendo el mismo lote 3 veces | M | F1 |
 | RNF-DIS-04 | Reintentos con *backoff* exponencial y *jitter* ante 429/5xx, respetando `Retry-After`; tras varios fallos, estado visible «Sincronización con problemas». | Test con API simulada | M | F1 |
 | RNF-DIS-05 | Si Google o el proveedor de IA (Anthropic o Google Gemini) no responden, el resto de la app sigue funcionando. | Prueba desactivando cada servicio | M | F1 |
-| RNF-DIS-06 | Recuperación ante pérdida del iPhone: todo lo procedente de Google se vuelve a descargar; diario, ajustes y actividades manuales se restauran desde la copia exportada (RF-ONB-05). | Prueba de restauración en otro dispositivo o tras reinstalar | S | F2 |
+| RNF-DIS-06 | Recuperación ante pérdida del iPhone: todo lo procedente de Google y de Salud se vuelve a descargar (de Salud, las muestras de entrenamientos antiguos pueden llegar condensadas); diario, ajustes, actividades manuales y anotaciones se restauran desde la copia exportada (RF-ONB-05). | Prueba de restauración en otro dispositivo o tras reinstalar | S | F2 |
 | RNF-DIS-07 | Cálculos **deterministas**: mismas entradas + misma `algorithm_version` ⇒ mismo resultado. | *Golden files* | M | F1 |
 | RNF-DIS-08 | Migraciones de la BD local versionadas, probadas y sin pérdida de datos. | Test de migración desde cada versión anterior | M | F1 |
+| RNF-DIS-09 | **Fusión sin doble conteo e idempotente**: ningún minuto aporta FC, pasos o carga de dos fuentes; repetir la sincronización no cambia nada; sin datos del Watch, el resultado es idéntico al de la Fitbit sola (ALG-FUS). | Tests de invariantes (doc. 13 §2) | M | F2 |
 
 ## 4. Seguridad (SEG)
 
@@ -66,10 +69,11 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 |---|---|---|---|---|
 | RNF-PRI-01 | **Minimización**: solo los ámbitos de Google imprescindibles (doc. 10 §3); los opcionales se piden al activar la función. | Revisión de la pantalla de consentimiento | M | F1 |
 | RNF-PRI-02 | **Sin telemetría ni analítica** de terceros. Los registros de diagnóstico son locales y sin datos de salud. | Revisión de dependencias y tráfico de red | M | F1 |
-| RNF-PRI-03 | Los datos de salud solo salen del iPhone hacia Google (lectura) y, si el Coach está activado, hacia el proveedor de IA con lo mínimo necesario (doc. 06 §7). | Inspección del tráfico (proxy) | M | F1 |
+| RNF-PRI-03 | Los datos de salud no salen del iPhone salvo hacia el proveedor de IA si activas el Coach, con lo mínimo necesario y sin coordenadas GPS (doc. 06 §7); de Google y de Salud solo se leen. | Inspección del tráfico (proxy) | M | F1 |
 | RNF-PRI-04 | «Borrar todos los datos» elimina BD, instantánea de *widgets*, conversaciones y *tokens*, y revoca el acceso en Google (RF-PRI-02). | Test E2E | M | F1 |
 | RNF-PRI-05 | Exportación completa en formato abierto (JSON + CSV) (RF-PRI-01). | Test E2E | M | F2 |
 | RNF-PRI-06 | Retención configurable de datos intradía (24 meses por defecto); al vencer se **borra** el dato, nunca se sustituye por un agregado (RL-44). | Test del purgado | S | F2 |
+| RNF-PRI-07 | Salud se usa **solo en lectura** y solo para los tipos que la app necesita (doc. 16 §3); las rutas GPS no salen del iPhone salvo que las exportes. | Revisión de permisos y del tráfico | M | F2 |
 
 ## 6. Accesibilidad (ACC)
 
@@ -110,6 +114,7 @@ La estética es un objetivo de primer nivel (el motivo principal para no usar la
 | RNF-CAL-03 | Detección y descarte de artefactos (FC fuera de [25, 230] lpm, saltos imposibles, sin pulsera). | M | F1 |
 | RNF-CAL-04 | Datos tardíos o editados en Google ⇒ recálculo automático de los días afectados y de las líneas base. | M | F1 |
 | RNF-CAL-05 | Cada valor derivado guarda `algorithm_version` y parámetros. | M | F1 |
+| RNF-CAL-06 | Cada dato indica su **fuente** (Fitbit Air, Apple Watch o manual) y cada valor derivado guarda qué fuentes usó. | M | F2 |
 
 ## 10. Mantenibilidad (MAN)
 
