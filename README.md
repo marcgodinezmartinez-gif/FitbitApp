@@ -48,9 +48,9 @@ Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.
 
 Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **iOS** con los datos de demostración ([`scripts/screenshots.sh`](scripts/screenshots.sh)). Todas en [`docs/capturas`](docs/capturas).
 
-| Hoy | Carrera (Watch + Fitbit) | Sueño | Tendencias |
+| Hoy | Carga | Sueño | Tendencias |
 |---|---|---|---|
-| ![Hoy](docs/capturas/hoy.jpg) | ![Carrera](docs/capturas/carrera.jpg) | ![Sueño](docs/capturas/sueno.jpg) | ![Tendencias](docs/capturas/tendencias.jpg) |
+| ![Hoy](docs/capturas/hoy.jpg) | ![Carga](docs/capturas/carga.jpg) | ![Sueño](docs/capturas/sueno.jpg) | ![Tendencias](docs/capturas/tendencias.jpg) |
 | **Análisis del día** | **Recuperación** | **Salud** | **Hoy (tema claro)** |
 | ![Análisis del día](docs/capturas/analisis-del-dia.jpg) | ![Recuperación](docs/capturas/recuperacion.jpg) | ![Salud](docs/capturas/salud.jpg) | ![Hoy en tema claro](docs/capturas/hoy-tema-claro.jpg) |
 | **Mi panel** | **Plan semanal** | **Registro de fuerza** | **Entrenamiento en curso** |
@@ -58,7 +58,15 @@ Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **
 | **Respiración guiada** | **Alarma inteligente** | **VO₂ máx. y edad fisiológica** | **Informe semanal (IA)** |
 | ![Respiración guiada](docs/capturas/respiracion.jpg) | ![Alarma inteligente](docs/capturas/alarma.jpg) | ![VO₂ máx.](docs/capturas/vo2max.jpg) | ![Informe semanal](docs/capturas/informe-semanal.jpg) |
 
-En el modo demostración, el resumen matinal y el informe semanal son **textos de ejemplo** (se indica en la tarjeta); con el Coach activado los redacta la IA con tus datos.
+**Correr** ([doc. 18](docs/18-analisis-de-carreras.md)):
+
+| Correr | Una carrera (Watch + Fitbit) | Análisis con IA | Gráficas |
+|---|---|---|---|
+| ![Pestaña Correr](docs/capturas/correr.jpg) | ![Mapa y cifras de una carrera](docs/capturas/carrera.jpg) | ![Análisis de la carrera con IA](docs/capturas/correr-ia.jpg) | ![Gráficas y parciales](docs/capturas/correr-graficas.jpg) |
+| **Parciales, zonas y marcas** | **Técnica y Watch frente a Fitbit** | **Rendimiento (VDOT)** | **Récords y tendencias** |
+| ![Parciales, zonas y mejores marcas](docs/capturas/correr-zonas.jpg) | ![Técnica de carrera y comparación de dispositivos](docs/capturas/correr-tecnica.jpg) | ![VDOT, predicciones y ritmos](docs/capturas/correr-rendimiento.jpg) | ![Récords y tendencias](docs/capturas/correr-records.jpg) |
+
+En el modo demostración, el resumen matinal, el informe semanal y el análisis de cada carrera son **textos de ejemplo** (se indica en la tarjeta); con el Coach activado los redacta la IA con tus datos.
 
 ## Código
 
