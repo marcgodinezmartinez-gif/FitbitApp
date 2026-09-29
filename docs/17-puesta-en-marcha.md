@@ -62,7 +62,7 @@ En [console.cloud.google.com](https://console.cloud.google.com), **con la cuenta
    https://www.googleapis.com/auth/googlehealth.settings.readonly
    ```
 
-6. **Clients** (clientes): **+ Crear cliente** → tipo **iOS** → nombre «Recupera iOS» → *Bundle ID* `com.<tunombre>.recupera` → *Crear*. Copia el **Client ID** (termina en `.apps.googleusercontent.com`).
+6. **Clients** (clientes): **+ Crear cliente** → tipo **iOS** → nombre «Recupera iOS» → *Bundle ID* `com.<tunombre>.recupera` → *Crear*. Deja vacíos el **ID de App Store** (solo existe si la app se publica en la App Store; la tuya va por TestFlight) y el **Team ID** (no lo usa este inicio de sesión). Copia el **Client ID** (termina en `.apps.googleusercontent.com`).
 
 En modo *Prueba*, Google pide volver a conectar cada 7 días (un toque en la app). Cuando todo funcione puedes pasarla a producción sin verificar (paso G2).
 
