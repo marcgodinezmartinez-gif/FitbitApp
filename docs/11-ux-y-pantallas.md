@@ -217,7 +217,7 @@ Todos los pares se validan con RNF-ACC-03 antes de congelar la paleta; las zonas
 
 Todos respetan el ajuste de privacidad de la pantalla de bloqueo (RF-WID-04).
 
-> **Implementación en la v0.1:** la Live Activity se abre con *Hoy › + › Empezar entrenamiento* y muestra el tipo de actividad, el cronómetro (lo dibuja el sistema, sin actualizaciones) y la carga del día al empezar con su objetivo. La FC en vivo espera al *spike* de la emisión por Bluetooth (RF-ENT-07). Al terminar se valora el RPE y se guarda como actividad manual; si es de fuerza, se abre el registro de series.
+> **Implementación en la v0.1:** la Live Activity se abre con *Hoy › + › Empezar entrenamiento* y muestra el tipo de actividad, el cronómetro (lo dibuja el sistema, sin actualizaciones) y la carga del día al empezar con su objetivo. La FC en vivo espera al *spike* de la emisión por Bluetooth (RF-ENT-07). Al terminar se valora el RPE y se guarda como actividad manual; si es de fuerza, se abre el registro de series. Si el Apple Watch o la Fitbit ya grabaron esa misma sesión (mismo tipo y solapada al menos a la mitad), el RPE, las notas y las series se anotan en ella en lugar de duplicarla, para no contar dos veces la carga.
 
 ### 10.1 Dónde está cada función nueva (v0.1)
 

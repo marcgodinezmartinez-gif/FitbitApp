@@ -76,6 +76,18 @@ private func utcDate(_ s: String) -> Date { ISO8601DateFormatter().date(from: s 
         #expect(!WeeklyPlanner.isAvailable(cycles: Array(out.cycles.prefix(3))))
     }
 
+    @Test func planCoversOnlyWeeksSinceCreation() {
+        let wednesday = ISO8601DateFormatter().date(from: "2026-09-30T10:00:00Z")!
+        let plan = WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness, createdAt: wednesday)
+        let monday = LocalDate(year: 2026, month: 9, day: 28)
+        #expect(plan.covers(weekStart: monday, utcOffsetSeconds: 7200))
+        #expect(!plan.covers(weekStart: monday.adding(days: -7), utcOffsetSeconds: 7200))
+        #expect(WeeklyPlanner.reviewApplies(plan: plan, weekStart: monday, utcOffsetSeconds: 7200))
+        let thursday = WeeklyPlan(goals: plan.goals, template: .fitness, createdAt: wednesday.addingTimeInterval(86_400))
+        #expect(!WeeklyPlanner.reviewApplies(plan: thursday, weekStart: monday, utcOffsetSeconds: 7200))
+        #expect(!WeeklyPlan().covers(weekStart: monday, utcOffsetSeconds: 7200))
+    }
+
     @Test func completedPlanSaysSo() {
         let goal = WeeklyPlan.Goal(id: "g", kind: .habitDays, target: 1, habitKey: "meditation", habitDesired: true)
         let monday = LocalDate(year: 2026, month: 9, day: 28)

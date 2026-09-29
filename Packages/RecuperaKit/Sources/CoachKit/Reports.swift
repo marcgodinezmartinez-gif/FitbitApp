@@ -94,9 +94,11 @@ public struct AIReport: Codable, Sendable, Hashable {
     public var usedFallback: Bool?
     public var morning: MorningSummary?
     public var weekly: WeeklyNarrative?
+    /// Recuperación con la que se redactó el resumen matinal: si cambia (llegan tarde los vitales), se rehace.
+    public var recoveryScore: Int?
 
     public init(kind: Kind, periodStart: String, createdAt: Date, provider: String, model: String, costUSD: Double,
-                usedFallback: Bool? = nil, morning: MorningSummary? = nil, weekly: WeeklyNarrative? = nil) {
+                usedFallback: Bool? = nil, morning: MorningSummary? = nil, weekly: WeeklyNarrative? = nil, recoveryScore: Int? = nil) {
         self.kind = kind
         self.periodStart = periodStart
         self.createdAt = createdAt
@@ -106,6 +108,7 @@ public struct AIReport: Codable, Sendable, Hashable {
         self.usedFallback = usedFallback
         self.morning = morning
         self.weekly = weekly
+        self.recoveryScore = recoveryScore
     }
 }
 
@@ -258,11 +261,16 @@ public enum ReportFacts {
 // MARK: - Generación
 
 extension CoachEngine {
-    /// Resumen matinal de hoy. Si ya existe, lo devuelve sin llamar a la IA (salvo `force`).
+    /// Resumen matinal de hoy. Si ya existe con la misma recuperación, lo devuelve sin llamar a la IA (salvo `force`).
     public func morningSummary(snapshot: CoachDataSnapshot, bedtimeMinutes: Int?, force: Bool = false) async throws -> AIReport {
         guard let cur = snapshot.output.current else { throw ReportError.notReady("Todavía no hay datos de hoy.") }
-        if !force, let existing = db.aiReport(.morning, periodStart: cur.date) { return existing }
+        if !force, let existing = db.aiReport(.morning, periodStart: cur.date), existing.recoveryScore == cur.recovery.score {
+            return existing
+        }
         guard cur.sleep != nil else { throw ReportError.notReady("El resumen se prepara cuando llega el sueño de anoche.") }
+        guard cur.recovery.score != nil else {
+            throw ReportError.notReady("El resumen se prepara cuando lleguen tus vitales de la noche y esté tu recuperación.")
+        }
         guard let facts = ReportFacts.morning(snapshot: snapshot, bedtimeMinutes: bedtimeMinutes) else {
             throw ReportError.notReady("Todavía no hay datos de hoy.")
         }
@@ -271,7 +279,8 @@ extension CoachEngine {
         guard let parsed = try? JSONValue.parse(text).decode(MorningSummary.self), parsed.validated(),
               CoachSafety.violations(in: parsed.allText).isEmpty else { throw ReportError.invalidResponse }
         let report = AIReport(kind: .morning, periodStart: cur.date.isoString, createdAt: clock(), provider: provider, model: model,
-                              costUSD: cost, usedFallback: response.usedFallback ? true : nil, morning: parsed, weekly: nil)
+                              costUSD: cost, usedFallback: response.usedFallback ? true : nil, morning: parsed, weekly: nil,
+                              recoveryScore: cur.recovery.score)
         try db.saveAIReport(report)
         return report
     }

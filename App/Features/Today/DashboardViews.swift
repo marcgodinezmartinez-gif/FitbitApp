@@ -135,6 +135,7 @@ struct DashboardEditor: View {
                         } label: {
                             Label(m.title, systemImage: "plus.circle.fill")
                         }
+                        .buttonStyle(.borderless)
                         .moveDisabled(true)
                         .deleteDisabled(true)
                     }

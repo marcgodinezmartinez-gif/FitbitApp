@@ -118,6 +118,12 @@ struct ActivityDetailView: View {
         .navigationTitle(metrics?.activity.name ?? "Actividad")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: activityID) { load() }
+        .onChange(of: metrics?.activity.rpe) { _, new in
+            if let new {
+                rpe = new
+                rpeSet = true
+            }
+        }
         .confirmationDialog("¿Borrar esta actividad?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Borrar", role: .destructive) {
                 Task {

@@ -189,6 +189,8 @@ struct StrengthLogView: View {
     @State private var reps = 8
     @State private var weightText = ""
     @State private var rpe: Double = 7
+    /// En una actividad ya existente solo se guarda el RPE si lo tocas (o si ya tenía uno).
+    @State private var rpeTouched = false
     @State private var saving = false
     @State private var loaded = false
 
@@ -287,9 +289,13 @@ struct StrengthLogView: View {
                     }
                 }
                 Section {
-                    Slider(value: $rpe, in: 0...10, step: 1).tint(Palette.strain)
-                    Text("\(Int(rpe)) · \(RPEScale.label(rpe))").font(.subheadline.weight(.semibold))
-                    if let load = StrengthSummary.muscularLoad(rpe: rpe, minutes: Double(minutes)) {
+                    Slider(value: $rpe, in: 0...10, step: 1) { editing in
+                        if !editing { rpeTouched = true }
+                    }
+                    .tint(Palette.strain)
+                    Text(activity != nil && !rpeTouched ? "Sin valorar · desliza para indicar tu esfuerzo" : "\(Int(rpe)) · \(RPEScale.label(rpe))")
+                        .font(.subheadline.weight(.semibold))
+                    if activity == nil || rpeTouched, let load = StrengthSummary.muscularLoad(rpe: rpe, minutes: Double(minutes)) {
                         LabeledContent("Carga muscular (sRPE)", value: "\(Int(load.srpe)) · \(Format.decimal(load.strain)) en la escala de carga")
                             .font(.footnote)
                     }
@@ -308,7 +314,7 @@ struct StrengthLogView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Guardar") { save() }
-                        .disabled(saving || (activity == nil && sets.isEmpty))
+                        .disabled(saving)
                 }
             }
             .onAppear(perform: load)
@@ -329,7 +335,10 @@ struct StrengthLogView: View {
         loaded = true
         if let activity {
             sets = model.strengthSets(for: activity)
-            if let r = activity.rpe { rpe = r }
+            if let r = activity.rpe {
+                rpe = r
+                rpeTouched = true
+            }
         }
         if let last = sets.last {
             exercise = last.exercise
@@ -349,10 +358,10 @@ struct StrengthLogView: View {
         saving = true
         Task {
             if let activity {
-                await model.saveStrength(sets, rpe: rpe, for: activity)
+                await model.saveStrength(sets, rpe: rpeTouched ? rpe : nil, for: activity)
             } else {
                 let end = start.addingTimeInterval(TimeInterval(durationMin * 60))
-                await model.saveManualActivity(kind: .strength, start: start, end: end, rpe: rpe, sets: sets)
+                await model.saveManualActivity(kind: .strength, start: start, end: end, rpe: rpe, sets: sets.isEmpty ? nil : sets)
             }
             Haptics.success()
             dismiss()

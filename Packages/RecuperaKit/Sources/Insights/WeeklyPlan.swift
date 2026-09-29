@@ -129,6 +129,14 @@ public struct WeeklyPlan: Codable, Sendable, Hashable {
 
     public var isActive: Bool { !goals.isEmpty }
 
+    /// Día (local) en que se creó el plan.
+    public func createdDate(utcOffsetSeconds: Int) -> LocalDate { LocalDate(createdAt, utcOffsetSeconds: utcOffsetSeconds) }
+
+    /// El plan ya existía en esa semana (no se evalúan semanas anteriores a su creación).
+    public func covers(weekStart: LocalDate, utcOffsetSeconds: Int) -> Bool {
+        isActive && createdDate(utcOffsetSeconds: utcOffsetSeconds) <= weekStart.adding(days: 6)
+    }
+
     /// Objetivos de cada plantilla (se pueden editar después).
     public static func goals(for template: Template) -> [Goal] {
         switch template {
@@ -242,6 +250,11 @@ public enum WeeklyPlanner {
         case .strengthMinutes:
             return week.flatMap(\.activities).filter { $0.activity.kind.isStrength }.reduce(0) { $0 + $1.activity.durationMinutes }
         }
+    }
+
+    /// La revisión del viernes solo tiene sentido si el plan existía desde el miércoles.
+    public static func reviewApplies(plan: WeeklyPlan, weekStart: LocalDate, utcOffsetSeconds: Int) -> Bool {
+        plan.isActive && plan.createdDate(utcOffsetSeconds: utcOffsetSeconds) <= weekStart.adding(days: 2)
     }
 
     /// Texto de la revisión del viernes (NOT-11, RF-PLA-03).

@@ -55,6 +55,35 @@ import Testing
         #expect(spend.questions == 0 && spend.costUSD == report.costUSD)
     }
 
+    @Test func morningSummaryNeedsRecoveryAndFollowsIt() async throws {
+        let http = ScriptedHTTP([ClaudeSSE.reply([ClaudeSSE.start(), ClaudeSSE.text(0, [Self.morningJSON]), ClaudeSSE.stop("end_turn")])])
+        let (engine, db) = try setup(http)
+        let snapshot = makeSnapshot(now: now)
+        let today = snapshot.output.current!.date
+        // Un resumen guardado con otra recuperación (llegaron tarde los vitales) se vuelve a redactar.
+        let stale = AIReport(kind: .morning, periodStart: today.isoString, createdAt: now, provider: "anthropic", model: "claude-opus-5-5",
+                             costUSD: 0.01, morning: MorningSummary(titulo: "Viejo", resumen: "r", cargaObjetivo: "c", horaAcostarse: "h"),
+                             recoveryScore: -1)
+        try db.saveAIReport(stale)
+        let fresh = try await engine.morningSummary(snapshot: snapshot, bedtimeMinutes: nil)
+        #expect(fresh.morning?.titulo == "Llegas con energía")
+        #expect(fresh.recoveryScore == snapshot.output.current!.recovery.score)
+        #expect(http.requestCount == 1)
+
+        // Sin recuperación todavía (sueño sí, vitales no): no se llama a la IA.
+        var noVitals = snapshot
+        var out = noVitals.output
+        var last = out.cycles.removeLast()
+        last.recovery = .insufficient("Aún no han llegado los datos de la noche", nights: 30)
+        out.cycles.append(last)
+        noVitals.output = out
+        try await db.writer.write { try $0.execute(sql: "DELETE FROM report") }
+        await #expect(throws: ReportError.self) {
+            _ = try await engine.morningSummary(snapshot: noVitals, bedtimeMinutes: nil)
+        }
+        #expect(http.requestCount == 1)
+    }
+
     @Test func weeklyNarrativeWithGemini() async throws {
         let json = #"{"resumen":"Semana sólida.","logros":["5 noches de más de 7 h","3 carreras","VFC estable"," ","Extra"],"mejoras":["Acuéstate antes el domingo","Estira 10 min","Menos cafeína por la tarde"],"comparacion":"Mejor que la anterior."}"#
         let escaped = JSONValue.string(json).serialized()

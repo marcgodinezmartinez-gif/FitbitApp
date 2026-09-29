@@ -55,7 +55,11 @@ struct SmartAlarmCard: View {
         guard let output = model.output, let need = output.tonightNeed else { return nil }
         let wake = model.displayProfile.usualWakeMinutes
         guard var end = Calendar.current.date(bySettingHour: wake / 60, minute: wake % 60, second: 0, of: bedtime) else { return nil }
-        if end <= bedtime.addingTimeInterval(3600) { end = end.addingTimeInterval(86_400) }
+        if end <= bedtime.addingTimeInterval(3600) {
+            // Día siguiente a la misma hora de reloj (correcto también en las noches de cambio de hora).
+            guard let next = Calendar.current.date(byAdding: .day, value: 1, to: end) else { return nil }
+            end = next
+        }
         let start = end.addingTimeInterval(-Double(model.settings.smartAlarmWindowMin) * 60)
         let goal = SleepCalculator.PlannerGoal(rawValue: model.settings.plannerGoal) ?? .peak
         return SleepCalculator.smartAlarm(bedtime: bedtime, needMin: need.totalMin, goal: goal, usualEfficiency: output.usualEfficiency,

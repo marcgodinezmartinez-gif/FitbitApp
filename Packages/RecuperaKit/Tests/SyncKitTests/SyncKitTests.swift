@@ -136,9 +136,13 @@ struct FakeWatch: AppleHealthProvider {
         let db = try AppDatabase.inMemory()
         let input = SyntheticData.generate(days: 30, endingAt: friday, utcOffsetSeconds: 7200)
         let out = MetricsEngine.run(input)
-        try db.saveWeeklyPlan(WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness))
         let today = LocalDate(friday, utcOffsetSeconds: 7200)
-        let progress = try #require(try db.weeklyPlanProgress(output: out, today: today))
+        // Un plan creado el mismo viernes no tiene revisión esa semana.
+        try db.saveWeeklyPlan(WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness, createdAt: friday))
+        #expect(try db.weeklyPlanProgress(output: out, today: today, utcOffsetSeconds: 7200) == nil)
+        try db.saveWeeklyPlan(WeeklyPlan(goals: WeeklyPlan.goals(for: .fitness), template: .fitness,
+                                         createdAt: friday.addingTimeInterval(-10 * 86_400)))
+        let progress = try #require(try db.weeklyPlanProgress(output: out, today: today, utcOffsetSeconds: 7200))
         #expect(progress.weekStart == LocalDate(year: 2026, month: 9, day: 28))
         #expect(progress.daysElapsed == 5)
 
@@ -167,6 +171,6 @@ struct FakeWatch: AppleHealthProvider {
     @Test func noPlanNoReview() throws {
         let db = try AppDatabase.inMemory()
         let out = MetricsEngine.run(SyntheticData.generate(days: 20, endingAt: friday, utcOffsetSeconds: 7200))
-        #expect(try db.weeklyPlanProgress(output: out, today: LocalDate(friday, utcOffsetSeconds: 7200)) == nil)
+        #expect(try db.weeklyPlanProgress(output: out, today: LocalDate(friday, utcOffsetSeconds: 7200), utcOffsetSeconds: 7200) == nil)
     }
 }

@@ -9,11 +9,11 @@ extension AppDatabase {
 
     public func saveWeeklyPlan(_ plan: WeeklyPlan) throws { try writeState("weekly_plan", plan) }
 
-    /// Progreso de la semana de `today` con el plan guardado; `nil` si no hay plan.
-    public func weeklyPlanProgress(output: MetricsOutput, today: LocalDate) throws -> WeeklyPlanProgress? {
+    /// Progreso de la semana de `today` para la revisión del viernes; `nil` si no hay plan o se creó después del miércoles.
+    public func weeklyPlanProgress(output: MetricsOutput, today: LocalDate, utcOffsetSeconds: Int) throws -> WeeklyPlanProgress? {
         let plan = try weeklyPlan()
-        guard plan.isActive else { return nil }
         let start = WeeklyPlanner.weekStart(of: today)
+        guard WeeklyPlanner.reviewApplies(plan: plan, weekStart: start, utcOffsetSeconds: utcOffsetSeconds) else { return nil }
         let journal = try journalAnswers(from: start, to: today)
         return WeeklyPlanner.progress(plan: plan, cycles: output.cycles, journal: journal, weekStart: start, today: today)
     }

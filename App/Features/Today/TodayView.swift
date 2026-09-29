@@ -251,7 +251,8 @@ struct DayContent: View {
                     if let url = URL(string: "https://www.fitbit.com/in-app/today") { UIApplication.shared.open(url) }
                 }
             }
-            if let report = model.morningReport, report.periodStart == cycle.date.isoString, report.morning != nil {
+            if let report = model.morningReport, report.periodStart == cycle.date.isoString, report.morning != nil,
+               report.recoveryScore == cycle.recovery.score {
                 MorningSummaryCard(report: report, tint: Palette.recovery(cycle.recovery.zone))
             } else {
                 InsightCard(text: TodayRecommendation.text(for: cycle, output: output, profile: model.displayProfile), symbol: "sparkle",

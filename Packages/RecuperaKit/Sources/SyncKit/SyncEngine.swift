@@ -78,7 +78,7 @@ public actor SyncEngine {
             let today = LocalDate(now(), utcOffsetSeconds: utcOffset())
             planned = NotificationPlanner.plan(output: out, newWatchWorkoutIDs: a.newIDs, connection: conn, settings: settings,
                                                sent: sent, now: now(), utcOffsetSeconds: utcOffset(),
-                                               weeklyPlan: try? db.weeklyPlanProgress(output: out, today: today))
+                                               weeklyPlan: try? db.weeklyPlanProgress(output: out, today: today, utcOffsetSeconds: utcOffset()))
             markSent(planned)
             snapshot = makeSnapshot(out)
         } catch {

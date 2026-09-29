@@ -465,7 +465,7 @@ struct VO2MaxCard: View {
                 }
                 Text("Referencia para tu edad y sexo: \(Format.decimal(reference)) ml/kg/min · edad de forma física ≈ \(Int(PhysioAgeCalculator.fitnessAge(vo2max: value, sex: model.displayProfile.sex).rounded())) años.")
                     .font(.footnote).foregroundStyle(Palette.textSecondary)
-                if model.output?.primaryVO2 == nil {
+                if model.output?.estimatedVO2 != nil {
                     Text("Estimación sin ejercicio con tu edad, sexo, cintura, FC en reposo y hábitos de actividad (estudio HUNT). Es orientativa: puede desviarse varios ml/kg/min de una prueba de esfuerzo. Si corres al aire libre con el Apple Watch, se usará su medida.")
                         .font(.caption).foregroundStyle(Palette.textSecondary)
                 }
@@ -479,7 +479,8 @@ struct VO2MaxCard: View {
         }
     }
 
-    private var value: Double? { model.output?.primaryVO2?.value ?? model.output?.estimatedVO2 }
+    /// La estimación solo existe si no hay VO₂ medido en 180 días; entonces manda ella (igual que en la edad fisiológica).
+    private var value: Double? { model.output?.estimatedVO2 ?? model.output?.primaryVO2?.value }
 
     private var reference: Double {
         let age = model.displayProfile.age(on: model.output?.current?.date ?? LocalDate(Date(), timeZone: .current)) ?? 35
@@ -487,7 +488,7 @@ struct VO2MaxCard: View {
     }
 
     private var sourceText: String? {
-        if let p = model.output?.primaryVO2 { return p.source.label }
-        return model.output?.estimatedVO2 != nil ? "estimado (HUNT)" : nil
+        if model.output?.estimatedVO2 != nil { return "estimado (HUNT)" }
+        return model.output?.primaryVO2?.source.label
     }
 }

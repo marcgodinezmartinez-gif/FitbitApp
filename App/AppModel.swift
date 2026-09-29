@@ -50,7 +50,9 @@ final class AppModel {
     @ObservationIgnored private var demoProfile = UserProfile()
     @ObservationIgnored private var demoJournal: [JournalAnswer] = []
     @ObservationIgnored private var demoStrength: [String: [StrengthSet]] = [:]
-    @ObservationIgnored private var reportAttempts: [String: Date] = [:]
+    /// Último intento fallido de cada informe (no se reintenta antes de 3 h) y si hay uno en curso.
+    @ObservationIgnored private var reportFailures: [String: Date] = [:]
+    @ObservationIgnored private var reportsInFlight = false
 
     init() {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -151,7 +153,8 @@ final class AppModel {
     }
 
     /// Sincroniza las dos fuentes a la vez (Apple Health aparece al instante; Google en cuanto llega) y recalcula.
-    func sync(_ reason: SyncReason) async {
+    /// En segundo plano (`awaitReports`) espera también a los informes de la IA antes de dar la tarea por terminada.
+    func sync(_ reason: SyncReason, awaitReports: Bool = false) async {
         guard let syncEngine, !settings.demoMode else { return }
         isSyncing = true
         defer { isSyncing = false }
@@ -165,8 +168,12 @@ final class AppModel {
         if let snapshot = report.snapshot { SharedSnapshot.write(snapshot) }
         scheduleBedtimeReminder()
         loadReports()
-        // Los informes de la IA se redactan aparte para no alargar la sincronización.
-        Task { await generateReportsIfNeeded() }
+        if awaitReports {
+            await generateReportsIfNeeded()
+        } else {
+            // Con la app abierta, los informes de la IA se redactan aparte para no alargar la sincronización.
+            Task { await generateReportsIfNeeded() }
+        }
         var problems: [String] = []
         if let e = report.google.error { problems.append("Google Health: \(e)") }
         if let e = report.apple.error { problems.append("Apple Health: \(e)") }
@@ -351,7 +358,8 @@ final class AppModel {
     }
 
     func planProgress(weekStart: LocalDate) -> WeeklyPlanProgress? {
-        guard weeklyPlan.isActive, let output, let today = output.current?.date else { return nil }
+        let offset = TimeZone.current.secondsFromGMT()
+        guard weeklyPlan.covers(weekStart: weekStart, utcOffsetSeconds: offset), let output, let today = output.current?.date else { return nil }
         let end = min(today, weekStart.adding(days: 6))
         let journal: [JournalAnswer] = settings.demoMode
             ? demoJournal.filter { $0.date >= weekStart && $0.date <= end }
@@ -393,11 +401,32 @@ final class AppModel {
         await recompute()
     }
 
-    /// Crea una actividad en la app (fin del entrenamiento con la Live Activity o una sesión de fuerza). Devuelve su id.
+    /// Actividad de las pulseras del mismo tipo que se solapa al menos la mitad con un intervalo (para no duplicarla).
+    func overlappingActivity(kind: ActivityKind, start: Date, end: Date) -> FusedActivity? {
+        let range = TimeRange(start: start, end: end)
+        return output?.fusedActivities.first { a in
+            guard a.primary.source != .manual, a.kind == kind || (a.kind.isStrength && kind.isStrength) else { return false }
+            let shorter = Swift.min(a.range.duration, range.duration)
+            return shorter > 0 && a.range.overlap(with: range) >= shorter / 2
+        }
+    }
+
+    /// Crea una actividad en la app (fin del entrenamiento con la Live Activity o una sesión de fuerza). Si el Apple Watch o la
+    /// Fitbit ya registraron la misma sesión, se anota esa (RPE, notas y series) en lugar de duplicarla. Devuelve su id.
     @discardableResult
     func saveManualActivity(kind: ActivityKind, start: Date, end: Date, rpe: Double?, notes: String? = nil,
                             sets: [StrengthSet]? = nil) async -> String? {
         guard !settings.demoMode, let db else { return nil }
+        if let existing = overlappingActivity(kind: kind, start: start, end: end) {
+            let id = existing.primary.id
+            var a = (try? db.annotation(for: id)) ?? ActivityAnnotation(activityID: id)
+            if let rpe { a.rpe = rpe }
+            if let notes { a.notes = notes }
+            if let sets, !sets.isEmpty { a.strengthSets = sets }
+            try? db.saveAnnotation(a)
+            await recompute()
+            return existing.id
+        }
         let session = ActivitySession(source: .manual, sourceRecordID: UUID().uuidString, kind: kind, start: start, end: end,
                                       utcOffsetSeconds: TimeZone.current.secondsFromGMT(for: start), isManual: true, rpe: rpe,
                                       notes: notes)
@@ -461,24 +490,30 @@ final class AppModel {
         weeklyAIReport = lastWeekStart.flatMap { db.aiReport(.weekly, periodStart: $0) }
     }
 
-    /// Tras sincronizar: resumen de esta mañana (cuando ya hay sueño) e informe de la semana pasada, si están activados.
-    /// Un intento fallido no se repite hasta pasadas 3 horas.
+    /// Tras sincronizar: resumen de esta mañana (cuando ya hay recuperación; se rehace si cambia) e informe de la semana
+    /// pasada, si están activados. Un intento fallido no se repite hasta pasadas 3 horas.
     func generateReportsIfNeeded() async {
-        guard !settings.demoMode, settings.coachEnabled, settings.coachMode == .personal, let cur = output?.current else { return }
-        if settings.aiMorningSummary, cur.sleep != nil, morningReport?.periodStart != cur.date.isoString,
-           shouldAttempt("morning:\(cur.date.isoString)") {
-            _ = await writeMorningSummary(force: false)
+        guard !reportsInFlight, !settings.demoMode, settings.coachEnabled, settings.coachMode == .personal,
+              let cur = output?.current else { return }
+        reportsInFlight = true
+        defer { reportsInFlight = false }
+        if settings.aiMorningSummary, cur.sleep != nil, let score = cur.recovery.score,
+           morningReport?.periodStart != cur.date.isoString || morningReport?.recoveryScore != score {
+            let key = "morning:\(cur.date.isoString):\(score)"
+            if canRetry(key), let error = await writeMorningSummary(force: false), !error.isEmpty, !Task.isCancelled {
+                reportFailures[key] = Date()
+            }
         }
-        if settings.aiWeeklyReport, let monday = lastWeekStart, weeklyAIReport?.periodStart != monday.isoString,
-           shouldAttempt("weekly:\(monday.isoString)") {
-            _ = await writeWeeklyReport(force: false)
+        if settings.aiWeeklyReport, let monday = lastWeekStart, weeklyAIReport?.periodStart != monday.isoString {
+            let key = "weekly:\(monday.isoString)"
+            if canRetry(key), let error = await writeWeeklyReport(force: false), !error.isEmpty, !Task.isCancelled {
+                reportFailures[key] = Date()
+            }
         }
     }
 
-    private func shouldAttempt(_ key: String) -> Bool {
-        if let last = reportAttempts[key], Date().timeIntervalSince(last) < 3 * 3600 { return false }
-        reportAttempts[key] = Date()
-        return true
+    private func canRetry(_ key: String) -> Bool {
+        reportFailures[key].map { Date().timeIntervalSince($0) >= 3 * 3600 } ?? true
     }
 
     /// Redacta (o rehace) el resumen de esta mañana. Devuelve el error para mostrarlo, si lo hay.
@@ -552,7 +587,7 @@ final class AppModel {
             ?? "Intenta acostarte a tu hora de siempre."
         let morning = MorningSummary(titulo: title, resumen: summary, cargaObjetivo: target, horaAcostarse: bed)
         morningReport = AIReport(kind: .morning, periodStart: cur.date.isoString, createdAt: Date(), provider: "demo", model: "ejemplo",
-                                 costUSD: 0, morning: morning)
+                                 costUSD: 0, morning: morning, recoveryScore: cur.recovery.score)
         if let monday = lastWeekStart {
             let r = WeeklyReportBuilder.build(output: output, weekStart: monday)
             let rec = r.avgRecovery.map { "\(Int($0.rounded())) %" } ?? "—"
@@ -602,8 +637,14 @@ final class AppModel {
         try? db?.wipeAll()
         keychain.removeAll()
         SharedSnapshot.clear()
+        SleepAlarm.cancel()
+        await liveWorkout.discard()
         output = nil
         selectedDate = nil
+        morningReport = nil
+        weeklyAIReport = nil
+        weeklyPlan = WeeklyPlan()
+        reportFailures = [:]
         reloadState()
         phase = .onboarding
     }
