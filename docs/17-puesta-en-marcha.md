@@ -102,11 +102,13 @@ Cada subida gasta ≈ 6 min de los ≈ 200 minutos de macOS gratis al mes (la es
 
 ## Parte G · Opcional
 
-1. **Coach IA**:
-   - Crea una clave en [console.anthropic.com](https://console.anthropic.com) (*API Keys*) y pon un límite de gasto mensual en *Billing*.
-   - En la app: *Perfil › Coach IA* → pega la clave → *Probar conexión*.
+1. **Coach IA** (≈ 2–4 $ al mes con un uso normal). La API se paga aparte: el plan Pro o Max de Claude no la incluye ni se puede usar en otras apps.
+   - En [platform.claude.com](https://platform.claude.com) (la antigua Console de Anthropic): *Billing* → compra saldo (p. ej. 10 $) y deja **desactivada la recarga automática**; así nunca se cobra más de lo que cargas.
+   - *API Keys* → *Create Key* → nombre «Recupera» → copia la clave (empieza por `sk-ant-` y solo se muestra una vez).
+   - En la app: *Perfil › Coach IA* → activa el Coach → pega la clave → *Guardar clave* → *Probar conexión*.
+   - Elige el modelo: **Opus 5.5** (≈ 4 $/mes con una pregunta al día, el resumen matinal y el informe semanal) o **Sonnet 5.5** (≈ 2 $/mes). En *Límites* está el tope de gasto mensual (5 $ por defecto).
    - Activa el resumen matinal y el informe semanal si los quieres.
-   - Con Gemini: clave de un proyecto **con facturación activada**.
+   - Con Gemini: clave de un proyecto **con facturación activada** (en el EEE sus condiciones no permiten el nivel gratuito para esto).
 2. **Evitar reconectar cada semana**: cuando todo funcione, en *Google Auth Platform* → *Audience* → **Publicar aplicación**. Al conectar verás una vez el aviso «Google no ha verificado esta app»: pulsa *Configuración avanzada* → *Ir a Recupera*. Solo la usas tú.
 
 ## Si algo falla
