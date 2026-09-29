@@ -13,6 +13,7 @@ struct TodayView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                DaySwitcher()
                 SourceHeader()
                 if let message = model.syncMessage {
                     StateCard(symbol: "exclamationmark.arrow.triangle.2.circlepath", title: "Sincronización incompleta", message: message)
@@ -30,19 +31,18 @@ struct TodayView: View {
             .padding(.bottom, 32)
         }
         .screenBackground()
+        .simultaneousGesture(
+            // Deslizar en horizontal para ver días anteriores (doc. 11 §4).
+            DragGesture(minimumDistance: 40).onEnded { value in
+                let dx = value.translation.width, dy = value.translation.height
+                guard abs(dx) > 90, abs(dx) > abs(dy) * 2 else { return }
+                withAnimation(.snappy) { model.shiftDay(dx > 0 ? -1 : 1) }
+            }
+        )
         .refreshable { await model.sync(.pull) }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarLeading) {
-                Button { model.shiftDay(-1) } label: { Image(systemName: "chevron.left") }
-                    .accessibilityLabel("Día anterior")
-                if !model.isShowingToday {
-                    Button { model.shiftDay(1) } label: { Image(systemName: "chevron.right") }
-                        .accessibilityLabel("Día siguiente")
-                    Button("Hoy") { model.selectedDate = nil }
-                }
-            }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if model.isSyncing {
                     ProgressView()
@@ -97,6 +97,40 @@ struct TodayView: View {
         if model.isShowingToday { return "Hoy" }
         if date == today.adding(days: -1) { return "Ayer" }
         return "\(Format.weekdayName(date).capitalized) \(date.day)"
+    }
+}
+
+/// Fecha del día que se ve, con flechas para moverse entre días.
+struct DaySwitcher: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button { withAnimation(.snappy) { model.shiftDay(-1) } } label: {
+                Image(systemName: "chevron.left").font(.subheadline.weight(.semibold)).frame(width: 30, height: 30)
+            }
+            .accessibilityLabel("Día anterior")
+            Text(label).font(.subheadline.weight(.semibold)).monospacedDigit().contentTransition(.numericText())
+            Button { withAnimation(.snappy) { model.shiftDay(1) } } label: {
+                Image(systemName: "chevron.right").font(.subheadline.weight(.semibold)).frame(width: 30, height: 30)
+            }
+            .disabled(model.isShowingToday)
+            .opacity(model.isShowingToday ? 0.3 : 1)
+            .accessibilityLabel("Día siguiente")
+            Spacer()
+            if !model.isShowingToday {
+                Button("Volver a hoy") { withAnimation(.snappy) { model.selectedDate = nil } }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.recoveryHigh)
+            }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Palette.textPrimary)
+    }
+
+    private var label: String {
+        guard let d = model.displayedCycle?.date else { return "" }
+        return "\(Format.weekdayName(d).capitalized) \(d.day) \(Format.monthName(d.month).prefix(3))"
     }
 }
 

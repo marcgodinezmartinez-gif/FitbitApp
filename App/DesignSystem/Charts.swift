@@ -31,6 +31,7 @@ struct TrendChart: View {
     }
 
     var body: some View {
+        let domain = yDomain ?? autoDomain
         Chart {
             if let band, let first = points.first?.date, let last = points.last?.date {
                 RectangleMark(xStart: .value("Inicio", first), xEnd: .value("Fin", last),
@@ -38,13 +39,14 @@ struct TrendChart: View {
                     .foregroundStyle(Palette.textSecondary.opacity(0.12))
             }
             ForEach(points) { p in
-                AreaMark(x: .value("Día", p.date), y: .value("Valor", p.value))
+                // El relleno parte del borde inferior del eje (no de 0) para no salirse del gráfico.
+                AreaMark(x: .value("Día", p.date), yStart: .value("Base", domain.lowerBound), yEnd: .value("Valor", p.value))
                     .foregroundStyle(LinearGradient(colors: [color.opacity(0.35), color.opacity(0.0)], startPoint: .top, endPoint: .bottom))
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                 LineMark(x: .value("Día", p.date), y: .value("Valor", p.value), series: .value("Serie", "valor"))
                     .foregroundStyle(color)
                     .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
             }
             ForEach(average) { p in
                 LineMark(x: .value("Día", p.date), y: .value("Media 7 días", p.value), series: .value("Serie", "media"))
@@ -63,7 +65,7 @@ struct TrendChart: View {
                 PointMark(x: .value("Día", p.date), y: .value("Valor", p.value)).foregroundStyle(color)
             }
         }
-        .chartYScale(domain: yDomain ?? autoDomain)
+        .chartYScale(domain: domain)
         .chartXSelection(value: $selected)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in

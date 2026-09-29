@@ -135,7 +135,8 @@ public enum DayAnalyzer {
         let headline = headline(cycle: cycle)
         let isOpen = cycle.isOpen
         let until = isOpen ? now : (cycle.cycle.end ?? now)
-        return DayFacts(date: date.isoString, dataUntil: iso(until, offset: cycle.cycle.utcOffsetSeconds), facts: facts,
+        return DayFacts(date: date.isoString, dataUntil: iso(until, offset: cycle.cycle.utcOffsetSeconds),
+                        dataUntilLocal: Format.clock(until, utcOffsetSeconds: cycle.cycle.utcOffsetSeconds), facts: facts,
                         activities: summaries, tonight: tonight, tomorrow: tomorrow, headline: headline, dataUsed: dedupe(used))
     }
 
@@ -155,7 +156,7 @@ public enum DayAnalyzer {
             if chosen.count >= params.dayAnalysis.maxKeys { chosen.removeLast() }
             chosen.append(pos)
         }
-        return DayAnalysis(titular: f.headline, datosHasta: f.dataUntil,
+        return DayAnalysis(titular: f.headline, datosHasta: f.dataUntilLocal,
                            claves: chosen.map { DayAnalysis.Key(tono: $0.tone, texto: $0.text, metricas: [$0.metric]) },
                            actividades: f.activities, estaNoche: f.tonight, manana: f.tomorrow, datosUsados: f.dataUsed)
     }

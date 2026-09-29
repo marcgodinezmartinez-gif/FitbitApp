@@ -95,6 +95,8 @@ public struct DayFact: Codable, Sendable, Hashable {
 public struct DayFacts: Codable, Sendable, Hashable {
     public var date: String
     public var dataUntil: String
+    /// Hora local de los datos más recientes («20:19»), la que se muestra.
+    public var dataUntilLocal: String
     public var facts: [DayFact]
     public var activities: [DayAnalysis.ActivitySummary]
     public var tonight: String

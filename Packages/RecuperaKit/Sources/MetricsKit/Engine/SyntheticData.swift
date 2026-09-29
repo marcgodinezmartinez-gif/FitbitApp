@@ -63,10 +63,13 @@ public enum SyntheticData {
             var steps = 0
             var distance = 0.0
             var m = dayStart.minuteEpoch
+            var walking = false
             while TimeInterval(m) < dayEnd.timeIntervalSince1970 {
                 let date = Date(timeIntervalSince1970: TimeInterval(m))
                 let inRun = runs && date >= runStart && date < runEnd
-                let walking = !inRun && Int.random(in: 0..<10, using: &rng) < 2
+                // Paseos en tramos (≈ 7 min de media) y ratos sentado entre ellos, como un día real.
+                let roll = Int.random(in: 0..<100, using: &rng)
+                walking = !inRun && (walking ? roll < 85 : roll < 3)
                 let bpm = inRun ? 152 + noise(8) : (walking ? 88 + noise(8) : 68 + noise(6))
                 hrF.append(HRMinute(minute: m, bpmAvg: bpm, source: .googleHealth))
                 let s = inRun ? 165 : (walking ? 90 : 0)

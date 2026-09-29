@@ -111,7 +111,7 @@ public enum CoachPrompts {
 
         Responde solo con el JSON del esquema:
         - "titular": una frase que resuma el día.
-        - "datos_hasta": la hora de los datos más recientes (el campo dataUntil).
+        - "datos_hasta": la hora local de los datos más recientes, tal cual viene en dataUntilLocal («HH:mm»).
         - "claves": de 3 a 5, ordenadas por relevancia, cada una con su tono (positivo, a_vigilar o neutro), un texto breve con las \
         cifras y las métricas en las que se basa.
         - "actividades": las del día con distancia, ritmo, carga y fuentes (usa null si no hay dato).
