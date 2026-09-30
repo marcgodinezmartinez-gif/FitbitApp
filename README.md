@@ -66,6 +66,14 @@ Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **
 | **Parciales, zonas y marcas** | **Técnica y Watch frente a Fitbit** | **Rendimiento (VDOT)** | **Récords y tendencias** |
 | ![Parciales, zonas y mejores marcas](docs/capturas/correr-zonas.jpg) | ![Técnica de carrera y comparación de dispositivos](docs/capturas/correr-tecnica.jpg) | ![VDOT, predicciones y ritmos](docs/capturas/correr-rendimiento.jpg) | ![Récords y tendencias](docs/capturas/correr-records.jpg) |
 
+**Entrenar hacia una carrera** (doc. 18 §4 y §6–9):
+
+| Tu plan | Entreno para el Apple Watch | Carrera objetivo | Riesgo de lesión |
+|---|---|---|---|
+| ![Plan de entrenamiento hacia la carrera objetivo](docs/capturas/correr-plan.jpg) | ![Entreno estructurado con tus ritmos, listo para el Watch](docs/capturas/correr-entreno.jpg) | ![Predicción ajustada al desnivel y al calor](docs/capturas/correr-objetivo.jpg) | ![Carga aguda frente a crónica y picos de distancia](docs/capturas/correr-riesgo.jpg) |
+| **Series detectadas** | **Tus segmentos** | **Segmentos de una carrera** | |
+| ![Series detectadas sin marcar vueltas](docs/capturas/correr-series.jpg) | ![Segmentos propios con tu mejor tiempo](docs/capturas/correr-segmentos.jpg) | ![Posición de cada pasada entre todas las tuyas](docs/capturas/carrera-segmentos.jpg) | |
+
 En el modo demostración, el resumen matinal, el informe semanal y el análisis de cada carrera son **textos de ejemplo** (se indica en la tarjeta); con el Coach activado los redacta la IA con tus datos.
 
 ## Código
