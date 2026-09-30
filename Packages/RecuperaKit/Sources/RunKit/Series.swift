@@ -154,12 +154,13 @@ public enum RunSeriesBuilder {
             distance = activeT.map { official * $0 / activeTotal }
         }
 
-        // Velocidad: la del reloj si la hay y, si no, la derivada de la distancia (ventana de ~15 s).
+        // Velocidad: la del reloj si la hay y, si no, la derivada de la distancia (ventana de ~15 s de tiempo activo:
+        // junto a una pausa no se frena de mentira).
         var speed = [Double](repeating: 0, count: n)
         let w = max(1, Int((7 / step).rounded()))
         for i in 0..<n {
             let lo = max(0, i - w), hi = min(n - 1, i + w)
-            let dt = grid[hi] - grid[lo]
+            let dt = activeT[hi] - activeT[lo]
             speed[i] = dt > 0 ? max(0, (distance[hi] - distance[lo]) / dt) : 0
         }
         if distanceSource != .gps, watchSpeed.count >= 10 {

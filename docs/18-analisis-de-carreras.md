@@ -65,7 +65,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
    3. Velocidad del Watch.
    4. Parciales de la Fitbit.
    5. Ritmo medio.
-2. **Velocidad.** La del reloj cuando no hay GPS; si no, la derivada de la distancia en ~15 s.
+2. **Velocidad.** La del reloj cuando no hay GPS; si no, la derivada de la distancia en ~15 s de tiempo activo (junto a una pausa no se frena de mentira).
 3. **En movimiento.** Sin pausa y sin estar parado más de 10 s seguidos.
 4. **FC.** La del Watch si cubre al menos un 30 % de la carrera, completando con la de la Fitbit donde falte; si no, la de la Fitbit.
 5. **Altitud** suavizada ~30 s y pendiente sobre ~20 s de recorrido. **Ritmo ajustado (GAP)** con el coste energético de Minetti.
@@ -114,10 +114,11 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 - **Parciales por km:** ritmo, GAP, FC y desnivel.
 - **Vueltas o intervalos:** los del Watch o, si no hay, los de la Fitbit.
 - **Series detectadas** (`IntervalDetector`), aunque no marcaras vueltas:
-  - la velocidad ajustada por pendiente, suavizada ~16 s, se parte en dos grupos (k-medias); tienen que diferir al menos un 18 %;
-  - los tramos de menos de 12 s se funden con los vecinos; una serie es un tramo rápido de 30 s y 100 m o más;
-  - hacen falta 3 series y que lo rápido sea entre el 10 y el 70 % del tiempo en movimiento (un rodaje con paradas no cuenta);
-  - nombre: «6 × 800 m» si las distancias son parecidas y redondas, «5 × 3 min» si lo son los tiempos, si no «n cambios de ritmo»;
+  - la velocidad ajustada por pendiente, suavizada ~16 s, se parte en dos grupos (k-medias) que tienen que diferir al menos un 15 %; si la mitad rápida vuelve a partirse en dos escalones claros (calentamiento suave, series y trote aún más lento), las series son solo el de arriba;
+  - con histéresis: una serie empieza al pasar el corte y no acaba hasta bajar a medio camino del ritmo de abajo, así que una bajada o un bache de ritmo no la parten en dos;
+  - los tramos de menos de 12 s se funden con los vecinos; una serie es un tramo rápido de 30 s y 100 m o más. Las series cuentan el tiempo activo; la recuperación, también el tiempo parado con el reloj en pausa;
+  - hacen falta 3 series, que las recuperaciones vayan al menos un 25 % más lentas que las series (o parado), que lo rápido y lo lento no vayan con el terreno (eso son las cuestas de un rodaje) y que lo rápido sea entre el 10 y el 70 % del tiempo en movimiento (un rodaje con paradas no cuenta);
+  - nombre: primero las distancias y tiempos de siempre (400 m, 1 km, 3 min…); si no, «6 × 750 m» si las distancias son parecidas y redondas, «5 × 3 min» si lo son los tiempos, y si no «n cambios de ritmo»;
   - de cada una, distancia, tiempo, ritmo, FC y recuperación; del conjunto, ritmo medio, recuperación media, caída (última frente a primera) y regularidad.
 - **Segmentos:** tus tramos por los que pasa esta carrera, con el tiempo y la posición entre todas tus pasadas; desde aquí se crean (§9).
 - **Aviso de pico:** si la carrera fue más de un 10 % más larga que la más larga de los 30 días anteriores (§6).
@@ -305,7 +306,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 - Las valoraciones de técnica son orientativas. Dependen de la talla y del ritmo, así que conviene compararlas contigo mismo en «Tendencias» y «Carreras parecidas».
 - La predicción con calor usa una tabla empírica; la de desnivel, el coste energético con un tope en las bajadas. Son una guía para repartir el esfuerzo, no una garantía.
 - El plan es una propuesta genérica bien construida, no un entrenador: si te duele algo o duermes mal varios días, manda la recuperación.
-- La detección de series necesita que los tramos rápidos se distingan claramente (al menos un 18 % más rápidos); un fartlek muy suave puede no detectarse.
+- La detección de series necesita que los tramos rápidos se distingan claramente (recuperaciones al menos un 25 % más lentas); un fartlek muy suave o series con recuperación flotante pueden no detectarse. Una pausa larga en mitad de una serie la parte en dos.
 
 **Datos que dependen de la fuente:**
 

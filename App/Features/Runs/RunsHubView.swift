@@ -303,7 +303,13 @@ struct RunRiskCard: View {
                 }
             }
             if let safe = risk.safeLongRunM {
-                RunRow(name: "Tu próxima tirada, hasta", value: RunFormat.distance(safe), detail: "+10 % sobre la más larga del mes")
+                Label {
+                    Text("Próxima tirada larga: hasta \(Text(RunFormat.distance(safe)).fontWeight(.semibold)) (un 10 % más que la más larga del mes)")
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "arrow.up.right").foregroundStyle(Palette.textSecondary)
+                }
+                .font(.subheadline)
             }
             Text(risk.advice).font(.caption).foregroundStyle(Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
         }

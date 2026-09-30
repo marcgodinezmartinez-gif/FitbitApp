@@ -40,6 +40,8 @@ import Testing
                                      utcOffsetSeconds: 0, daysPerWeek: 4, longRunWeekday: 7)
         #expect(plan.weeks.count == 12)
         #expect(plan.weeks.first?.start == LocalDate(year: 2026, month: 9, day: 28))
+        // Arranca de tus 28 km de las semanas completas (no de la de hoy, que va a medias) y sube un 5 %.
+        #expect(abs((plan.weeks.first?.targetKm ?? 0) - 28 * 1.05) < 0.5)
         #expect(plan.weeks.map(\.phase).first == .base && plan.weeks.last?.phase == .race && plan.weeks[plan.weeks.count - 2].phase == .taper)
         let phases = plan.weeks.map(\.phase)
         let order: [PlanPhase] = [.base, .build, .peak, .taper, .race]

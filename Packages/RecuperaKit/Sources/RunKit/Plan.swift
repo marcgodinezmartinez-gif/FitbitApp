@@ -131,8 +131,8 @@ public enum PlanBuilder {
         let taper = min(max(0, count - 1), d == .marathon ? 2 : 1)
         let buildWeeks = max(0, count - 1 - taper)
 
-        // Punto de partida: tu volumen de las últimas 4 semanas y tu tirada más larga del mes.
-        let recent = history.weeks(count: 4, today: today).map { $0.distanceM / 1000 }
+        // Punto de partida: tu volumen de las 4 últimas semanas completas (la de hoy va a medias) y tu tirada más larga del mes.
+        let recent = history.weeks(count: 5, today: today).dropLast().map { $0.distanceM / 1000 }
         let current = max(10, recent.reduce(0, +) / Double(max(1, recent.count)))
         let longest30 = max(5, (history.summaries.filter { today.days(since: $0.date) <= 30 }.map(\.distanceM).max() ?? 5000) / 1000)
         let peak = min(max(current * growth(d), minPeak(d)), current * 1.8, Double(days) * 14)

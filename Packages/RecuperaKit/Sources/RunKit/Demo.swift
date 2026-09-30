@@ -27,6 +27,50 @@ public enum RunDemo {
         mutating func range(_ lo: Double, _ hi: Double) -> Double { lo + (hi - lo) * next() }
     }
 
+    /// El circuito de ejemplo: una elipse algo ondulada de 4,2 km. La posición se busca por distancia a lo largo de la curva
+    /// para que el GPS vaya a la misma velocidad que el corredor (por ángulo, iría más deprisa en los lados largos).
+    struct Circuit: Sendable {
+        static let loop = 4_200.0
+        static let shape = Circuit()
+        let angles: [Double]
+        let lengths: [Double]
+        let scale: Double
+
+        init() {
+            let n = 2_000
+            var angles = [0.0], lengths = [0.0]
+            var previous = Self.curve(0)
+            for i in 1...n {
+                let angle = 2 * Double.pi * Double(i) / Double(n)
+                let p = Self.curve(angle)
+                lengths.append(lengths[i - 1] + hypot(p.north - previous.north, p.east - previous.east))
+                angles.append(angle)
+                previous = p
+            }
+            self.angles = angles
+            self.lengths = lengths
+            scale = Self.loop / lengths[n]
+        }
+
+        static func curve(_ angle: Double) -> (north: Double, east: Double) {
+            let wobble = 1 + 0.08 * sin(angle * 3)
+            return (620 * wobble * sin(angle), 810 * wobble * cos(angle))
+        }
+
+        /// Metros al norte y al este del centro tras recorrer `meters`.
+        func position(_ meters: Double) -> (north: Double, east: Double) {
+            let s = meters.truncatingRemainder(dividingBy: Self.loop) / scale
+            var lo = 0, hi = lengths.count - 1
+            while hi - lo > 1 {
+                let mid = (lo + hi) / 2
+                if lengths[mid] <= s { lo = mid } else { hi = mid }
+            }
+            let f = (s - lengths[lo]) / max(1e-9, lengths[hi] - lengths[lo])
+            let p = Self.curve(angles[lo] + f * (angles[hi] - angles[lo]))
+            return (p.north * scale, p.east * scale)
+        }
+    }
+
     public static func input(for run: FusedActivity, zones: HRZones, profile: UserProfile) -> RunInput {
         var rng = Random(seed: run.id)
         let start = run.start
@@ -34,11 +78,14 @@ public enum RunDemo {
         let total = run.distanceM ?? duration * 3
         let baseSpeed = total / duration
         let intervals = rng.next() < 0.25 && duration > 1800
+        // Series: tras 15 min de calentamiento, de 3 a 6 veces 3 min rápidos y 2 min de trote.
+        let reps = intervals ? max(3, min(6, Int((duration - 1_500) / 300))) : 0
         let hasPause = duration > 2400
-        let pause = (duration * 0.55, duration * 0.55 + 45)
+        let pauseAt = intervals ? max(duration * 0.55, 900 + Double(reps) * 300 + 60) : duration * 0.55
+        let pause = (pauseAt, pauseAt + 45)
         let center = (lat: 40.4153, lon: -3.6845)
         let perLat = 111_320.0, perLon = 111_320.0 * cos(center.lat * .pi / 180)
-        let loop = 4_200.0
+        let loop = Circuit.loop
         let hrBase = run.primary.avgHR ?? (zones.restingRef + 0.62 * (zones.hrMax - zones.restingRef))
         let hrMax = zones.hrMax
 
@@ -52,19 +99,20 @@ public enum RunDemo {
         let step = 2.0
         while t <= duration {
             let inPause = hasPause && t >= pause.0 && t < pause.1
-            // Series: 4 min rápidos y 2 min suaves en la parte central.
             var factor = 1 + 0.03 * sin(t / 97) + rng.range(-0.015, 0.015)
-            if intervals, t > duration * 0.2, t < duration * 0.8 { factor *= (Int(t / 360) % 2 == 0) ? 1.14 : 0.82 }
+            let into = t - 900
+            if into >= 0 && into < Double(reps) * 300 { factor *= into.truncatingRemainder(dividingBy: 300) < 180 ? 1.22 : 0.8 }
             let angle = 2 * Double.pi * meters / loop
             let altitude = 655 + 11 * sin(angle) + 4 * sin(3 * angle + 1)
             let slope = (11 * cos(angle) + 12 * cos(3 * angle + 1)) * 2 * .pi / loop   // m/m
-            let speed = inPause ? 0 : max(1.2, baseSpeed * factor * (1 - 2.2 * slope))
+            // Cuesta arriba más despacio y cuesta abajo algo más rápido, a esfuerzo casi constante (coste de Minetti, atenuado).
+            let hill = pow(RunPhysiology.minettiCost(grade: 0) / RunPhysiology.minettiCost(grade: slope), 0.7)
+            let speed = inPause ? 0 : max(1.2, baseSpeed * factor * hill)
             if !inPause {
                 meters += speed * step
-                let wobble = 1 + 0.08 * sin(angle * 3)
+                let p = Circuit.shape.position(meters)
                 route.append(RoutePoint(time: start.addingTimeInterval(t),
-                                        latitude: center.lat + 620 / perLat * wobble * sin(angle),
-                                        longitude: center.lon + 810 / perLon * wobble * cos(angle),
+                                        latitude: center.lat + p.north / perLat, longitude: center.lon + p.east / perLon,
                                         altitude: altitude + rng.range(-0.6, 0.6), speed: speed, horizontalAccuracy: rng.range(3, 8)))
             }
             // FC que sigue al esfuerzo con retraso y sube despacio (deriva).
@@ -104,13 +152,14 @@ public enum RunDemo {
                         watchDetail: watchDetail, fitbitDetail: fitbitDetail, zones: zones, sex: profile.sex, weightKg: profile.weightKg)
     }
 
-    /// Un segmento de ejemplo (el primer km del circuito, cuesta arriba) con las pasadas de todas las carreras de ejemplo.
+    /// Un segmento de ejemplo (la subida más larga del circuito: 800 m al 2,5 %) con las pasadas de todas las carreras de ejemplo.
     public static func segments(output: MetricsOutput, profile: UserProfile) -> ([Segment], [SegmentEffort]) {
         let runs = RunLibrary.runs(in: output).filter { $0.watchMember != nil }
-        guard let last = runs.last else { return ([], []) }
+        let climb = 3_610.0
+        guard let last = runs.last(where: { ($0.distanceM ?? 0) > climb + 1_000 }) else { return ([], []) }
         let lastInput = input(for: last, zones: RunLibrary.zones(for: last, output: output), profile: profile)
-        guard let segment = SegmentMatcher.make(name: "Subida del Retiro", route: lastInput.route, fromM: 100, toM: 1100, runID: last.id,
-                                                id: "demo-segment", now: last.start) else { return ([], []) }
+        guard let segment = SegmentMatcher.make(name: "Subida del Retiro", route: lastInput.route, fromM: climb, toM: climb + 800,
+                                                runID: last.id, id: "demo-segment", now: last.start) else { return ([], []) }
         var efforts: [SegmentEffort] = []
         for run in runs {
             let i = run.id == last.id ? lastInput : input(for: run, zones: RunLibrary.zones(for: run, output: output), profile: profile)
