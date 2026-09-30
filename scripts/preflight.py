@@ -180,17 +180,16 @@ def check_app_ids(found):
             fail(f"{label}: falta activar {', '.join(missing)} en su App ID.")
         else:
             ok(f"{label} registrado con {' y '.join(NAMES[c] for c in needs)}.")
-    # La app del Apple Watch y sus complicaciones (doc. 19): la firma automática los crea al archivar; si no pudiera,
-    # se crean a mano igual que los de arriba.
+    # La app del Apple Watch y sus complicaciones (doc. 19): la clave no puede darlos de alta al archivar, se crean a mano.
     for ident, needs, label in ((bundle + ".watchkitapp", ("HEALTHKIT", "APP_GROUPS"), "App ID de la app del Watch"),
                                 (bundle + ".watchkitapp.widgets", ("APP_GROUPS",), "App ID de las complicaciones del Watch")):
         if ident not in found:
-            warn(f"{label} ({ident}) aún sin registrar: la compilación intentará crearlo; si falla al archivar, créalo con "
-                 f"{' y '.join(NAMES[c] for c in needs)} (doc. 17, parte A).")
+            fail(f"{label} sin registrar: créalo ({ident}) con {' y '.join(NAMES[c] for c in needs)} y tu grupo "
+                 f"(doc. 17, parte A, paso 5).")
             continue
         missing = [NAMES[c] for c in needs if c not in found[ident]]
         if missing:
-            warn(f"{label}: falta activar {', '.join(missing)} en su App ID.")
+            fail(f"{label}: falta activar {', '.join(missing)} en su App ID.")
         else:
             ok(f"{label} registrado con {' y '.join(NAMES[c] for c in needs)}.")
 

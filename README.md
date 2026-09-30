@@ -75,6 +75,14 @@ Generadas automáticamente en el simulador (iPhone, iOS 26) por el *workflow* **
 | **Series detectadas** | **Tus segmentos** | **Segmentos de una carrera** | |
 | ![Series detectadas sin marcar vueltas](docs/capturas/correr-series.jpg) | ![Segmentos propios con tu mejor tiempo](docs/capturas/correr-segmentos.jpg) | ![Posición de cada pasada entre todas las tuyas](docs/capturas/carrera-segmentos.jpg) | |
 
+**Apple Watch** ([doc. 19](docs/19-esferas-apple-watch.md)): tus esferas, diseñadas en el iPhone, a pantalla completa en la app del reloj.
+
+| Ultra modular | Explorador | Explorador en modo noche | Recuperación |
+|---|---|---|---|
+| ![Esfera Ultra modular con los segundos por el borde](docs/capturas/watch-ultra-modular.jpg) | ![Esfera Explorador con bisel de brújula](docs/capturas/watch-explorador.jpg) | ![Modo noche en rojo](docs/capturas/watch-explorador-noche.jpg) | ![Esfera de recuperación](docs/capturas/watch-recuperacion.jpg) |
+| **Clásica** | **Digital XL** | **Tus esferas (iPhone)** | **Editor** |
+| ![Esfera clásica de agujas](docs/capturas/watch-clasica.jpg) | ![Esfera Digital XL](docs/capturas/watch-digital.jpg) | ![Galería de esferas en el iPhone](docs/capturas/esferas.jpg) | ![Editor de esferas con vista previa](docs/capturas/esferas-editor.jpg) |
+
 En el modo demostración, el resumen matinal, el informe semanal y el análisis de cada carrera son **textos de ejemplo** (se indica en la tarjeta); con el Coach activado los redacta la IA con tus datos.
 
 ## Código
