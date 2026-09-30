@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 import MetricsKit
 import Insights
+import Store
 import RunKit
 
 // MARK: - Tarjeta en «Correr»
