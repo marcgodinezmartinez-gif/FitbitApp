@@ -100,6 +100,16 @@ public final class AppDatabase: Sendable {
             CREATE INDEX run_summary_start ON run_summary(start_ts);
             """)
         }
+        // v4 · Segmentos propios: el tramo, sus pasadas y qué carreras ya se han revisado.
+        m.registerMigration("v4") { db in
+            try db.execute(sql: """
+            CREATE TABLE segment (id TEXT PRIMARY KEY, json TEXT NOT NULL);
+            CREATE TABLE segment_effort (segment_id TEXT NOT NULL, activity_id TEXT NOT NULL, start_ts REAL NOT NULL, seconds REAL NOT NULL,
+                json TEXT NOT NULL, PRIMARY KEY (segment_id, activity_id, start_ts));
+            CREATE INDEX segment_effort_activity ON segment_effort(activity_id);
+            CREATE TABLE segment_scan (segment_id TEXT NOT NULL, activity_id TEXT NOT NULL, PRIMARY KEY (segment_id, activity_id));
+            """)
+        }
         return m
     }
 

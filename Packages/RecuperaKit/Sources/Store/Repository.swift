@@ -219,6 +219,7 @@ extension AppDatabase {
                 try db.execute(sql: "DELETE FROM activity_metric_sample WHERE activity_id = ?", arguments: [id])
                 try db.execute(sql: "DELETE FROM hr_sample WHERE activity_id = ?", arguments: [id])
                 try db.execute(sql: "DELETE FROM activity_detail WHERE activity_id = ?", arguments: [id])
+                try db.execute(sql: "DELETE FROM segment_effort WHERE activity_id = ?", arguments: [id])
             }
         }
     }
@@ -683,7 +684,8 @@ extension AppDatabase {
             var files: [String: String] = [:]
             let tables = ["app_state", "sync_log", "sleep_session", "vitals", "daily_source_totals", "vo2max", "activity",
                           "activity_annotation", "journal_answer", "strain_mode", "cycle_metrics", "fused_activity", "day_analysis",
-                          "report", "coach_thread", "coach_message", "coach_memory", "coach_spend", "privacy_event", "activity_detail"]
+                          "report", "coach_thread", "coach_message", "coach_memory", "coach_spend", "privacy_event", "activity_detail",
+                          "segment", "segment_effort"]
             for table in tables {
                 let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(table)")
                 let objects: [[String: Any]] = rows.map { row in
@@ -713,7 +715,7 @@ extension AppDatabase {
                       "vitals", "daily_source_totals", "vo2max", "activity", "activity_annotation", "route_point",
                       "activity_metric_sample", "journal_answer", "strain_mode", "cycle_metrics", "fused_activity", "day_analysis",
                       "report", "coach_message", "coach_thread", "coach_memory", "coach_spend", "privacy_event",
-                      "activity_detail", "run_summary"] {
+                      "activity_detail", "run_summary", "segment", "segment_effort", "segment_scan"] {
                 try db.execute(sql: "DELETE FROM \(t)")
             }
         }

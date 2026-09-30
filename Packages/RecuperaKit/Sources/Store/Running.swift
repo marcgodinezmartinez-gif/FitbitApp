@@ -258,3 +258,68 @@ extension AppDatabase {
         try writer.write { db in try db.execute(sql: "DELETE FROM run_summary") }
     }
 }
+
+// MARK: - Segmentos propios
+
+extension AppDatabase {
+    public func saveSegment<T: Encodable>(_ segment: T, id: String) throws {
+        let json = try Self.json(segment)
+        try writer.write { db in
+            try db.execute(sql: "INSERT INTO segment(id, json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json",
+                           arguments: [id, json])
+        }
+    }
+
+    public func segments<T: Decodable>(_ type: T.Type) throws -> [T] {
+        try writer.read { db in try String.fetchAll(db, sql: "SELECT json FROM segment").compactMap { try? Self.decode(T.self, $0) } }
+    }
+
+    /// Borra el segmento con sus pasadas.
+    public func deleteSegment(id: String) throws {
+        try writer.write { db in
+            try db.execute(sql: "DELETE FROM segment WHERE id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM segment_effort WHERE segment_id = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM segment_scan WHERE segment_id = ?", arguments: [id])
+        }
+    }
+
+    /// Guarda las pasadas de un segmento en unas carreras (sustituye las que hubiera) y las marca como revisadas.
+    public func saveSegmentEfforts<T: Encodable>(_ efforts: [(activityID: String, start: Date, seconds: Double, value: T)],
+                                                 segmentID: String, scanned activityIDs: [String]) throws {
+        let rows = try efforts.map { e in (e, try Self.json(e.value)) }
+        try writer.write { db in
+            for id in activityIDs {
+                try db.execute(sql: "DELETE FROM segment_effort WHERE segment_id = ? AND activity_id = ?", arguments: [segmentID, id])
+                try db.execute(sql: "INSERT OR IGNORE INTO segment_scan(segment_id, activity_id) VALUES (?, ?)", arguments: [segmentID, id])
+            }
+            for (e, json) in rows {
+                try db.execute(sql: """
+                    INSERT OR REPLACE INTO segment_effort(segment_id, activity_id, start_ts, seconds, json) VALUES (?,?,?,?,?)
+                    """, arguments: [segmentID, e.activityID, e.start.timeIntervalSince1970, e.seconds, json])
+            }
+        }
+    }
+
+    public func segmentEfforts<T: Decodable>(_ type: T.Type, segmentID: String) throws -> [T] {
+        try writer.read { db in
+            try String.fetchAll(db, sql: "SELECT json FROM segment_effort WHERE segment_id = ? ORDER BY seconds", arguments: [segmentID])
+                .compactMap { try? Self.decode(T.self, $0) }
+        }
+    }
+
+    public func segmentEfforts<T: Decodable>(_ type: T.Type, activityIDs: [String]) throws -> [T] {
+        guard !activityIDs.isEmpty else { return [] }
+        return try writer.read { db in
+            let marks = Array(repeating: "?", count: activityIDs.count).joined(separator: ",")
+            return try String.fetchAll(db, sql: "SELECT json FROM segment_effort WHERE activity_id IN (\(marks)) ORDER BY start_ts",
+                                       arguments: StatementArguments(activityIDs))
+                .compactMap { try? Self.decode(T.self, $0) }
+        }
+    }
+
+    public func scannedActivityIDs(segmentID: String) throws -> Set<String> {
+        try writer.read { db in
+            Set(try String.fetchAll(db, sql: "SELECT activity_id FROM segment_scan WHERE segment_id = ?", arguments: [segmentID]))
+        }
+    }
+}
