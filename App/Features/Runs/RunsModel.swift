@@ -23,37 +23,58 @@ final class RunsModel {
     var assignments: [String: String] = [:]
     var vo2: [VO2MaxValue] = []
     var isLoading = false
+    /// Carreras que fueron récord el día que se corrieron (para marcarlas en la lista).
+    var recordIDs: Set<String> = []
+    /// Todas las carreras (también las del historial completo), para abrir cualquiera.
+    @ObservationIgnored private var runsByID: [String: FusedActivity] = [:]
     @ObservationIgnored private var loadedVersion = -1
+    @ObservationIgnored private var refreshing = false
+    @ObservationIgnored private var refreshAgain = false
 
     var today: LocalDate { LocalDate(Date(), utcOffsetSeconds: TimeZone.current.secondsFromGMT()) }
 
     func summary(_ id: String) -> RunSummary? { summaries.first { $0.id == id } }
 
-    /// Recalcula lo que falte (en segundo plano) cuando cambian los datos.
+    func run(_ id: String) -> FusedActivity? { runsByID[id] }
+
+    /// Recalcula lo que falte (en segundo plano) cuando cambian los datos. Si ya hay un cálculo en curso (la primera vez
+    /// con años de historial puede tardar), se repite al terminar en vez de lanzar otro a la vez.
     @MainActor
     func refresh(model: AppModel, force: Bool = false) async {
-        guard let output = model.output, force || loadedVersion != model.dataVersion else { return }
-        loadedVersion = model.dataVersion
-        isLoading = summaries.isEmpty
-        let profile = model.displayProfile
-        let demo = model.settings.demoMode
-        let db = model.db
-        let result: [RunSummary] = await Task.detached(priority: .userInitiated) {
-            guard !demo, let db else { return RunDemo.summaries(output: output, profile: profile) }
-            return (try? RunLibrary.refresh(db: db, output: output, profile: profile)) ?? []
-        }.value
-        summaries = result
-        history = RunHistory(summaries: result)
-        context = history.context(today: today)
-        if !demo, let db {
-            shoes = (try? db.shoes()) ?? []
-            assignments = (try? db.shoeAssignments()) ?? [:]
-            vo2 = (try? db.vo2maxValues()) ?? []
-        } else {
-            shoes = Self.demoShoes
-            vo2 = model.demoVO2
+        guard model.output != nil, force || loadedVersion != model.dataVersion else { return }
+        if refreshing {
+            refreshAgain = true
+            return
         }
-        isLoading = false
+        refreshing = true
+        defer { refreshing = false }
+        repeat {
+            refreshAgain = false
+            guard let output = model.output else { return }
+            loadedVersion = model.dataVersion
+            isLoading = summaries.isEmpty
+            let profile = model.displayProfile
+            let demo = model.settings.demoMode
+            let db = model.db
+            let result: ([RunSummary], [FusedActivity]) = await Task.detached(priority: .userInitiated) {
+                guard !demo, let db else { return (RunDemo.summaries(output: output, profile: profile), RunLibrary.runs(in: output)) }
+                return (try? RunLibrary.refreshAll(db: db, output: output, profile: profile)) ?? ([], RunLibrary.runs(in: output))
+            }.value
+            summaries = result.0
+            runsByID = Dictionary(result.1.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            history = RunHistory(summaries: result.0)
+            recordIDs = history.recordRunIDs()
+            context = history.context(today: today)
+            if !demo, let db {
+                shoes = (try? db.shoes()) ?? []
+                assignments = (try? db.shoeAssignments()) ?? [:]
+                vo2 = (try? db.vo2maxValues()) ?? []
+            } else {
+                shoes = Self.demoShoes
+                vo2 = model.demoVO2
+            }
+            isLoading = false
+        } while refreshAgain
     }
 
     /// Lee y analiza una carrera (con el contexto del historial: VDOT, umbral y potencia crítica).

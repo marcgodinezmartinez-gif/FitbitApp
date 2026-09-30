@@ -100,6 +100,18 @@ public enum RunFacts {
                           ("distancia_m", .rounded(l.distanceM, 0)), ("ritmo", pace(l.pace)), ("fc", .rounded(l.avgHR, 0))])
             })))
         }
+        if let iv = r.intervals {
+            members.append(("series_detectadas", .compact([
+                ("sesion", .string(iv.label)), ("ritmo_medio_series", pace(iv.avgRepPace)),
+                ("recuperacion_media_s", .rounded(iv.avgRecoverySeconds, 0)), ("caida_ritmo_pct", .rounded(iv.fadePct, 1)),
+                ("variacion_ritmo_pct", .rounded(iv.paceSpreadPct, 1)),
+                ("series", .array(iv.reps.map { rep in
+                    .compact([("serie", .from(rep.index)), ("distancia_m", .rounded(rep.distanceM, 0)),
+                              ("tiempo", .string(Format.raceTime(seconds: rep.seconds))), ("ritmo", pace(rep.pace)),
+                              ("fc_media", .rounded(rep.avgHR, 0)), ("recuperacion_s", .rounded(rep.recoverySeconds, 0))])
+                })),
+            ])))
+        }
         members.append(("mejores_marcas", .array(r.bestEfforts.map { e in
             .compact([("distancia", .string(e.distance.label)), ("tiempo", .string(Format.raceTime(seconds: e.seconds)))])
         })))

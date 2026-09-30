@@ -163,18 +163,20 @@ struct RunRow: View {
 
 struct VolumeChart: View {
     var periods: [RunPeriod]
-    var monthly: Bool
+    var scale: RunVolumeScale
 
     var body: some View {
+        let unit: Calendar.Component = scale == .weeks ? .weekOfYear : (scale == .months ? .month : .year)
+        let format: Date.FormatStyle = scale == .weeks ? .dateTime.day().month(.abbreviated)
+            : (scale == .months ? .dateTime.month(.abbreviated) : .dateTime.year())
         Chart(periods) { p in
-            BarMark(x: .value("Periodo", p.start.startDate(utcOffsetSeconds: 0), unit: monthly ? .month : .weekOfYear),
-                    y: .value("Km", p.distanceM / 1000))
+            BarMark(x: .value("Periodo", p.start.startDate(utcOffsetSeconds: 0), unit: unit), y: .value("Km", p.distanceM / 1000))
                 .foregroundStyle(Palette.strain.gradient)
                 .cornerRadius(4)
         }
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { _ in
-                AxisValueLabel(format: monthly ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated))
+                AxisValueLabel(format: format)
             }
         }
         .chartYAxisLabel("km")
@@ -228,16 +230,22 @@ struct DatedValueChart: View {
         }
     }
 
-    /// Más de dos meses y medio: una marca por mes («jul», «ago»…).
-    private var monthly: Bool {
-        guard let a = values.map(\.date).min(), let b = values.map(\.date).max() else { return false }
-        return b.timeIntervalSince(a) > 75 * 86_400
+    /// Marcas del eje X según lo largo que sea el periodo: días, meses o años.
+    static func xAxis(span days: Double) -> (values: AxisMarkValues, format: Date.FormatStyle) {
+        switch days {
+        case ..<75: return (.automatic(desiredCount: 4), .dateTime.day().month(.abbreviated))
+        case ..<200: return (.stride(by: .month), .dateTime.month(.abbreviated))
+        case ..<400: return (.stride(by: .month, count: 2), .dateTime.month(.abbreviated))
+        case ..<800: return (.stride(by: .month, count: 4), .dateTime.month(.abbreviated).year(.twoDigits))
+        default: return (.stride(by: .year, count: max(1, Int((days / 365 / 6).rounded(.up)))), .dateTime.year())
+        }
     }
 
     var body: some View {
         let lines = self.lines
-        let xValues: AxisMarkValues = monthly ? .stride(by: .month) : .automatic(desiredCount: 4)
-        let xFormat: Date.FormatStyle = monthly ? .dateTime.month(.abbreviated) : .dateTime.day().month(.abbreviated)
+        let dates = values.map(\.date)
+        let span = (dates.max() ?? Date()).timeIntervalSince(dates.min() ?? Date()) / 86_400
+        let (xValues, xFormat) = Self.xAxis(span: span)
         Chart {
             ForEach(values) { v in
                 PointMark(x: .value("Fecha", v.date), y: .value("Valor", v.value))

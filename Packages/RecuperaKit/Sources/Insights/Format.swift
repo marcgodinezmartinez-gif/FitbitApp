@@ -34,6 +34,15 @@ public enum Format {
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 
+    /// Entero con separador de miles a la española («12.345»; con cuatro cifras, sin separador: «4321»).
+    public static func thousands(_ v: Double) -> String {
+        let f = NumberFormatter()
+        f.locale = Locale(identifier: "es_ES")
+        f.numberStyle = .decimal
+        f.maximumFractionDigits = 0
+        return f.string(from: NSNumber(value: v.rounded())) ?? "\(Int(v.rounded()))"
+    }
+
     public static func decimal(_ v: Double, digits: Int = 1) -> String {
         let f = NumberFormatter()
         f.locale = Locale(identifier: "es_ES")

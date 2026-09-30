@@ -20,7 +20,7 @@ struct RunDetailView: View {
     @State private var confirmDelete = false
     @State private var gpxURL: URL?
 
-    var run: FusedActivity? { model.output?.fusedActivities.first { $0.id == runID } }
+    var run: FusedActivity? { model.runs.run(runID) ?? model.output?.fusedActivities.first { $0.id == runID } }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -97,6 +97,7 @@ struct RunDetailView: View {
         RunAICard(run: run, analysis: r).id("ai")
         RunChartsCard(analysis: r, metric: $chartMetric, byDistance: $byDistance, zones: loaded.input.zones).id("charts")
         if !r.splits.isEmpty { RunSplitsCard(splits: r.splits).id("splits") }
+        if let iv = r.intervals { RunIntervalsCard(session: iv).id("intervals") }
         if !r.laps.isEmpty { RunLapsCard(laps: r.laps) }
         RunZonesDetailCard(analysis: r)
         if !r.bestEfforts.isEmpty { RunBestEffortsCard(analysis: r, run: run) }
@@ -349,6 +350,64 @@ struct RunLapsCard: View {
                 .font(.subheadline)
             }
         }
+    }
+}
+
+/// Series detectadas en la velocidad: aunque no marcaras vueltas, cada tramo rápido con su recuperación.
+struct RunIntervalsCard: View {
+    let session: IntervalSession
+
+    var body: some View {
+        Card {
+            SectionHeader(title: "Series", trailing: session.label)
+            HStack {
+                stat("Ritmo medio", "\(RunFormat.pace(session.avgRepPace)) /km")
+                stat("Recuperación", session.avgRecoverySeconds.map { RunFormat.time($0) } ?? "–")
+                stat("Caída", session.fadePct.map { Format.signed($0, digits: 1) + " %" } ?? "–")
+            }
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                GridRow {
+                    header("#")
+                    header("Distancia")
+                    header("Tiempo")
+                    header("Ritmo")
+                    header("FC")
+                    header("Rec.")
+                }
+                ForEach(session.reps) { rep in
+                    GridRow {
+                        Text("\(rep.index)").font(.caption.weight(.bold))
+                        Text(RunFormat.distance(rep.distanceM)).font(.subheadline).monospacedDigit()
+                        Text(RunFormat.time(rep.seconds)).font(.subheadline).monospacedDigit()
+                        Text(RunFormat.pace(rep.pace)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                        Text(RunFormat.number(rep.avgHR)).font(.subheadline).monospacedDigit().foregroundStyle(Palette.textSecondary)
+                        Text(rep.recoverySeconds.map { RunFormat.time($0) } ?? "–").font(.subheadline).monospacedDigit()
+                            .foregroundStyle(Palette.textSecondary)
+                    }
+                }
+            }
+            Text(advice).font(.caption).foregroundStyle(Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var advice: String {
+        let spread = session.paceSpreadPct ?? 0, fade = session.fadePct ?? 0
+        if fade > 3 { return "Te has ido cayendo: la última fue un \(Format.decimal(fade)) % más lenta que la primera. Sal algo más conservador o alarga la recuperación." }
+        if fade < -3 { return "Has ido de menos a más (la última un \(Format.decimal(-fade)) % más rápida): bien dosificado." }
+        if spread < 2 { return "Series muy regulares: ritmo bien controlado." }
+        return "Detectadas en la velocidad ajustada por pendiente: no hace falta marcar vueltas."
+    }
+
+    private func header(_ text: String) -> some View {
+        Text(text).font(.caption.weight(.semibold)).foregroundStyle(Palette.textSecondary)
+    }
+
+    private func stat(_ name: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).font(.metric(18, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(name).font(.caption).foregroundStyle(Palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

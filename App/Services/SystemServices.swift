@@ -24,6 +24,8 @@ enum BackgroundSync {
     private static func run(_ task: BGTask, reason: SyncReason, model: AppModel) {
         let work = Task { @MainActor in
             await model.sync(reason, awaitReports: true)
+            // Por la noche (cargando y con Wi-Fi) avanza también el historial completo.
+            if reason == .nightly { await model.importHistoryInBackground(budget: 8 * 60) }
             schedule(usualWakeMinutes: model.profile.usualWakeMinutes)
             task.setTaskCompleted(success: true)
         }

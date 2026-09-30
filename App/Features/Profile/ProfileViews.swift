@@ -2,6 +2,7 @@ import SwiftUI
 import MetricsKit
 import Insights
 import Store
+import SyncKit
 
 /// Pestaña «Perfil»: fuentes, ajustes, Coach, privacidad y cómo se calcula cada métrica (doc. 11 §3).
 struct ProfileView: View {
@@ -215,6 +216,7 @@ struct SyncLogView: View {
         switch s {
         case "google_health": return "Google Health"
         case "apple_health": return "Apple Health"
+        case "history": return "Historial completo"
         default: return "Cálculo de métricas"
         }
     }
@@ -227,8 +229,55 @@ struct SyncLogView: View {
         case "background": return "en segundo plano"
         case "nightly": return "nocturna"
         case "healthKitDelivery": return "aviso de Salud"
+        case "apple": return "entrenamientos del Watch"
+        case "googleDaily": return "noches y entrenamientos de la Fitbit"
+        case "googleMinutes": return "FC y pasos por minuto"
+        case "metrics": return "métricas del pasado"
         default: return k
         }
+    }
+}
+
+/// Historial completo: todo lo anterior a la primera importación, de las dos fuentes, hacia atrás y en segundo plano.
+struct HistoryImportSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            if let h = model.history {
+                if h.isComplete {
+                    LabeledContent("Estado", value: "Completo").font(.subheadline)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Paso \(h.step) de 4 · \(h.phaseLabel)").font(.subheadline)
+                            Spacer()
+                            if model.historyRunning { ProgressView().controlSize(.small) }
+                        }
+                        ProgressView(value: h.fraction).tint(Palette.recoveryHigh)
+                    }
+                }
+                if let oldest = h.oldestData {
+                    LabeledContent("Datos desde", value: oldest.formatted(.dateTime.month(.wide).year())).font(.subheadline)
+                }
+                if h.workouts > 0 {
+                    LabeledContent("Entrenamientos antiguos", value: "\(h.workouts)").font(.subheadline)
+                }
+                if let e = h.lastError, !h.isComplete {
+                    Text(e).font(.caption).foregroundStyle(Palette.recoveryMedium).lineLimit(3)
+                }
+                if !h.isComplete && !model.historyRunning {
+                    Button("Continuar ahora") { model.continueHistoryImport() }
+                }
+            } else {
+                Text("Empieza cuando termine la primera importación.").font(.subheadline).foregroundStyle(Palette.textSecondary)
+            }
+        } header: {
+            Text("Historial completo")
+        } footer: {
+            Text("Además de los últimos 6 meses, la app trae todo lo que tengan guardado el Apple Watch y la Fitbit, hasta el primer dato: entrenamientos con su ruta y FC, noches, vitales, VO₂ máx. y la FC de todo el día, y recalcula tus métricas del pasado. Va por tramos mientras la app está abierta y por la noche mientras el iPhone se carga; puedes cerrarla cuando quieras, sigue donde se quedó.")
+        }
+        .task { await model.loadHistoryState() }
     }
 }
 
@@ -292,6 +341,8 @@ struct SourcesView: View {
             } footer: {
                 Text("Aporta tus carreras: ruta, ritmo, parciales, cadencia, potencia, FC de alta frecuencia, FC de recuperación y VO₂máx. Si iOS no muestra datos, revisa Salud › Compartir › Apps › Recupera.")
             }
+
+            HistoryImportSection()
 
             Section("Cómo evitamos duplicados") {
                 Text("Cuando llevas las dos pulseras en una carrera, las dos sesiones se fusionan en una sola actividad: la FC, la distancia y el ritmo salen del Apple Watch (salvo que elijas otra cosa) y la carga del día se calcula una sola vez. Los datos que Google Health importa de Apple Health se descartan para no contarlos dos veces.")

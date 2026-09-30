@@ -264,6 +264,8 @@ enum SyntheticRun {
         let k5 = try #require(h.records().first { $0.distance == .k5 })
         #expect(k5.seconds == 19 * 60 + 57 && k5.runID == "run-2026-09-22")
         #expect(h.personalRecords(in: h.summaries[1]) == [.k5, .k10] && h.personalRecords(in: h.summaries[2]).isEmpty)
+        #expect(h.recordRunIDs() == Set(h.summaries.filter { !h.personalRecords(in: $0).isEmpty }.map(\.id)))
+        #expect(h.years(count: 2, today: today).map(\.runs) == [0, 4])
         let vdot = try #require(h.vdot(today: today))
         #expect(abs(vdot.value - 50) < 0.5 && vdot.distance == .k5 && !vdot.fromEstimates)
         let tenK = try #require(h.predictions(vdot: vdot.value).first { $0.distance == .k10 })

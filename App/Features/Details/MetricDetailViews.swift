@@ -8,7 +8,12 @@ import Insights
 func series(_ model: AppModel, until date: LocalDate, days: Int, _ value: (CycleMetrics) -> Double?) -> [DayPoint] {
     guard let output = model.output else { return [] }
     let offset = TimeZone.current.secondsFromGMT()
-    return output.cycles.filter { $0.date <= date && date.days(since: $0.date) < days }.compactMap { c in
+    // Más allá de la ventana del motor, los ciclos guardados del historial completo.
+    var cycles = output.cycles
+    if let first = cycles.first?.date, days > date.days(since: first) {
+        cycles = model.historyCycles.filter { $0.date < first } + cycles
+    }
+    return cycles.filter { $0.date <= date && date.days(since: $0.date) < days }.compactMap { c in
         value(c).map { DayPoint(date: c.date.startDate(utcOffsetSeconds: offset), value: $0) }
     }
 }

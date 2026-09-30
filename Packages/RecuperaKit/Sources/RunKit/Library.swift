@@ -5,7 +5,7 @@ import Store
 /// Resumen de una carrera que se guarda en caché: lo que usa el historial sin volver a leer sus series.
 public struct RunSummary: Codable, Sendable, Hashable, Identifiable {
     /// Súbela cuando cambie el análisis para que se recalculen todos.
-    public static let version = 1
+    public static let version = 2
 
     public var id: String
     public var start: Date
@@ -39,6 +39,10 @@ public struct RunSummary: Codable, Sendable, Hashable, Identifiable {
     public var temperatureC: Double?
     public var sources: [DataSourceKind]
     public var fitbitVO2max: Double?
+    /// «6 × 800 m» si es una sesión de series.
+    public var intervalLabel: String?
+    /// Recuadro de la ruta (lat. y lon. mínimas y máximas), para buscar los segmentos solo en las carreras que pasan cerca.
+    public var bounds: [Double]?
     /// Sesiones que la forman: si cambia la fusión, se recalcula.
     public var signature: String
 
@@ -102,7 +106,8 @@ public enum RunLibrary {
                           vo2maxEstimate: r.vo2maxEstimate, efficiency: r.efficiencyFactor, decoupling: r.decouplingPct,
                           bestEfforts: efforts, paceCurve: r.paceCurve, powerCurve: r.powerCurve,
                           startLat: rounded(first?.latitude), startLon: rounded(first?.longitude), temperatureC: r.weather?.temperatureC,
-                          sources: run.sources, fitbitVO2max: r.comparison?.fitbitVO2max, signature: signature(run))
+                          sources: run.sources, fitbitVO2max: r.comparison?.fitbitVO2max, intervalLabel: r.intervals?.label,
+                          bounds: Geo.bounds(route), signature: signature(run))
     }
 
     nonisolated(unsafe) static let encoder: JSONEncoder = {
@@ -121,6 +126,12 @@ public enum RunLibrary {
     /// historial completo); devuelve todos, del más antiguo al más reciente.
     @discardableResult
     public static func refresh(db: AppDatabase, output: MetricsOutput, profile: UserProfile) throws -> [RunSummary] {
+        try refreshAll(db: db, output: output, profile: profile).summaries
+    }
+
+    /// Como `refresh`, y además las carreras (para abrir cualquiera, también las del historial).
+    public static func refreshAll(db: AppDatabase, output: MetricsOutput,
+                                  profile: UserProfile) throws -> (summaries: [RunSummary], runs: [FusedActivity]) {
         let runs = try allRuns(db: db, output: output)
         var cached: [String: RunSummary] = [:]
         for row in try db.runSummaries() where row.version == RunSummary.version {
@@ -137,7 +148,7 @@ public enum RunLibrary {
         }
         // Las que ya no están se borraron o se fusionaron de otra forma.
         try db.deleteRunSummaries(keeping: Set(current.keys))
-        return current.values.sorted { $0.start < $1.start }
+        return (current.values.sorted { $0.start < $1.start }, runs)
     }
 }
 
@@ -269,6 +280,15 @@ public struct RunHistory: Sendable {
         return starts.reversed().map { period(start: $0, runs: byMonth[$0] ?? []) }
     }
 
+    /// Últimos `count` años naturales, del más antiguo al actual.
+    public func years(count: Int, today: LocalDate) -> [RunPeriod] {
+        let byYear = Dictionary(grouping: summaries) { $0.date.year }
+        return (0..<count).reversed().map { k in
+            let year = today.year - k
+            return period(start: LocalDate(year: year, month: 1, day: 1), runs: byYear[year] ?? [])
+        }
+    }
+
     public func totals(from: LocalDate, to: LocalDate) -> RunPeriod {
         period(start: from, runs: summaries.filter { $0.date >= from && $0.date <= to })
     }
@@ -300,6 +320,23 @@ public struct RunHistory: Sendable {
             guard let mine = run.best(d) else { return false }
             return !summaries.contains { $0.id != run.id && $0.start < run.start && ($0.best(d) ?? .infinity) <= mine }
         }
+    }
+
+    /// Carreras que fueron récord personal en alguna distancia el día que se corrieron (una pasada, sin comparar todas
+    /// con todas: la lista de todas tus carreras la usa en cada fila).
+    public func recordRunIDs() -> Set<String> {
+        var best: [RaceDistance: Double] = [:]
+        var out = Set<String>()
+        for s in summaries {
+            for d in RaceDistance.allCases {
+                guard let t = s.best(d) else { continue }
+                if t < best[d] ?? .infinity {
+                    best[d] = t
+                    out.insert(s.id)
+                }
+            }
+        }
+        return out
     }
 
     public var longestRun: RunSummary? { summaries.max { $0.distanceM < $1.distanceM } }

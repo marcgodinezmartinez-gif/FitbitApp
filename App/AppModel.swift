@@ -41,6 +41,11 @@ final class AppModel {
     let liveWorkout = LiveWorkout()
     /// Apartado «Correr»: resúmenes, historial y análisis de cada carrera (doc. 18).
     let runs = RunsModel()
+    /// Importación del historial completo (todo lo anterior a la primera importación), en segundo plano.
+    var history: HistoryImportState?
+    var historyRunning = false
+    /// Ciclos anteriores a la ventana del motor (tendencias de un año o de siempre), cargados al pedirlos.
+    var historyCycles: [CycleMetrics] = []
 
     let db: AppDatabase?
     let keychain = Keychain(service: "recupera.secrets")
@@ -56,6 +61,9 @@ final class AppModel {
     /// VO₂ máx. de los datos de ejemplo (la pestaña Correr los dibuja como si vinieran del reloj).
     @ObservationIgnored private(set) var demoVO2: [VO2MaxValue] = []
     @ObservationIgnored private var demoStrength: [String: [StrengthSet]] = [:]
+    @ObservationIgnored private var historyTask: Task<Void, Never>?
+    @ObservationIgnored private var historyCyclesVersion = -1
+    @ObservationIgnored private var lastHistoryRefresh = Date.distantPast
     /// Último intento fallido de cada informe (no se reintenta antes de 3 h) y si hay uno en curso.
     @ObservationIgnored private var reportFailures: [String: Date] = [:]
     @ObservationIgnored private var reportsInFlight = false
@@ -199,6 +207,71 @@ final class AppModel {
         if let e = report.apple.error { problems.append("Apple Health: \(e)") }
         syncMessage = problems.isEmpty ? nil : problems.joined(separator: "\n")
         if requested == .pull { Haptics.soft() }
+        // Con la app abierta, después sigue trayendo el historial completo (en segundo plano lo hace la tarea nocturna).
+        if !awaitReports { continueHistoryImport() }
+    }
+
+    // MARK: Historial completo
+
+    /// Sigue importando el historial mientras la app está abierta; se para al pasar a segundo plano y se retoma al volver.
+    func continueHistoryImport() {
+        guard let syncEngine, !settings.demoMode, historyTask == nil else { return }
+        // Primero, la primera importación de Google (180 días); el historial va detrás.
+        guard connection.googleStatus != .active || connection.backfillCompleted else { return }
+        historyTask = Task { [weak self] in
+            await self?.importHistory(engine: syncEngine, budget: .infinity)
+            self?.historyTask = nil
+        }
+    }
+
+    func pauseHistoryImport() {
+        historyTask?.cancel()
+        historyTask = nil
+    }
+
+    /// Tarea nocturna (cargando y con Wi-Fi): hasta `budget` segundos o que iOS la corte.
+    func importHistoryInBackground(budget: TimeInterval) async {
+        guard let syncEngine, !settings.demoMode, historyTask == nil else { return }
+        guard connection.googleStatus != .active || connection.backfillCompleted else { return }
+        await importHistory(engine: syncEngine, budget: budget)
+    }
+
+    private func importHistory(engine: SyncEngine, budget: TimeInterval) async {
+        let before = await engine.historyState()
+        history = before
+        guard !before.isComplete else { return }
+        historyRunning = true
+        defer { historyRunning = false }
+        let state = await engine.importHistory(budget: budget) { [weak self] s, newData in
+            await self?.applyHistoryProgress(s, newData: newData)
+        }
+        history = state
+        if state.workouts != before.workouts || state.metricsUntil != before.metricsUntil || state.isComplete {
+            historyCyclesVersion = -1
+            await recompute()
+        }
+    }
+
+    private func applyHistoryProgress(_ s: HistoryImportState, newData: Bool) {
+        history = s
+        // Lo que llega se enseña sin esperar al final (como mucho cada 20 s): carreras antiguas, récords y tendencias.
+        guard newData, Date().timeIntervalSince(lastHistoryRefresh) > 20 else { return }
+        lastHistoryRefresh = Date()
+        historyCyclesVersion = -1
+        dataVersion += 1
+    }
+
+    func loadHistoryState() async {
+        guard let syncEngine, !settings.demoMode else { return }
+        history = await syncEngine.historyState()
+    }
+
+    /// Ciclos anteriores a la ventana del motor, para las tendencias largas (una vez por versión de los datos).
+    func loadHistoryCycles() async {
+        guard !settings.demoMode, let db, historyCyclesVersion != dataVersion else { return }
+        historyCyclesVersion = dataVersion
+        let before = output?.cycles.first?.cycle.start ?? Date()
+        historyCycles = await Task.detached(priority: .userInitiated) { (try? db.cycleHistory(before: before)) ?? [] }.value
     }
 
     private func applyImportProgress(_ p: ImportProgress) {
@@ -230,6 +303,7 @@ final class AppModel {
         guard googleConfig.isConfigured, let syncEngine else { throw HealthAPIError.notConfigured }
         let (code, pkce) = try await auth.authorize(config: googleConfig)
         try await syncEngine.connectGoogle(code: code, pkce: pkce)
+        await syncEngine.resetHistory(google: true, apple: false)
         reloadState()
         await sync(.backfill)
     }
@@ -242,6 +316,7 @@ final class AppModel {
     func connectAppleHealth() async throws {
         try await healthKit.requestAuthorization()
         updateSettings { $0.healthKitEnabled = true }
+        await syncEngine?.resetHistory(google: false, apple: true)
         startHealthKitDeliveryIfNeeded()
         await sync(.open)
     }

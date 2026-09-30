@@ -322,6 +322,14 @@ public enum RunSeriesBuilder {
 
 /// Distancias en la esfera (sin CoreLocation, para poder probarlo en Linux).
 public enum Geo {
+    /// Latitud y longitud mínimas y máximas de una ruta (sin los puntos imprecisos).
+    public static func bounds(_ route: [RoutePoint]) -> [Double]? {
+        let good = route.filter { ($0.horizontalAccuracy ?? 0) <= 50 }
+        guard let minLat = good.map(\.latitude).min(), let maxLat = good.map(\.latitude).max(),
+              let minLon = good.map(\.longitude).min(), let maxLon = good.map(\.longitude).max() else { return nil }
+        return [minLat, minLon, maxLat, maxLon]
+    }
+
     public static func distance(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
         let r = 6_371_008.8
         let p1 = lat1 * .pi / 180, p2 = lat2 * .pi / 180

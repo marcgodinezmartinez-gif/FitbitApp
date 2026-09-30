@@ -8,6 +8,8 @@ struct TrendsView: View {
     @Environment(AppModel.self) private var model
     @State private var metric: DayMetric = .recovery
     @State private var period: Int = 30
+    /// «Todo»: el historial completo.
+    static let allDays = 36_500
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -29,8 +31,12 @@ struct TrendsView: View {
                         Text("30 d").tag(30)
                         Text("90 d").tag(90)
                         Text("1 año").tag(365)
+                        Text("Todo").tag(Self.allDays)
                     }
                     .pickerStyle(.segmented)
+                    .task(id: "\(period)-\(model.dataVersion)") {
+                        if period > 180 { await model.loadHistoryCycles() }
+                    }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(DayMetric.allCases) { m in
@@ -121,8 +127,12 @@ struct MetricTrendView: View {
                         Text("30 d").tag(30)
                         Text("90 d").tag(90)
                         Text("1 año").tag(365)
+                        Text("Todo").tag(TrendsView.allDays)
                     }
                     .pickerStyle(.segmented)
+                    .task(id: "\(period)-\(model.dataVersion)") {
+                        if period > 180 { await model.loadHistoryCycles() }
+                    }
                     let summary = MetricSummary.build(metric, cycles: output.cycles, until: last)
                     Card {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {

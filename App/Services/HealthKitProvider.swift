@@ -65,6 +65,45 @@ final class HealthKitProvider: AppleHealthProvider, @unchecked Sendable {
         return result
     }
 
+    // MARK: Historial completo
+
+    /// Entrenamientos (con todo su detalle) y VO₂ máx. que empiezan en [from, to), sin tocar las anclas: la importación del
+    /// historial completo los pide por tramos hacia atrás.
+    func importHistory(from: Date, to: Date) async throws -> AppleHealthImport {
+        var result = AppleHealthImport()
+        let range = HKQuery.predicateForSamples(withStart: from, end: to, options: [])
+        let workouts = try await HKSampleQueryDescriptor(predicates: [.workout(range)], sortDescriptors: [SortDescriptor(\.startDate)])
+            .result(for: store)
+        for workout in workouts where Self.accepts(workout) && workout.startDate >= from && workout.startDate < to {
+            try Task.checkCancellation()
+            let d = try await details(for: workout)
+            let rid = d.session.sourceRecordID
+            result.workouts.append(d.session)
+            result.workoutHeartRate[rid] = d.heartRate
+            if !d.route.isEmpty { result.routes[rid] = d.route }
+            if !d.metrics.isEmpty { result.metricSamples[rid] = d.metrics }
+            result.details[rid] = d.detail
+            result.heartRateMinutes += Self.minutes(d.heartRate)
+        }
+        let vo2Unit = HKUnit(from: "ml/kg*min")
+        let vo2 = try await HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(.vo2Max), predicate: range)],
+                                                    sortDescriptors: [SortDescriptor(\.startDate)]).result(for: store)
+        result.vo2max = vo2.filter(Self.accepts).map {
+            VO2MaxValue(date: LocalDate($0.startDate, timeZone: .current), value: $0.quantity.doubleValue(for: vo2Unit), source: .appleHealth)
+        }
+        return result
+    }
+
+    /// Fecha del entrenamiento o VO₂ máx. más antiguo guardado en Salud.
+    func earliestSampleDate() async -> Date? {
+        let workout = try? await HKSampleQueryDescriptor(predicates: [.workout()], sortDescriptors: [SortDescriptor(\.startDate)], limit: 1)
+            .result(for: store).first?.startDate
+        let vo2 = try? await HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(.vo2Max))],
+                                                     sortDescriptors: [SortDescriptor(\.startDate)], limit: 1)
+            .result(for: store).first?.startDate
+        return [workout, vo2].compactMap { $0 }.min()
+    }
+
     static func accepts(_ sample: HKSample) -> Bool {
         Fusion.acceptsHealthKitSample(bundleIdentifier: sample.sourceRevision.source.bundleIdentifier,
                                       productType: sample.sourceRevision.productType)

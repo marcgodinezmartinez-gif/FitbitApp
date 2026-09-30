@@ -4,11 +4,12 @@ import MetricsKit
 import Insights
 import Store
 import RunKit
+import SyncKit
 
 /// Pestaña «Correr» (doc. 18): volumen, forma, rendimiento, récords, tendencias, zonas, zapatillas y todas tus carreras.
 struct RunsHubView: View {
     @Environment(AppModel.self) private var model
-    @State private var monthly = false
+    @State private var volumeScale: RunVolumeScale = .weeks
     @State private var trendMetric: RunTrendMetric = .efficiency
     @State private var openRun: String?
 
@@ -25,8 +26,11 @@ struct RunsHubView: View {
                                       message: "Cuando corras con el Apple Watch o con la Fitbit Air, aquí verás cada carrera analizada al detalle, tu forma, tus récords y tus predicciones.")
                         }
                     } else {
+                        if model.historyRunning, let h = model.history, !h.isComplete {
+                            HistoryBanner(state: h)
+                        }
                         RunWeekHeader(runs: runs)
-                        RunVolumeCard(runs: runs, monthly: $monthly)
+                        RunVolumeCard(runs: runs, scale: $volumeScale)
                         RunFitnessCard(runs: runs)
                         RunPerformanceCard(runs: runs).id("performance")
                         RunVO2Card(runs: runs)
@@ -58,6 +62,25 @@ struct RunsHubView: View {
     }
 }
 
+/// Mientras llega el historial completo: las carreras antiguas van apareciendo.
+struct HistoryBanner: View {
+    let state: HistoryImportState
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ProgressView().controlSize(.small)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Trayendo tu historial completo").font(.subheadline.weight(.semibold))
+                Text("Paso \(state.step) de 4 · \(state.phaseLabel)\(state.oldestData.map { " · desde \($0.formatted(.dateTime.year()))" } ?? "")")
+                    .font(.caption).foregroundStyle(Palette.textSecondary).lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
 // MARK: - Semana
 
 struct RunWeekHeader: View {
@@ -79,6 +102,38 @@ struct RunWeekHeader: View {
                     Text("en \(String(today.year)) · \(RunFormat.count(year.runs, "carrera", "carreras"))").font(.caption).foregroundStyle(Palette.textSecondary)
                 }
             }
+            // Con historial de más de un año: lo de siempre.
+            if let first = runs.summaries.first?.date, first.year < today.year {
+                let all = runs.history.totals(from: first, to: today)
+                Text("Desde \(Format.monthName(first.month)) de \(String(first.year)): \(Format.thousands(all.distanceM / 1000)) km en \(RunFormat.count(all.runs, "carrera", "carreras")).")
+                    .font(.caption).foregroundStyle(Palette.textSecondary)
+            }
+        }
+    }
+}
+
+/// Escala del volumen: semanas, meses o años.
+enum RunVolumeScale: String, CaseIterable, Identifiable {
+    case weeks, months, years
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .weeks: return "Semanas"
+        case .months: return "Meses"
+        case .years: return "Años"
+        }
+    }
+}
+
+/// Periodo de las gráficas largas (VO₂ máx. y tendencias).
+enum RunRange: Int, CaseIterable, Identifiable {
+    case halfYear = 180, year = 365, all = 36_500
+    var id: Int { rawValue }
+    var label: String {
+        switch self {
+        case .halfYear: return "6 meses"
+        case .year: return "1 año"
+        case .all: return "Todo"
         }
     }
 }
@@ -87,10 +142,16 @@ struct RunWeekHeader: View {
 
 struct RunVolumeCard: View {
     let runs: RunsModel
-    @Binding var monthly: Bool
+    @Binding var scale: RunVolumeScale
 
     private var periods: [RunPeriod] {
-        monthly ? runs.history.months(count: 12, today: runs.today) : runs.history.weeks(count: 12, today: runs.today)
+        switch scale {
+        case .weeks: return runs.history.weeks(count: 12, today: runs.today)
+        case .months: return runs.history.months(count: 12, today: runs.today)
+        case .years:
+            let first = runs.summaries.first?.date.year ?? runs.today.year
+            return runs.history.years(count: max(2, min(15, runs.today.year - first + 1)), today: runs.today)
+        }
     }
 
     var body: some View {
@@ -98,14 +159,14 @@ struct RunVolumeCard: View {
         let average = list.map(\.distanceM).reduce(0, +) / Double(max(1, list.count)) / 1000
         Card {
             SectionHeader(title: "Volumen", trailing: "media \(Format.decimal(average)) km")
-            Picker("Periodo", selection: $monthly) {
-                Text("Semanas").tag(false)
-                Text("Meses").tag(true)
+            Picker("Periodo", selection: $scale) {
+                ForEach(RunVolumeScale.allCases) { Text($0.label).tag($0) }
             }
             .pickerStyle(.segmented)
-            VolumeChart(periods: list, monthly: monthly)
+            VolumeChart(periods: list, scale: scale)
             if let last = list.last, last.runs > 0 {
-                Text("\(monthly ? "Este mes" : "Esta semana"): tirada más larga de \(RunFormat.distance(last.longestM)) y \(Int(last.elevationM.rounded())) m de desnivel.")
+                let name = scale == .weeks ? "Esta semana" : (scale == .months ? "Este mes" : "Este año")
+                Text("\(name): tirada más larga de \(RunFormat.distance(last.longestM)) y \(Format.thousands(last.elevationM)) m de desnivel.")
                     .font(.caption).foregroundStyle(Palette.textSecondary)
             }
         }
@@ -203,6 +264,7 @@ struct RunPerformanceCard: View {
 
 struct RunVO2Card: View {
     let runs: RunsModel
+    @State private var range: RunRange = .halfYear
 
     private struct Plot {
         var values: [DatedValue] = []
@@ -211,7 +273,7 @@ struct RunVO2Card: View {
     }
 
     private var data: Plot {
-        let from = runs.today.adding(days: -180)
+        let from = runs.today.adding(days: -range.rawValue)
         let recent = runs.summaries.filter { $0.date >= from }
         var d = Plot()
         let measured = runs.vo2.filter { $0.date >= from }.map { v in
@@ -241,7 +303,11 @@ struct RunVO2Card: View {
         let d = data
         if !d.values.isEmpty {
             Card {
-                SectionHeader(title: "VO₂ máx.", trailing: "ml/kg/min · 6 meses")
+                SectionHeader(title: "VO₂ máx.", trailing: "ml/kg/min")
+                Picker("Periodo", selection: $range) {
+                    ForEach(RunRange.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
                 Text(latest(d)).font(.subheadline.weight(.semibold)).monospacedDigit()
                 DatedValueChart(values: d.values, formatter: { Format.decimal($0) },
                                 colors: ["Apple Watch": Palette.recoveryLow, "Fitbit Air": Palette.fitbit, "Estimado": Palette.strain],
@@ -295,9 +361,10 @@ struct RunRecordsCard: View {
 struct RunTrendsCard: View {
     let runs: RunsModel
     @Binding var metric: RunTrendMetric
+    @State private var range: RunRange = .halfYear
 
     private var values: [DatedValue] {
-        runs.history.trend(metric, days: 180, today: runs.today).map { DatedValue(date: $0.date, value: $0.value, series: "Valor") }
+        runs.history.trend(metric, days: range.rawValue, today: runs.today).map { DatedValue(date: $0.date, value: $0.value, series: "Valor") }
     }
 
     private func format(_ v: Double) -> String {
@@ -316,7 +383,7 @@ struct RunTrendsCard: View {
         guard let a = Stats.mean(list.prefix(third).map(\.value)), let b = Stats.mean(list.suffix(third).map(\.value)), a != 0 else { return nil }
         let better = metric.higherIsBetter ? b > a : b < a
         let pct = abs(b - a) / abs(a) * 100
-        if pct < 1 { return "Estable en los últimos meses (\(format(b)))." }
+        if pct < 1 { return "Estable en este periodo (\(format(b)))." }
         return "\(better ? "Mejora" : "Empeora"): de \(format(a)) a \(format(b)) (\(Format.decimal(pct)) %)."
     }
 
@@ -331,6 +398,10 @@ struct RunTrendsCard: View {
                 }
                 .pickerStyle(.menu)
             }
+            Picker("Periodo", selection: $range) {
+                ForEach(RunRange.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
             if list.count >= 2 {
                 DatedValueChart(values: list, reversed: !metric.higherIsBetter, formatter: format, smoothed: ["Valor"])
                 if let text = change(list) { Text(text).font(.subheadline).foregroundStyle(Palette.textSecondary) }
@@ -434,6 +505,8 @@ struct RunShoesCard: View {
 
 struct RunListSection: View {
     let runs: RunsModel
+    /// En la pestaña, los últimos meses; el resto, en «Todas tus carreras».
+    static let shownMonths = 3
 
     struct Month: Identifiable {
         var id: String
@@ -441,9 +514,9 @@ struct RunListSection: View {
         var items: [RunSummary]
     }
 
-    private var months: [Month] {
+    static func months(_ summaries: [RunSummary]) -> [Month] {
         var out: [Month] = []
-        for s in runs.summaries.reversed() {
+        for s in summaries.reversed() {
             let key = "\(s.date.year)-\(s.date.month)"
             if out.last?.id == key { out[out.count - 1].items.append(s) } else {
                 out.append(Month(id: key, title: "\(Format.monthName(s.date.month).capitalized) \(String(s.date.year))", items: [s]))
@@ -453,22 +526,90 @@ struct RunListSection: View {
     }
 
     var body: some View {
-        ForEach(months) { month in
-            VStack(alignment: .leading, spacing: 8) {
+        let months = Self.months(runs.summaries)
+        ForEach(months.prefix(Self.shownMonths)) { month in
+            RunMonthSection(month: month, recordIDs: runs.recordIDs)
+        }
+        if months.count > Self.shownMonths {
+            NavigationLink {
+                AllRunsView()
+            } label: {
                 HStack {
-                    Text(month.title).font(.headline)
+                    Label("Todas tus carreras", systemImage: "list.bullet")
                     Spacer()
-                    Text("\(Format.decimal(month.items.reduce(0) { $0 + $1.distanceM } / 1000)) km · \(RunFormat.count(month.items.count, "carrera", "carreras"))")
-                        .font(.caption).foregroundStyle(Palette.textSecondary)
+                    Text("\(runs.summaries.count)").monospacedDigit().foregroundStyle(Palette.textSecondary)
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(Palette.textSecondary)
                 }
-                ForEach(month.items) { s in
-                    NavigationLink(value: DetailRoute.run(s.id)) {
-                        RunListRow(summary: s, isRecord: !runs.history.personalRecords(in: s).isEmpty)
-                    }
-                    .buttonStyle(.plain)
+                .font(.subheadline.weight(.semibold))
+                .padding(14)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+struct RunMonthSection: View {
+    let month: RunListSection.Month
+    let recordIDs: Set<String>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(month.title).font(.headline)
+                Spacer()
+                Text("\(Format.decimal(month.items.reduce(0) { $0 + $1.distanceM } / 1000)) km · \(RunFormat.count(month.items.count, "carrera", "carreras"))")
+                    .font(.caption).foregroundStyle(Palette.textSecondary)
+            }
+            ForEach(month.items) { s in
+                NavigationLink(value: DetailRoute.run(s.id)) {
+                    RunListRow(summary: s, isRecord: recordIDs.contains(s.id))
                 }
+                .buttonStyle(.plain)
             }
         }
+    }
+}
+
+/// Todas tus carreras, por meses y con filtro por año (con años de historial, la lista se carga al desplazarte).
+struct AllRunsView: View {
+    @Environment(AppModel.self) private var model
+    @State private var year: Int?
+
+    var body: some View {
+        let runs = model.runs
+        let years = Array(Set(runs.summaries.map(\.date.year))).sorted(by: >)
+        let list = year.map { y in runs.summaries.filter { $0.date.year == y } } ?? runs.summaries
+        let totals = RunHistory(summaries: list).totals(from: list.first?.date ?? runs.today, to: list.last?.date ?? runs.today)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16, pinnedViews: []) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        chip("Todas", selected: year == nil) { year = nil }
+                        ForEach(years, id: \.self) { y in chip(String(y), selected: year == y) { year = y } }
+                    }
+                }
+                Text("\(Format.thousands(totals.distanceM / 1000)) km · \(RunFormat.count(totals.runs, "carrera", "carreras")) · \(Format.duration(minutes: totals.movingS / 60))")
+                    .font(.subheadline).foregroundStyle(Palette.textSecondary)
+                ForEach(RunListSection.months(list)) { month in
+                    RunMonthSection(month: month, recordIDs: runs.recordIDs)
+                }
+            }
+            .padding(16)
+        }
+        .screenBackground()
+        .navigationTitle("Todas tus carreras")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.subheadline.weight(.medium))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .foregroundStyle(selected ? Palette.bg : Palette.textPrimary)
+                .background(selected ? Palette.strain : Palette.surface, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -485,7 +626,7 @@ struct RunListRow: View {
                     Text(summary.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.textPrimary).lineLimit(1)
                     if isRecord { PRBadge() }
                 }
-                Text("\(RunFormat.date(summary)) · \(RunFormat.pace(summary.avgPace)) /km\(summary.avgHR.map { " · \(Int($0.rounded())) lpm" } ?? "")")
+                Text("\(RunFormat.date(summary)) · \(summary.intervalLabel ?? "\(RunFormat.pace(summary.avgPace)) /km")\(summary.avgHR.map { " · \(Int($0.rounded())) lpm" } ?? "")")
                     .font(.caption).foregroundStyle(Palette.textSecondary).lineLimit(1)
             }
             Spacer(minLength: 4)

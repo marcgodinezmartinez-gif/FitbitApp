@@ -29,10 +29,11 @@ struct RecuperaApp: App {
                 }
         }
         .onChange(of: scenePhase) { _, phase in
-            // Al volver a la app se sincronizan las dos fuentes sin tocar nada (RF-SYN-09).
+            // Al volver a la app se sincronizan las dos fuentes sin tocar nada (RF-SYN-09); después sigue el historial.
             if phase == .active, model.phase == .ready {
                 Task { await model.sync(.open) }
             }
+            if phase == .background { model.pauseHistoryImport() }
         }
     }
 

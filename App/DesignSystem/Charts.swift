@@ -30,8 +30,15 @@ struct TrendChart: View {
         }
     }
 
+    /// Más de 10 meses: el eje enseña mes y año («mar 25»).
+    private var long: Bool {
+        guard let a = points.first?.date, let b = points.last?.date else { return false }
+        return b.timeIntervalSince(a) > 300 * 86_400
+    }
+
     var body: some View {
         let domain = yDomain ?? autoDomain
+        let xFormat: Date.FormatStyle = long ? .dateTime.month(.abbreviated).year(.twoDigits) : .dateTime.day().month(.abbreviated)
         Chart {
             if let band, let first = points.first?.date, let last = points.last?.date {
                 RectangleMark(xStart: .value("Inicio", first), xEnd: .value("Fin", last),
@@ -70,7 +77,7 @@ struct TrendChart: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine().foregroundStyle(Palette.separator)
-                AxisValueLabel(format: .dateTime.day().month(.abbreviated), centered: false)
+                AxisValueLabel(format: xFormat, centered: false)
             }
         }
         .chartYAxis {

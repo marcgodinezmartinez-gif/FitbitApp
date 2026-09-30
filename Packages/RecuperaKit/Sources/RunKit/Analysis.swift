@@ -218,6 +218,8 @@ public struct RunAnalysis: Codable, Sendable, Hashable {
     public var distanceSource: DistanceSource
     public var hrSource: DataSourceKind?
     public var chart: [ChartPoint]
+    /// Series detectadas en la velocidad (aunque no se marcaran vueltas).
+    public var intervals: IntervalSession? = nil
 
     public var avgPace: Double? { avgSpeed.flatMap { $0 > 0.3 ? 1000 / $0 : nil } }
     public var avgGAP: Double? { avgGAPSpeed.flatMap { $0 > 0.3 ? 1000 / $0 : nil } }
@@ -337,6 +339,7 @@ public enum RunAnalyzer {
             weather: input.watchDetail?.weather, distanceSource: s.distanceSource, hrSource: s.hrSource, chart: chart(s))
         var result = analysis
         result.form = form(result, weightKg: input.weightKg)
+        result.intervals = IntervalDetector.detect(s)
         return result
     }
 
