@@ -105,9 +105,9 @@ public enum RunDemo {
             let angle = 2 * Double.pi * meters / loop
             let altitude = 655 + 11 * sin(angle) + 4 * sin(3 * angle + 1)
             let slope = (11 * cos(angle) + 12 * cos(3 * angle + 1)) * 2 * .pi / loop   // m/m
-            // Cuesta arriba más despacio y cuesta abajo algo más rápido, a esfuerzo casi constante (coste de Minetti, atenuado).
-            let hill = pow(RunPhysiology.minettiCost(grade: 0) / RunPhysiology.minettiCost(grade: slope), 0.7)
-            let speed = inPause ? 0 : max(1.2, baseSpeed * factor * hill)
+            // Cuesta arriba más despacio y cuesta abajo algo más rápido, al mismo esfuerzo.
+            let hill = RunPhysiology.gradeFactor(grade: slope)
+            let speed = inPause ? 0 : max(1.2, baseSpeed * factor / hill)
             if !inPause {
                 meters += speed * step
                 let p = Circuit.shape.position(meters)
@@ -116,7 +116,7 @@ public enum RunDemo {
                                         altitude: altitude + rng.range(-0.6, 0.6), speed: speed, horizontalAccuracy: rng.range(3, 8)))
             }
             // FC que sigue al esfuerzo con retraso y sube despacio (deriva).
-            let effort = inPause ? -25.0 : 14 * (speed / baseSpeed - 1) * 4 + 60 * slope
+            let effort = inPause ? -25.0 : 14 * (speed * hill / baseSpeed - 1) * 4
             let target = min(hrMax - 4, hrBase + effort + 6 * t / duration)
             hr += (target - hr) * 0.08 + rng.range(-0.8, 0.8)
             if Int(t) % 5 == 0 { hrWatch.append(HRSample(time: start.addingTimeInterval(t), bpm: hr.rounded(), source: .appleHealth)) }

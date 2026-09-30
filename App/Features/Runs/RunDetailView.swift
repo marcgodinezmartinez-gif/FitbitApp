@@ -421,8 +421,8 @@ struct RunIntervalsCard: View {
 
     private var advice: String {
         let spread = session.paceSpreadPct ?? 0, fade = session.fadePct ?? 0
-        if fade > 3 { return "Te has ido cayendo: la última fue un \(Format.decimal(fade)) % más lenta que la primera. Sal algo más conservador o alarga la recuperación." }
-        if fade < -3 { return "Has ido de menos a más (la última un \(Format.decimal(-fade)) % más rápida): bien dosificado." }
+        if fade > 3 { return "Te has ido cayendo: a igual pendiente, la última fue un \(Format.decimal(fade)) % más lenta que la primera. Sal algo más conservador o alarga la recuperación." }
+        if fade < -3 { return "Has ido de menos a más (a igual pendiente, la última un \(Format.decimal(-fade)) % más rápida): bien dosificado." }
         if spread < 2 { return "Series muy regulares: ritmo bien controlado." }
         return "Detectadas en la velocidad ajustada por pendiente: no hace falta marcar vueltas."
     }

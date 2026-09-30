@@ -268,6 +268,9 @@ struct RunRiskCard: View {
             let points = risk.points.filter { $0.ratio != nil }
             if points.count >= 7, let first = points.first?.date.startDate(utcOffsetSeconds: 0),
                let last = points.last?.date.startDate(utcOffsetSeconds: 0) {
+                // Una fecha cada dos semanas, sin pegarse al borde derecho (ahí no cabe entera).
+                let days = last.timeIntervalSince(first) / 86_400
+                let ticks = stride(from: 7.0, to: max(8, days - 5), by: 14).map { first.addingTimeInterval($0 * 86_400) }
                 Chart {
                     RectangleMark(xStart: .value("Inicio", first), xEnd: .value("Fin", last),
                                   yStart: .value("Desde", 0.8), yEnd: .value("Hasta", 1.3))
@@ -288,7 +291,7 @@ struct RunRiskCard: View {
                         AxisValueLabel { if let x = v.as(Double.self) { Text(Format.decimal(x, digits: 1)) } }
                     }
                 }
-                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
+                .chartXAxis { AxisMarks(values: ticks) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
                 .frame(height: 140)
             }
             if !risk.spikes.isEmpty {

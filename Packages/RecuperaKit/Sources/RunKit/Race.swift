@@ -100,15 +100,11 @@ public struct RacePrediction: Sendable, Hashable {
     public var tooHot: Bool
 }
 
-/// Predicción ajustada al desnivel (coste de Minetti et al., 2002) y al calor (temperatura + punto de rocío).
+/// Predicción ajustada al desnivel (la misma curva que el ritmo ajustado por pendiente, a igual esfuerzo) y al calor
+/// (temperatura + punto de rocío).
 public enum RacePredictor {
-    /// Bajando no se gana todo lo que dice el coste energético: como mucho un 12 % más rápido.
-    static let minDownhillFactor = 0.88
-
     /// Cuánto cuesta un tramo con pendiente `grade` frente al llano.
-    public static func costFactor(grade: Double) -> Double {
-        max(minDownhillFactor, RunPhysiology.minettiCost(grade: grade) / RunPhysiology.minettiCost(grade: 0))
-    }
+    public static func costFactor(grade: Double) -> Double { RunPhysiology.gradeFactor(grade: grade) }
 
     /// Punto de rocío (Magnus; Alduchov y Eskridge, 1996).
     public static func dewPoint(temperatureC t: Double, humidityPct rh: Double) -> Double {

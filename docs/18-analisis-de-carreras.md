@@ -68,7 +68,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 2. **Velocidad.** La del reloj cuando no hay GPS; si no, la derivada de la distancia en ~15 s de tiempo activo (junto a una pausa no se frena de mentira).
 3. **En movimiento.** Sin pausa y sin estar parado más de 10 s seguidos.
 4. **FC.** La del Watch si cubre al menos un 30 % de la carrera, completando con la de la Fitbit donde falte; si no, la de la Fitbit.
-5. **Altitud** suavizada ~30 s y pendiente sobre ~20 s de recorrido. **Ritmo ajustado (GAP)** con el coste energético de Minetti.
+5. **Altitud** suavizada ~30 s y pendiente sobre ~20 s de recorrido. **Ritmo ajustado (GAP)** con la curva empírica de Strava, a igual frecuencia cardiaca [R79].
 6. **Cadencia, potencia y dinámica** interpoladas en huecos cortos. Sin cadencia del reloj, se usa la de cada parcial de la Fitbit.
 
 ## 3. Fórmulas (`RunPhysiology`)
@@ -79,7 +79,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 | Predicciones | Tiempo que da ese VDOT en cada distancia (bisección) | Daniels |
 | Ritmos | E 62–70 %, M ritmo de maratón previsto, T 88 %, I 97,5 %, R 105 % del VDOT | *Daniels' Running Formula* |
 | Riegel | T₂ = T₁ · (D₂/D₁)^1,06 | Riegel (1981) |
-| GAP | C(i) = 155,4i⁵ − 30,4i⁴ − 43,3i³ + 46,3i² + 19,5i + 3,6 J/kg/m | Minetti et al. (2002) |
+| GAP | velocidad · (1 + 0,0287·g + 0,00152·g²), g = pendiente en %: +4 % cuesta un 14 % más; bajar ayuda como mucho un 14 % (hacia el −9 %) | Strava (Robb, 2017) [R79]. El coste energético de Minetti et al. (2002) [R75], medido en cinta, exagera subidas y bajadas frente a lo que hacen los corredores |
 | VO₂ máx. estimado | VO₂(v_GAP) / ((FC/FCmáx − 0,37) / 0,64), solo con 12 min o más en movimiento y FC entre el 65 y el 98 % de la máxima | Swain et al. (1994) |
 | TRIMP | Banister segundo a segundo con los coeficientes por sexo del motor (ALG-CAR) | Banister (1991) |
 | rTSS e intensidad | IF = GAP medio / velocidad de umbral (T); rTSS = horas · IF² · 100 | Coggan, adaptado a carrera |
@@ -217,7 +217,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 **Predicción:**
 
 1. Tiempo en llano con tu VDOT.
-2. **Desnivel:** distancia equivalente en llano sumando cada tramo por su coste (Minetti et al., 2002 [R75]); bajando se gana como mucho un 12 %. Sin GPX, el desnivel se reparte en subidas y bajadas del 4 %.
+2. **Desnivel:** distancia equivalente en llano sumando cada tramo por lo que cuesta a igual esfuerzo, con la misma curva que el ritmo ajustado [R79]: subir un 4 % cuesta un 14 % más y bajar ayuda como mucho un 14 % (hacia el −9 %). Sin GPX, el desnivel se reparte en subidas y bajadas del 4 %.
 3. **Calor:** temperatura + punto de rocío (Magnus; Alduchov y Eskridge [R78]) en °F y la tabla habitual de los entrenadores (hasta 100 °F nada; 150 °F, un 4,5 %; 180 °F, un 10 %; más, no correr a tope). En carreras de menos de 20 min cuenta la mitad; de 60 min o más, entera: el calor penaliza más cuanto más larga es la carrera (Ely et al., 2007 [R77]).
 4. Con el GPX, **ritmo por km a esfuerzo constante**: el tiempo de cada km es proporcional a su coste.
 
@@ -304,7 +304,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 
 - El VO₂ máx. estimado y el VDOT son estimaciones: mejoran con carreras de ritmo constante y con alguna marca a tope.
 - Las valoraciones de técnica son orientativas. Dependen de la talla y del ritmo, así que conviene compararlas contigo mismo en «Tendencias» y «Carreras parecidas».
-- La predicción con calor usa una tabla empírica; la de desnivel, el coste energético con un tope en las bajadas. Son una guía para repartir el esfuerzo, no una garantía.
+- La predicción con calor usa una tabla empírica; la de desnivel, la curva empírica de Strava a igual frecuencia cardiaca. Son una guía para repartir el esfuerzo, no una garantía.
 - El plan es una propuesta genérica bien construida, no un entrenador: si te duele algo o duermes mal varios días, manda la recuperación.
 - La detección de series necesita que los tramos rápidos se distingan claramente (recuperaciones al menos un 25 % más lentas); un fartlek muy suave o series con recuperación flotante pueden no detectarse. Una pausa larga en mitad de una serie la parte en dos.
 

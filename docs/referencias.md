@@ -100,6 +100,7 @@ Citadas como **[R#]** en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.
 - **[R76]** Frandsen JSB, Hulme A, Parner ET, et al. How much running is too much? Identifying high-risk running sessions in a 5200-person cohort study. *Br J Sports Med.* 2025;59(17):1203–1210. doi:10.1136/bjsports-2024-109380
 - **[R77]** Ely MR, Cheuvront SN, Roberts WO, Montain SJ. Impact of weather on marathon-running performance. *Med Sci Sports Exerc.* 2007;39(3):487–493. doi:10.1249/mss.0b013e31802d3aba
 - **[R78]** Alduchov OA, Eskridge RE. Improved Magnus form approximation of saturation vapor pressure. *J Appl Meteorol.* 1996;35(4):601–609. doi:10.1175/1520-0450(1996)035<0601:IMFAOS>2.0.CO;2
+- **[R79]** Robb D. An improved GAP model. *Strava Engineering*, 2017. https://medium.com/strava-engineering/an-improved-gap-model-8b07ae8886c3 — curva empírica (a igual frecuencia cardiaca, con datos de corredores de Strava) del coste de correr en pendiente. Coeficientes del ajuste de la gráfica publicada: *Mind the GAP: getting fit for the formula or equation of STRAVA's GAP*, Sci-DANI, https://sci-dani.com/mind-the-gap-getting-fit-for-the-formula-or-equation-of-stravas-gap/ (a(g) = 1 + 0,02869556·g + 0,001520768·g², g en %).
 
 El cociente de carga aguda y crónica usa [R13] y [R14].
 

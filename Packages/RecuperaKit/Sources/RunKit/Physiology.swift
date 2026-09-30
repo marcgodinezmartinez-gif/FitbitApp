@@ -38,7 +38,7 @@ public enum RaceDistance: Double, CaseIterable, Codable, Sendable, Hashable {
     public static let predicted: [RaceDistance] = [.k5, .k10, .half, .marathon]
 }
 
-/// Fórmulas de Jack Daniels y Jimmy Gilbert (VDOT), Riegel, Minetti (coste en pendiente) y Swain (%FC → %VO₂).
+/// Fórmulas de Jack Daniels y Jimmy Gilbert (VDOT), Riegel, Strava (coste en pendiente) y Swain (%FC → %VO₂).
 public enum RunPhysiology {
     /// VO₂ (ml/kg/min) que cuesta correr a `v` m/min en llano.
     public static func vo2(metersPerMinute v: Double) -> Double { -4.60 + 0.182258 * v + 0.000104 * v * v }
@@ -82,16 +82,19 @@ public enum RunPhysiology {
         seconds * pow(toMeters / fromMeters, exponent)
     }
 
-    /// Coste energético de correr con pendiente `grade` (fracción) según Minetti et al. (2002), J/kg/m.
-    public static func minettiCost(grade: Double) -> Double {
-        let i = Stats.clip(grade, -0.45, 0.45)
-        return 155.4 * pow(i, 5) - 30.4 * pow(i, 4) - 43.3 * pow(i, 3) + 46.3 * i * i + 19.5 * i + 3.6
+    /// Cuánto más cuesta correr con pendiente `grade` (fracción) que en llano a igual frecuencia cardiaca: la curva empírica
+    /// de Strava (Robb, 2017), ajustada como 1 + 0,0287·g + 0,00152·g² con g en % [R79]. Subir un 4 % cuesta un 14 % más;
+    /// bajar ayuda como mucho un 14 % (hacia el −9 %) y en bajadas muy fuertes vuelve a costar. (El coste energético de
+    /// Minetti et al., 2002, medido en cinta, exagera las dos cosas frente a lo que hacen los corredores.)
+    public static func gradeFactor(grade: Double) -> Double {
+        let g = Stats.clip(grade, -0.45, 0.45) * 100
+        return 1 + 0.028_695_56 * g + 0.001_520_768 * g * g
     }
 
     /// Velocidad equivalente en llano (ritmo ajustado por pendiente, GAP).
     public static func gradeAdjusted(speed: Double, grade: Double?) -> Double {
         guard let grade else { return speed }
-        return speed * minettiCost(grade: grade) / 3.6
+        return speed * gradeFactor(grade: grade)
     }
 
     /// VO₂ máx. estimado de una carrera submáxima: coste del ritmo (ajustado por pendiente) entre la fracción de VO₂ máx.

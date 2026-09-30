@@ -29,9 +29,9 @@ public struct IntervalSession: Codable, Sendable, Hashable {
     public var label: String
     public var avgRepPace: Double
     public var avgRecoverySeconds: Double?
-    /// Ritmo de la última serie frente al de la primera: positivo si te has ido cayendo.
+    /// Ritmo (ajustado por pendiente) de la última serie frente al de la primera: positivo si te has ido cayendo.
     public var fadePct: Double?
-    /// Variación del ritmo entre series (coeficiente de variación, %): menos es más regular.
+    /// Variación del ritmo (ajustado por pendiente) entre series (coeficiente de variación, %): menos es más regular.
     public var paceSpreadPct: Double?
 }
 
@@ -187,13 +187,17 @@ public enum IntervalDetector {
     public static func session(_ reps: [DetectedRep]) -> IntervalSession {
         let paces = reps.map(\.pace)
         let meanPace = Stats.mean(paces) ?? 0
+        // Caída y regularidad con el ritmo ajustado por pendiente, si lo tienen todas: una serie cuesta arriba no es ir peor.
+        let gap = reps.compactMap(\.gapPace)
+        let effort = gap.count == reps.count ? gap : paces
+        let meanEffort = Stats.mean(effort) ?? 0
         var spread: Double?
-        if paces.count >= 2, meanPace > 0 {
-            let sd = (paces.reduce(0) { $0 + ($1 - meanPace) * ($1 - meanPace) } / Double(paces.count - 1)).squareRoot()
-            spread = sd / meanPace * 100
+        if effort.count >= 2, meanEffort > 0 {
+            let sd = (effort.reduce(0) { $0 + ($1 - meanEffort) * ($1 - meanEffort) } / Double(effort.count - 1)).squareRoot()
+            spread = sd / meanEffort * 100
         }
         var fade: Double?
-        if let first = reps.first?.pace, let last = reps.last?.pace, first > 0 { fade = (last - first) / first * 100 }
+        if let first = effort.first, let last = effort.last, first > 0 { fade = (last - first) / first * 100 }
         return IntervalSession(reps: reps, label: label(reps), avgRepPace: meanPace,
                                avgRecoverySeconds: Stats.mean(reps.compactMap(\.recoverySeconds)), fadePct: fade, paceSpreadPct: spread)
     }

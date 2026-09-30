@@ -58,6 +58,11 @@ import Testing
             longest = max(longest, km)
         }
         #expect(longest <= 18)
+        // Los rodajes de cada semana, más cortos que su tirada larga.
+        for week in plan.weeks {
+            guard let long = week.sessions.first(where: { $0.workout.kind == .long }) else { continue }
+            #expect(week.sessions.filter { $0.workout.kind == .easy }.allSatisfy { $0.workout.estimatedMeters < long.workout.estimatedMeters })
+        }
         // Semanas de descarga y volumen punta razonable.
         #expect(plan.weeks.contains { $0.isCutback })
         #expect((plan.weeks.map(\.targetKm).max() ?? 0) <= 28 * 1.8 && (plan.weeks.map(\.targetKm).max() ?? 0) >= 32)

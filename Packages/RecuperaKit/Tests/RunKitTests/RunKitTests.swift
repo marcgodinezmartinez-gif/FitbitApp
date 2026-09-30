@@ -85,9 +85,13 @@ enum SyntheticRun {
         #expect(e.slowSpeed < e.fastSpeed && 1000 / e.slowSpeed > 1000 / t.fastSpeed)
     }
 
-    @Test func riegelMinettiAndVO2() throws {
+    @Test func riegelGradeAndVO2() throws {
         #expect(abs(RunPhysiology.riegel(seconds: 1200, fromMeters: 5000, toMeters: 10000) - 1200 * pow(2, 1.06)) < 0.001)
-        #expect(RunPhysiology.minettiCost(grade: 0) == 3.6)
+        // Curva de Strava: +4 % cuesta un 14 % más, el mayor alivio (≈ 14 %) hacia el −9 % y una bajada del −25 % ya cuesta.
+        #expect(RunPhysiology.gradeFactor(grade: 0) == 1)
+        #expect(abs(RunPhysiology.gradeFactor(grade: 0.04) - 1.139) < 0.002)
+        #expect(abs(RunPhysiology.gradeFactor(grade: -0.094) - 0.865) < 0.002)
+        #expect(RunPhysiology.gradeFactor(grade: -0.25) > 1)
         #expect(RunPhysiology.gradeAdjusted(speed: 3, grade: 0.1) > 3)
         #expect(RunPhysiology.gradeAdjusted(speed: 3, grade: -0.05) < 3)
         // 5:00/km a 150 lpm con FC máx. 190: ≈ 55 ml/kg/min.

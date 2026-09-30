@@ -172,20 +172,27 @@ public enum PlanBuilder {
                 phase = f < 0.4 ? .base : (f < 0.8 ? .build : .peak)
             }
             let target = volumes[w]
-            // Tirada larga: una parte del volumen, con techo por distancia y sin subir más de un 10 % sobre la más larga reciente.
-            let share = days == 3 ? 0.35 : (days == 4 ? 0.3 : 0.28)
-            var longKm = min(maxLong(d), max(6, target * share), longSoFar * 1.1)
-            if cutbacks[w] || phase == .taper { longKm = min(longKm, longSoFar * 0.8) }
-            longKm = (longKm * 2).rounded() / 2
-            if !cutbacks[w] && phase != .taper && !isRaceWeek { longSoFar = max(longSoFar, longKm) }
-
             let k = weeks.filter { $0.phase == phase }.count   // semana dentro de la fase
             let (q1, q2) = quality(d, phase: phase, k: k, p: p, goal: goal)
             var sessions: [PlannedSession] = []
             let slots = offsets(days: days)
             let qualityKm = [q1, days >= 4 ? q2 : nil].compactMap { $0?.estimatedMeters }.reduce(0, +) / 1000
             let easyCount = slots.filter { $0.kind == "easy" }.count
-            let easyKm = max(4, ((target - longKm - qualityKm) / Double(max(1, easyCount)) * 2).rounded() / 2)
+
+            // Tirada larga: una parte del volumen, con techo por distancia y sin subir más de un 10 % sobre la más larga reciente.
+            let share = days == 3 ? 0.35 : (days == 4 ? 0.3 : 0.28)
+            var longCap = min(maxLong(d), longSoFar * 1.1)
+            if cutbacks[w] || phase == .taper { longCap = min(longCap, longSoFar * 0.8) }
+            var longKm = min(longCap, max(6, target * share))
+            // Los rodajes, como mucho el 80 % de la tirada larga: si el resto del volumen no cabe, la tirada crece hasta su techo
+            // (y si aun así no cabe, la semana se queda algo por debajo).
+            let easyShare = 0.8
+            if easyCount > 0, (target - longKm - qualityKm) / Double(easyCount) > easyShare * longKm {
+                longKm = min(longCap, max(longKm, (target - qualityKm) / (1 + easyShare * Double(easyCount))))
+            }
+            longKm = (longKm * 2).rounded() / 2
+            if !cutbacks[w] && phase != .taper && !isRaceWeek { longSoFar = max(longSoFar, longKm) }
+            let easyKm = max(4, (min((target - longKm - qualityKm) / Double(max(1, easyCount)), easyShare * longKm) * 2).rounded() / 2)
             for slot in slots {
                 let weekday = ((longRunWeekday - 1 + slot.offset) % 7 + 7) % 7
                 let date = start.adding(days: weekday)
