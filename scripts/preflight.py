@@ -180,10 +180,24 @@ def check_app_ids(found):
             fail(f"{label}: falta activar {', '.join(missing)} en su App ID.")
         else:
             ok(f"{label} registrado con {' y '.join(NAMES[c] for c in needs)}.")
+    # La app del Apple Watch y sus complicaciones (doc. 19): la firma automática los crea al archivar; si no pudiera,
+    # se crean a mano igual que los de arriba.
+    for ident, needs, label in ((bundle + ".watchkitapp", ("HEALTHKIT", "APP_GROUPS"), "App ID de la app del Watch"),
+                                (bundle + ".watchkitapp.widgets", ("APP_GROUPS",), "App ID de las complicaciones del Watch")):
+        if ident not in found:
+            warn(f"{label} ({ident}) aún sin registrar: la compilación intentará crearlo; si falla al archivar, créalo con "
+                 f"{' y '.join(NAMES[c] for c in needs)} (doc. 17, parte A).")
+            continue
+        missing = [NAMES[c] for c in needs if c not in found[ident]]
+        if missing:
+            warn(f"{label}: falta activar {', '.join(missing)} en su App ID.")
+        else:
+            ok(f"{label} registrado con {' y '.join(NAMES[c] for c in needs)}.")
 
 
 if token and bundle_ok:
-    ids = call("App IDs", "/v1/bundleIds", {"filter[identifier]": f"{bundle},{bundle}.widgets", "include": "bundleIdCapabilities",
+    ids = call("App IDs", "/v1/bundleIds", {"filter[identifier]": f"{bundle},{bundle}.widgets,{bundle}.watchkitapp,{bundle}.watchkitapp.widgets",
+                                            "include": "bundleIdCapabilities",
                                             "fields[bundleIdCapabilities]": "capabilityType", "limit[bundleIdCapabilities]": 50,
                                             "limit": 200})
     if ids is not None:

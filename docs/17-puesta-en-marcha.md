@@ -20,7 +20,9 @@ De él salen otros dos:
 |---|---|
 | App | `com.<tunombre>.recupera` |
 | *Widgets* | `com.<tunombre>.recupera.widgets` |
-| App Group (datos compartidos con los *widgets*) | `group.com.<tunombre>.recupera` |
+| App del Apple Watch (doc. 19) | `com.<tunombre>.recupera.watchkitapp` |
+| Complicaciones del Watch | `com.<tunombre>.recupera.watchkitapp.widgets` |
+| App Group (datos compartidos con los *widgets* y el reloj) | `group.com.<tunombre>.recupera` |
 
 ## Parte A · Apple Developer (≈ 10 min)
 
@@ -30,6 +32,9 @@ En [developer.apple.com/account](https://developer.apple.com/account):
 2. **App Group**: *Certificates, Identifiers & Profiles* → *Identifiers* → **+** → *App Groups* → descripción «Recupera», identificador `group.com.<tunombre>.recupera` → *Continue* → *Register*.
 3. **App ID de la app**: *Identifiers* → **+** → *App IDs* → *App* → descripción «Recupera», *Bundle ID* **Explicit** `com.<tunombre>.recupera` → en *Capabilities* marca **App Groups** y **HealthKit** → *Continue* → *Register*. Después ábrelo, en *App Groups* pulsa **Configure**, marca tu grupo y guarda (*Save*).
 4. **App ID de los *widgets***: igual, con descripción «Recupera Widgets», *Bundle ID* `com.<tunombre>.recupera.widgets` y solo **App Groups** (configurado con el mismo grupo).
+5. **App del Apple Watch** (doc. 19): la firma automática crea sola sus dos App IDs al archivar. Solo si el archivado fallara por ellos, créalos igual que los anteriores:
+   - `com.<tunombre>.recupera.watchkitapp`, con **HealthKit** y **App Groups**;
+   - `com.<tunombre>.recupera.watchkitapp.widgets`, solo con **App Groups** (los dos con el mismo grupo).
 
 No hay que activar nada para la Live Activity, AlarmKit ni los avisos: van en el propio código.
 
