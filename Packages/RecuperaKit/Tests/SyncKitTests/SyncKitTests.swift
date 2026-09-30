@@ -269,3 +269,115 @@ actor ProgressLog {
         #expect(log.status == "ok" && log.error?.contains("daily-oxygen-saturation") == true)
     }
 }
+
+/// Salud con años de entrenamientos: la importación del historial los pide por tramos hacia atrás.
+actor HistoryCalls {
+    var ranges: [(Date, Date)] = []
+    func add(_ from: Date, _ to: Date) { ranges.append((from, to)) }
+}
+
+struct FakeHistoryWatch: AppleHealthProvider {
+    let workouts: [ActivitySession]
+    let calls: HistoryCalls
+    var isAvailable: Bool { true }
+    func requestAuthorization() async throws {}
+    func importChanges(anchors: AnchorStore, backfillDays: Int) async throws -> AppleHealthImport { AppleHealthImport() }
+    func importHistory(from: Date, to: Date) async throws -> AppleHealthImport {
+        await calls.add(from, to)
+        return AppleHealthImport(workouts: workouts.filter { $0.start >= from && $0.start < to })
+    }
+    func earliestSampleDate() async -> Date? { workouts.map(\.start).min() }
+}
+
+@Suite struct HistoryImportTests {
+    let now = ISO8601DateFormatter().date(from: "2026-09-29T19:00:00Z")!
+
+    func run(_ daysAgo: Double) -> ActivitySession {
+        let start = now.addingTimeInterval(-daysAgo * 86_400)
+        return ActivitySession(source: .appleHealth, sourceRecordID: "old-\(Int(daysAgo))", kind: .running, start: start,
+                               end: start.addingTimeInterval(1800), utcOffsetSeconds: 7200, avgHR: 150, distanceM: 6000, hasRoute: false)
+    }
+
+    @Test func appleHistoryGoesBackInChunksToTheFirstWorkout() async throws {
+        let db = try AppDatabase.inMemory()
+        var settings = AppSettings()
+        settings.healthKitEnabled = true
+        try db.saveSettings(settings)
+        try db.updateConnection { $0.healthKitConnectedAt = self.now }
+        // Una carrera dentro de lo que ya cubrió la primera importación y tres del historial (hasta hace 3 años).
+        let workouts = [run(30), run(200), run(400), run(1100)]
+        let calls = HistoryCalls()
+        let engine = SyncEngine(db: db, google: nil, apple: FakeHistoryWatch(workouts: workouts, calls: calls),
+                                now: { now }, utcOffset: { 7200 })
+        let state = await engine.importHistory()
+        #expect(state.isComplete && state.appleDone && state.googleDailyDone && state.googleMinutesDone && state.metricsDone)
+        #expect(state.workouts == 3 && state.finishedAt != nil)
+        // Tramos contiguos de 120 días, del más reciente al más antiguo, sin huecos.
+        let ranges = await calls.ranges
+        #expect(ranges.first?.1 == now.addingTimeInterval(-175 * 86_400))
+        for (a, b) in zip(ranges, ranges.dropFirst()) { #expect(b.1 == a.0) }
+        #expect(ranges.last!.0 <= workouts.last!.start)
+        #expect(try db.activityIDs(source: .appleHealth).count == 3)
+        #expect(state.oldestData == workouts.last!.start)
+        // Terminado: otra llamada no hace nada.
+        #expect(await engine.importHistory().workouts == 3)
+        #expect(await calls.ranges.count == ranges.count)
+    }
+
+    @Test func googleHistoryStopsAfterTwoEmptyYearsAndRespectsTheBudget() async throws {
+        let db = try AppDatabase.inMemory()
+        try db.updateConnection {
+            $0.googleStatus = .active
+            $0.connectedAt = self.now
+            $0.backfillCompleted = true
+        }
+        let tokens = InMemoryTokenStore(TokenSet(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, scope: nil))
+        let google = GoogleHealthClient(config: OAuthConfig(clientID: "c", reversedClientID: "r"), transport: CannedTransport([:]),
+                                        tokens: tokens, sleep: { _ in })
+        let engine = SyncEngine(db: db, google: google, apple: nil, now: { now }, utcOffset: { 7200 })
+        // Sin tiempo: no avanza.
+        let paused = await engine.importHistory(budget: 0)
+        #expect(!paused.isComplete && paused.googleDailyUntil == nil)
+        let log = HistoryProgress()
+        let state = await engine.importHistory { s, _ in await log.add(s) }
+        #expect(state.isComplete && state.googleEmptyChunks == SyncEngine.googleEmptyChunksToStop)
+        #expect(state.googleDailyUntil == now.addingTimeInterval(-(175 + 8 * 90) * 86_400))
+        let items = await log.items
+        #expect(items.map(\.phase).first == .googleDaily && items.last?.isComplete == true)
+        #expect(items.map(\.fraction) == items.map(\.fraction).sorted())
+    }
+
+    @Test func metricsOfThePastAreComputedInChunksWithoutTouchingRecentOnes() async throws {
+        let db = try AppDatabase.inMemory()
+        // Dos meses de datos de hace casi un año y los 30 últimos días.
+        let old = SyntheticData.generate(days: 60, endingAt: now.addingTimeInterval(-300 * 86_400), utcOffsetSeconds: 7200)
+        let recent = SyntheticData.generate(days: 30, endingAt: now, utcOffsetSeconds: 7200)
+        try db.saveProfile(recent.profile)
+        for input in [old, recent] {
+            try db.upsertSleepSessions(input.sleepSessions)
+            try db.mergeVitals(input.vitals)
+            try db.upsertHRMinutes(input.hrFitbit)
+            try db.upsertActivityMinutes(input.fitbitMinutes)
+            try db.upsertActivities(input.activities)
+        }
+        let engine = SyncEngine(db: db, google: nil, apple: nil, now: { now }, utcOffset: { 7200 })
+        let current = try await engine.recompute()
+        let recentCount = try db.cycleHistory(before: now).count
+        #expect(recentCount >= 28)
+        let state = await engine.importHistory()
+        #expect(state.isComplete && state.metricsDone)
+        let history = try db.cycleHistory(before: now.addingTimeInterval(-195 * 86_400))
+        #expect(history.count >= 55 && history.count <= 62)
+        #expect(history.filter { $0.recovery.score != nil }.count >= 40 && history.contains { $0.strain.loadRaw > 0 })
+        // Los ciclos recientes siguen ahí, sin cambios.
+        #expect(try db.cycleHistory(before: now).count == recentCount + history.count)
+        #expect(try db.cycleHistory(before: now, since: current.cycles.first!.cycle.start).count == current.cycles.filter { !$0.isOpen }.count)
+        // Las carreras de hace un año están entre las actividades fusionadas guardadas.
+        #expect(try db.oldestDataDate()! < now.addingTimeInterval(-350 * 86_400))
+    }
+}
+
+actor HistoryProgress {
+    var items: [HistoryImportState] = []
+    func add(_ s: HistoryImportState) { items.append(s) }
+}

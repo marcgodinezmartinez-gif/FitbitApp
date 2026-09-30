@@ -53,6 +53,18 @@ public enum RunLibrary {
         output.fusedActivities.filter { $0.kind.isRun && !$0.isLeftover }
     }
 
+    /// Todas las carreras guardadas: las de la ventana del motor (con su FC fusionada) y las anteriores, del historial
+    /// completo, fusionadas aquí con las mismas reglas. De la más antigua a la más reciente.
+    public static func allRuns(db: AppDatabase, output: MetricsOutput) throws -> [FusedActivity] {
+        let recent = runs(in: output)
+        let windowStart = output.cycles.first?.cycle.start ?? (recent.map(\.start).min() ?? Date())
+        let recentMembers = Set(recent.flatMap { $0.members.map(\.id) })
+        let older = Fusion.fuseActivities(try db.allActivities(before: windowStart), params: .default).filter { run in
+            run.kind.isRun && !run.isLeftover && !run.members.contains { recentMembers.contains($0.id) }
+        }
+        return (older + recent).sorted { $0.start < $1.start }
+    }
+
     /// Zonas de FC vigentes el día de la carrera.
     public static func zones(for run: FusedActivity, output: MetricsOutput) -> HRZones {
         let now = Date()
@@ -105,11 +117,11 @@ public enum RunLibrary {
         return d
     }()
 
-    /// Calcula y guarda los resúmenes que falten o hayan cambiado; devuelve todos, del más antiguo al más reciente.
-    /// Las carreras que ya se salen de la ventana del motor se conservan (el historial sigue teniendo sus marcas).
+    /// Calcula y guarda los resúmenes que falten o hayan cambiado (de todas las carreras guardadas, también las del
+    /// historial completo); devuelve todos, del más antiguo al más reciente.
     @discardableResult
     public static func refresh(db: AppDatabase, output: MetricsOutput, profile: UserProfile) throws -> [RunSummary] {
-        let runs = runs(in: output)
+        let runs = try allRuns(db: db, output: output)
         var cached: [String: RunSummary] = [:]
         for row in try db.runSummaries() where row.version == RunSummary.version {
             if let s = try? decoder.decode(RunSummary.self, from: Data(row.json.utf8)) { cached[row.activityID] = s }
@@ -123,9 +135,7 @@ public enum RunLibrary {
             try db.saveRunSummary(activityID: run.id, version: RunSummary.version, start: run.start, json: json)
             current[run.id] = summary
         }
-        // Fuera de la ventana del motor: se quedan. Dentro y ya no están: se borraron o se fusionaron de otra forma.
-        let windowStart = output.cycles.first?.cycle.start ?? .distantPast
-        for (id, s) in cached where current[id] == nil && s.start < windowStart { current[id] = s }
+        // Las que ya no están se borraron o se fusionaron de otra forma.
         try db.deleteRunSummaries(keeping: Set(current.keys))
         return current.values.sorted { $0.start < $1.start }
     }

@@ -327,49 +327,73 @@ extension AppDatabase {
 extension AppDatabase {
     /// Construye la entrada del motor con los datos desde `since` (por defecto, 200 días).
     public func metricsInput(now: Date, utcOffsetSeconds: Int, days: Int = 200, params: AlgorithmParams = .default) throws -> MetricsInput {
-        let since = now.addingTimeInterval(-Double(days) * 86_400)
+        try metricsInput(since: now.addingTimeInterval(-Double(days) * 86_400), until: nil, now: now,
+                         utcOffsetSeconds: utcOffsetSeconds, params: params)
+    }
+
+    /// Entrada del motor para un tramo del pasado, [from, until): calcula como si «ahora» fuera `until` (historial completo).
+    public func metricsInput(from: Date, until: Date, utcOffsetSeconds: Int, params: AlgorithmParams = .default) throws -> MetricsInput {
+        try metricsInput(since: from, until: until, now: until, utcOffsetSeconds: utcOffsetSeconds, params: params)
+    }
+
+    /// Anotaciones del usuario (tipo, nombre, RPE y notas) aplicadas a cada actividad.
+    static func annotated(_ acts: [ActivitySession], _ annotations: [String: ActivityAnnotation]) -> [ActivitySession] {
+        acts.map { a in
+            guard let ann = annotations[a.id] else { return a }
+            var x = a
+            if let r = ann.rpe { x.rpe = r }
+            if let n = ann.notes { x.notes = n }
+            if let k = ann.kindOverride { x.kind = k }
+            if let nm = ann.nameOverride { x.name = nm }
+            return x
+        }
+    }
+
+    static func annotations(_ db: Database) throws -> [String: ActivityAnnotation] {
+        var annotations: [String: ActivityAnnotation] = [:]
+        for r in try Row.fetchAll(db, sql: "SELECT json FROM activity_annotation") {
+            if let a = try? decode(ActivityAnnotation.self, r["json"]) { annotations[a.activityID] = a }
+        }
+        return annotations
+    }
+
+    private func metricsInput(since: Date, until: Date?, now: Date, utcOffsetSeconds: Int, params: AlgorithmParams) throws -> MetricsInput {
         let sinceTS = since.timeIntervalSince1970
+        let untilTS = until?.timeIntervalSince1970 ?? .greatestFiniteMagnitude
         let sinceDate = LocalDate(since, utcOffsetSeconds: utcOffsetSeconds).isoString
+        let untilDate = until.map { LocalDate($0, utcOffsetSeconds: utcOffsetSeconds).isoString } ?? "9999-12-31"
         let profile = try self.profile()
         let settings = try self.settings()
         var p = params
         p.fusion.hrWorkoutPriority = settings.hrWorkoutPriority
         return try writer.read { db in
-            let sleeps = try String.fetchAll(db, sql: "SELECT json FROM sleep_session WHERE end_ts >= ? ORDER BY end_ts", arguments: [sinceTS])
+            let sleeps = try String.fetchAll(db, sql: "SELECT json FROM sleep_session WHERE end_ts >= ? AND start_ts < ? ORDER BY end_ts",
+                                             arguments: [sinceTS, untilTS])
                 .compactMap { try? Self.decode(SleepSession.self, $0) }
-            let vitals = try String.fetchAll(db, sql: "SELECT json FROM vitals WHERE date >= ?", arguments: [sinceDate])
+            let vitals = try String.fetchAll(db, sql: "SELECT json FROM vitals WHERE date >= ? AND date <= ?", arguments: [sinceDate, untilDate])
                 .compactMap { try? Self.decode(NightlyVitals.self, $0) }
-            let hr = try Row.fetchAll(db, sql: "SELECT * FROM hr_minute WHERE minute >= ?", arguments: [Int(sinceTS)]).map(Self.hrMinute)
-            let mins = try Row.fetchAll(db, sql: "SELECT * FROM activity_minute WHERE source = 'google_health' AND minute >= ?",
-                                        arguments: [Int(sinceTS)]).map {
+            let minuteRange: StatementArguments = [Int(sinceTS), Int(min(untilTS, Double(Int.max / 2)))]
+            let hr = try Row.fetchAll(db, sql: "SELECT * FROM hr_minute WHERE minute >= ? AND minute < ?", arguments: minuteRange).map(Self.hrMinute)
+            let mins = try Row.fetchAll(db, sql: "SELECT * FROM activity_minute WHERE source = 'google_health' AND minute >= ? AND minute < ?",
+                                        arguments: minuteRange).map {
                 ActivityMinute(minute: $0["minute"], steps: $0["steps"], distanceM: $0["distance_m"], source: .googleHealth)
             }
-            var annotations: [String: ActivityAnnotation] = [:]
-            for r in try Row.fetchAll(db, sql: "SELECT json FROM activity_annotation") {
-                if let a = try? Self.decode(ActivityAnnotation.self, r["json"]) { annotations[a.activityID] = a }
-            }
-            let acts: [ActivitySession] = try String.fetchAll(db, sql: "SELECT json FROM activity WHERE end_ts >= ?", arguments: [sinceTS])
-                .compactMap { try? Self.decode(ActivitySession.self, $0) }
-                .map { a in
-                    guard let ann = annotations[a.id] else { return a }
-                    var x = a
-                    if let r = ann.rpe { x.rpe = r }
-                    if let n = ann.notes { x.notes = n }
-                    if let k = ann.kindOverride { x.kind = k }
-                    if let nm = ann.nameOverride { x.name = nm }
-                    return x
-                }
+            let acts = Self.annotated(try String.fetchAll(db, sql: "SELECT json FROM activity WHERE end_ts >= ? AND start_ts < ?",
+                                                          arguments: [sinceTS, untilTS])
+                .compactMap { try? Self.decode(ActivitySession.self, $0) }, try Self.annotations(db))
             var totals: [LocalDate: DailySourceTotals] = [:]
-            for r in try Row.fetchAll(db, sql: "SELECT * FROM daily_source_totals WHERE source = 'google_health' AND date >= ?", arguments: [sinceDate]) {
+            for r in try Row.fetchAll(db, sql: "SELECT * FROM daily_source_totals WHERE source = 'google_health' AND date >= ? AND date <= ?",
+                                      arguments: [sinceDate, untilDate]) {
                 if let d = LocalDate(isoString: r["date"]) {
                     totals[d] = DailySourceTotals(steps: r["steps"], distanceM: r["distance_m"], caloriesKcal: r["calories"])
                 }
             }
-            let vo2 = try Row.fetchAll(db, sql: "SELECT * FROM vo2max").compactMap { r -> VO2MaxValue? in
+            let vo2 = try Row.fetchAll(db, sql: "SELECT * FROM vo2max WHERE date <= ?", arguments: [untilDate]).compactMap { r -> VO2MaxValue? in
                 guard let d = LocalDate(isoString: r["date"]), let s = DataSourceKind(rawValue: r["source"]) else { return nil }
                 return VO2MaxValue(date: d, value: r["value"], source: s)
             }
-            let journal = try Row.fetchAll(db, sql: "SELECT * FROM journal_answer WHERE date >= ?", arguments: [sinceDate]).compactMap { r -> JournalAnswer? in
+            let journal = try Row.fetchAll(db, sql: "SELECT * FROM journal_answer WHERE date >= ? AND date <= ?",
+                                           arguments: [sinceDate, untilDate]).compactMap { r -> JournalAnswer? in
                 guard let d = LocalDate(isoString: r["date"]) else { return nil }
                 let yes: Int? = r["yes"]
                 return JournalAnswer(date: d, questionKey: r["question_key"], yes: yes.map { $0 != 0 }, number: r["number"])
@@ -379,7 +403,8 @@ extension AppDatabase {
                 if let d = LocalDate(isoString: r["date"]), let m = StrainMode(rawValue: r["mode"]) { modes[d] = m }
             }
             var samples: [String: [HRSample]] = [:]
-            for r in try Row.fetchAll(db, sql: "SELECT * FROM hr_sample WHERE ts >= ? AND activity_id IS NOT NULL", arguments: [now.timeIntervalSince1970 - 180 * 86_400]) {
+            for r in try Row.fetchAll(db, sql: "SELECT * FROM hr_sample WHERE ts >= ? AND ts < ? AND activity_id IS NOT NULL",
+                                      arguments: [now.timeIntervalSince1970 - 180 * 86_400, untilTS]) {
                 let id: String = r["activity_id"]
                 samples[id, default: []].append(HRSample(time: Date(timeIntervalSince1970: r["ts"]), bpm: r["bpm"],
                                                          source: DataSourceKind(rawValue: r["source"]) ?? .googleHealth))
@@ -400,20 +425,7 @@ extension AppDatabase {
             let first = output.cycles.first?.cycle.start.timeIntervalSince1970 ?? 0
             try db.execute(sql: "DELETE FROM cycle_metrics WHERE start_ts >= ?", arguments: [first])
             try db.execute(sql: "DELETE FROM fused_activity WHERE start_ts >= ?", arguments: [first])
-            let st = try db.makeStatement(sql: """
-                INSERT OR REPLACE INTO cycle_metrics(id, date, start_ts, end_ts, is_open, recovery, strain, sleep_performance, hrv, rhr,
-                stress, steps, json, algorithm_version, computed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """)
-            for (c, json) in rows {
-                let hrv = c.recovery.components.first { $0.kind == .hrv }?.value ?? c.vitals?.hrvRmssdAvg
-                try st.execute(arguments: [c.id, c.date.isoString, c.cycle.start.timeIntervalSince1970, c.cycle.end?.timeIntervalSince1970,
-                                           c.isOpen, c.recovery.score, c.strain.strain, c.sleep?.performance, hrv, c.vitals?.restingHR,
-                                           c.stress.average, c.totals?.steps, json, output.algorithmVersion, computedAt.timeIntervalSince1970])
-            }
-            for (a, json) in fused {
-                try db.execute(sql: "INSERT OR REPLACE INTO fused_activity(id, start_ts, kind, strain, json) VALUES (?,?,?,?,?)",
-                               arguments: [a.id, a.activity.start.timeIntervalSince1970, a.activity.kind.rawValue, a.strain.strain, json])
-            }
+            try Self.insert(db, cycles: rows, fused: fused, algorithmVersion: output.algorithmVersion, computedAt: computedAt)
             try db.execute(sql: "INSERT INTO app_state(key, json) VALUES ('engine', ?) ON CONFLICT(key) DO UPDATE SET json = excluded.json",
                            arguments: [summary])
         }

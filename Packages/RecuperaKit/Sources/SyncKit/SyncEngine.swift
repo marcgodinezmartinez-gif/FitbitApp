@@ -172,14 +172,7 @@ public actor SyncEngine {
             if detailVersion.version < DetailVersion.current { try db.setAnchor(nil, for: "workouts") }
             let imp = try await apple.importChanges(anchors: db, backfillDays: max(backfillDays, 180))
             let known = (try? db.activityIDs(source: .appleHealth)) ?? []
-            try db.upsertActivities(imp.workouts)
-            try db.deleteActivities(source: .appleHealth, sourceRecordIDs: imp.deletedWorkoutIDs)
-            try db.upsertHRMinutes(imp.heartRateMinutes)
-            for (rid, samples) in imp.workoutHeartRate { try db.upsertHRSamples(samples, activityID: "apple_health:\(rid)") }
-            for (rid, points) in imp.routes { try db.saveRoute(points, activityID: "apple_health:\(rid)") }
-            for (rid, ms) in imp.metricSamples { try db.saveMetricSamples(ms, activityID: "apple_health:\(rid)") }
-            try db.saveActivityDetails(Array(imp.details.values))
-            try db.upsertVO2(imp.vo2max)
+            try saveApple(imp)
             if detailVersion.version < DetailVersion.current { try db.writeState("apple_detail_version", DetailVersion(version: DetailVersion.current)) }
             try db.updateConnection {
                 $0.healthKitLastImportAt = self.now()
@@ -195,6 +188,18 @@ public actor SyncEngine {
                                      records: 0, error: String(describing: error)))
             return (SourceResult(ok: false, records: 0, error: String(describing: error), skipped: false), [])
         }
+    }
+
+    /// Guarda lo que llega de Salud: entrenamientos con su FC, ruta, series y detalle, y VO₂ máx.
+    func saveApple(_ imp: AppleHealthImport) throws {
+        try db.upsertActivities(imp.workouts)
+        try db.deleteActivities(source: .appleHealth, sourceRecordIDs: imp.deletedWorkoutIDs)
+        try db.upsertHRMinutes(imp.heartRateMinutes)
+        for (rid, samples) in imp.workoutHeartRate { try db.upsertHRSamples(samples, activityID: "apple_health:\(rid)") }
+        for (rid, points) in imp.routes { try db.saveRoute(points, activityID: "apple_health:\(rid)") }
+        for (rid, ms) in imp.metricSamples { try db.saveMetricSamples(ms, activityID: "apple_health:\(rid)") }
+        try db.saveActivityDetails(Array(imp.details.values))
+        try db.upsertVO2(imp.vo2max)
     }
 
     // MARK: Google Health (Fitbit Air)
@@ -291,9 +296,9 @@ public actor SyncEngine {
     }
 
     /// Dispositivo, sueño, entrenamientos, vitales diarios, VO₂ máx. y totales del día.
-    func importGoogleDaily(_ g: GoogleHealthClient, from: Date, to: Date, utcOffset off: Int) async throws -> Int {
+    func importGoogleDaily(_ g: GoogleHealthClient, from: Date, to: Date, utcOffset off: Int, devices readDevices: Bool = true) async throws -> Int {
         var records = 0
-        if let devices = try? await g.pairedDevices() {
+        if readDevices, let devices = try? await g.pairedDevices() {
             let tracker = devices.first { $0.deviceType == "TRACKER" } ?? devices.first
             try db.updateConnection {
                 $0.deviceLastSyncAt = GoogleTime.date(tracker?.lastSyncTime) ?? $0.deviceLastSyncAt

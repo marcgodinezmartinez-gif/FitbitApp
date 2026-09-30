@@ -219,7 +219,20 @@ enum SyntheticRun {
         watchOnly.members = [input.activity.watchMember!]
         let again = try RunLibrary.refresh(db: db, output: output(runs: [watchOnly]), profile: UserProfile())
         #expect(again.first?.sources == [.appleHealth] && again.first?.startLat == nil)
-        // Una carrera borrada deja de estar.
+        // Una carrera del historial (anterior a la ventana del motor, solo en la BD) también está, fusionada aquí.
+        var old = input.activity.members
+        for i in old.indices {
+            old[i].sourceRecordID += "-old"
+            old[i].id = "\(old[i].source.rawValue):\(old[i].sourceRecordID)"
+            old[i].start = old[i].start.addingTimeInterval(-400 * 86_400)
+            old[i].end = old[i].end.addingTimeInterval(-400 * 86_400)
+        }
+        try db.upsertActivities(old)
+        let all = try RunLibrary.allRuns(db: db, output: output(runs: [watchOnly]))
+        #expect(all.count == 2 && all[0].members.count == 2 && all[0].start < input.activity.start)
+        #expect(try RunLibrary.refresh(db: db, output: output(runs: [watchOnly]), profile: UserProfile()).count == 2)
+        // Una carrera borrada (en Salud y en Google) deja de estar.
+        for m in input.activity.members + old { try db.deleteActivities(source: m.source, sourceRecordIDs: [m.sourceRecordID]) }
         #expect(try RunLibrary.refresh(db: db, output: output(runs: []), profile: UserProfile()).isEmpty)
     }
 

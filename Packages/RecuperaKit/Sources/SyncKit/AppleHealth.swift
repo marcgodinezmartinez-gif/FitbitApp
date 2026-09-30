@@ -46,4 +46,13 @@ public protocol AppleHealthProvider: Sendable {
     func requestAuthorization() async throws
     /// Importa lo nuevo desde las anclas guardadas (o `backfillDays` si no hay ancla).
     func importChanges(anchors: AnchorStore, backfillDays: Int) async throws -> AppleHealthImport
+    /// Historial completo: entrenamientos (con su detalle) y VO₂ máx. que empiezan en [from, to), sin tocar las anclas.
+    func importHistory(from: Date, to: Date) async throws -> AppleHealthImport
+    /// Fecha del entrenamiento o VO₂ máx. más antiguo que hay en Salud (`nil` si no hay ninguno).
+    func earliestSampleDate() async -> Date?
+}
+
+extension AppleHealthProvider {
+    public func importHistory(from: Date, to: Date) async throws -> AppleHealthImport { AppleHealthImport() }
+    public func earliestSampleDate() async -> Date? { nil }
 }
