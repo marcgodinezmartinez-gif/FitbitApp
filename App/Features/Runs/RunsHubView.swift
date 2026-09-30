@@ -30,12 +30,15 @@ struct RunsHubView: View {
                             HistoryBanner(state: h)
                         }
                         RunWeekHeader(runs: runs)
+                        TrainingCard(runs: runs).id("training")
+                        GoalRaceCard(runs: runs).id("goal")
                         RunVolumeCard(runs: runs, scale: $volumeScale)
                         RunFitnessCard(runs: runs)
                         if let risk = runs.risk { RunRiskCard(risk: risk, runs: runs).id("risk") }
                         RunPerformanceCard(runs: runs).id("performance")
                         RunVO2Card(runs: runs)
                         RunRecordsCard(runs: runs).id("records")
+                        SegmentsCard(runs: runs).id("segments")
                         RunTrendsCard(runs: runs, metric: $trendMetric)
                         RunZonesCard(runs: runs, zones: model.output?.current?.zones)
                         RunShoesCard(runs: runs)
@@ -52,7 +55,9 @@ struct RunsHubView: View {
                 await runs.refresh(model: model)
                 guard let screen = AppModel.screenshotScreen else { return }
                 if screen == "run" || screen.hasPrefix("run-"), openRun == nil {
-                    openRun = runs.summaries.last { $0.startLat != nil }?.id ?? runs.summaries.last?.id
+                    // Para la captura de las series, una carrera de series.
+                    let intervals = screen == "run-intervals" ? runs.summaries.last { $0.intervalLabel != nil && $0.startLat != nil } : nil
+                    openRun = intervals?.id ?? runs.summaries.last { $0.startLat != nil }?.id ?? runs.summaries.last?.id
                 } else if screen.hasPrefix("runs-") {
                     try? await Task.sleep(nanoseconds: 600_000_000)
                     proxy.scrollTo(String(screen.dropFirst(5)), anchor: .top)
@@ -67,13 +72,18 @@ struct RunsHubView: View {
 struct HistoryBanner: View {
     let state: HistoryImportState
 
+    private var detail: String {
+        var text = "Paso \(state.step) de 4 · " + state.phaseLabel
+        if let oldest = state.oldestData { text += " · desde " + oldest.formatted(.dateTime.year()) }
+        return text
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             ProgressView().controlSize(.small)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Trayendo tu historial completo").font(.subheadline.weight(.semibold))
-                Text("Paso \(state.step) de 4 · \(state.phaseLabel)\(state.oldestData.map { " · desde \($0.formatted(.dateTime.year()))" } ?? "")")
-                    .font(.caption).foregroundStyle(Palette.textSecondary).lineLimit(2)
+                Text(detail).font(.caption).foregroundStyle(Palette.textSecondary).lineLimit(2)
             }
             Spacer(minLength: 0)
         }

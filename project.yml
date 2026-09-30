@@ -57,6 +57,7 @@ targets:
       - target: RecuperaWidgets
         embed: true
       - sdk: HealthKit.framework
+      - sdk: WorkoutKit.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)

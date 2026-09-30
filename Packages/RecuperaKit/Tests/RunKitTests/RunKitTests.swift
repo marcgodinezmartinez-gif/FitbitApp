@@ -338,5 +338,10 @@ enum SyntheticRun {
         #expect(r.comparison?.hrBias != nil && r.weather != nil && r.hasAltitude)
         let summaries = RunDemo.summaries(output: output, profile: data.profile)
         #expect(summaries.count == runs.count && RunHistory(summaries: summaries).vdot(today: LocalDate(now, utcOffsetSeconds: 7200)) != nil)
+        // Segmento de ejemplo: casi todas las carreras pasan por él (algunas, dos veces).
+        let (segments, efforts) = RunDemo.segments(output: output, profile: data.profile)
+        #expect(segments.count == 1 && Set(efforts.map(\.runID)).count >= runs.filter { $0.watchMember != nil }.count / 2)
+        // Alguna carrera de ejemplo es de series y se detectan.
+        #expect(summaries.contains { $0.intervalLabel != nil })
     }
 }

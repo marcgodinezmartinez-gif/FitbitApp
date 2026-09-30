@@ -94,6 +94,15 @@ Citadas como **[R#]** en [05-algoritmos-y-metricas.md](05-algoritmos-y-metricas.
 - **[R73]** Shcherbina A, Mattsson CM, Waggott D, Salisbury H, Christle JW, Hastie T, Wheeler MT, Ashley EA. Accuracy in wrist-worn, sensor-based measurements of heart rate and energy expenditure in a diverse cohort. *J Pers Med.* 2017;7(2):3. doi:10.3390/jpm7020003
 - **[R74]** Bland JM, Altman DG. Statistical methods for assessing agreement between two methods of clinical measurement. *Lancet.* 1986;1(8476):307–310. doi:10.1016/S0140-6736(86)90837-8
 
+## Carrera: pendiente, calor y lesiones (doc. 18)
+
+- **[R75]** Minetti AE, Moia C, Roi GS, Susta D, Ferretti G. Energy cost of walking and running at extreme uphill and downhill slopes. *J Appl Physiol.* 2002;93(3):1039–1046. doi:10.1152/japplphysiol.01177.2001
+- **[R76]** Frandsen JSB, Hulme A, Parner ET, et al. How much running is too much? Identifying high-risk running sessions in a 5200-person cohort study. *Br J Sports Med.* 2025;59(17):1203–1210. doi:10.1136/bjsports-2024-109380
+- **[R77]** Ely MR, Cheuvront SN, Roberts WO, Montain SJ. Impact of weather on marathon-running performance. *Med Sci Sports Exerc.* 2007;39(3):487–493. doi:10.1249/mss.0b013e31802d3aba
+- **[R78]** Alduchov OA, Eskridge RE. Improved Magnus form approximation of saturation vapor pressure. *J Appl Meteorol.* 1996;35(4):601–609. doi:10.1175/1520-0450(1996)035<0601:IMFAOS>2.0.CO;2
+
+El cociente de carga aguda y crónica usa [R13] y [R14].
+
 ## Normativa y estándares
 
 - Reglamento (UE) 2016/679 (RGPD) y Ley Orgánica 3/2018 (LOPDGDD).

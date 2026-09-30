@@ -102,6 +102,7 @@ struct RunDetailView: View {
         if !r.laps.isEmpty { RunLapsCard(laps: r.laps) }
         RunZonesDetailCard(analysis: r)
         if !r.bestEfforts.isEmpty { RunBestEffortsCard(analysis: r, run: run) }
+        if !loaded.input.route.isEmpty { RunSegmentsCard(runID: run.id, route: loaded.input.route).id("segments") }
         if r.paceCurve.count >= 2 || r.powerCurve.count >= 2 { RunCurvesCard(analysis: r) }
         if !r.climbs.isEmpty { RunClimbsCard(climbs: r.climbs) }
         RunEfficiencyCard(analysis: r)

@@ -246,7 +246,8 @@ struct HistoryImportSection: View {
         Section {
             if let h = model.history {
                 if h.isComplete {
-                    LabeledContent("Estado", value: "Completo").font(.subheadline)
+                    LabeledContent("Estado", value: h.oldestData == nil && h.workouts == 0 ? "Nada anterior que importar" : "Completo")
+                        .font(.subheadline)
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {

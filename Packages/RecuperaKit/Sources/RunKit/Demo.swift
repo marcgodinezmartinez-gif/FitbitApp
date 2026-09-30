@@ -104,6 +104,21 @@ public enum RunDemo {
                         watchDetail: watchDetail, fitbitDetail: fitbitDetail, zones: zones, sex: profile.sex, weightKg: profile.weightKg)
     }
 
+    /// Un segmento de ejemplo (el primer km del circuito, cuesta arriba) con las pasadas de todas las carreras de ejemplo.
+    public static func segments(output: MetricsOutput, profile: UserProfile) -> ([Segment], [SegmentEffort]) {
+        let runs = RunLibrary.runs(in: output).filter { $0.watchMember != nil }
+        guard let last = runs.last else { return ([], []) }
+        let lastInput = input(for: last, zones: RunLibrary.zones(for: last, output: output), profile: profile)
+        guard let segment = SegmentMatcher.make(name: "Subida del Retiro", route: lastInput.route, fromM: 100, toM: 1100, runID: last.id,
+                                                id: "demo-segment", now: last.start) else { return ([], []) }
+        var efforts: [SegmentEffort] = []
+        for run in runs {
+            let i = run.id == last.id ? lastInput : input(for: run, zones: RunLibrary.zones(for: run, output: output), profile: profile)
+            efforts += SegmentMatcher.efforts(of: segment, route: i.route, hr: i.hrWatch, runID: run.id)
+        }
+        return ([segment], efforts)
+    }
+
     /// Resúmenes de todas las carreras de demostración.
     public static func summaries(output: MetricsOutput, profile: UserProfile) -> [RunSummary] {
         RunLibrary.runs(in: output).map { run in
