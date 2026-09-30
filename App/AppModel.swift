@@ -112,7 +112,7 @@ final class AppModel {
         case "trends"?, "report"?: return .trends
         case let screen? where screen.hasPrefix("run"): return .runs
         case "coach"?: return .coach
-        case "profile"?: return .profile
+        case "profile"?, "faces"?, "face-editor"?: return .profile
         default: return .today
         }
     }

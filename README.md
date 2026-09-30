@@ -2,7 +2,7 @@
 
 Especificación completa de requisitos para construir una **app personal para iPhone** que ofrezca con la **Google Fitbit Air** la experiencia de la app de **WHOOP** —cada mañana tu **Sueño**, tu **Recuperación** y tu **Carga** objetivo, con monitor de estrés y de salud, diario de hábitos, tendencias, informes, **análisis del día** y un **Coach IA con Claude o Gemini**— y que además **fusione las carreras de tu Apple Watch**, **sin pagar Google Health Premium ni ninguna cuota nueva** y con un diseño muy superior al de la app oficial.
 
-> Estado: **v0.1 — código completo y compilando en macOS** (app, *widgets*, Live Activity, lógica con 161 pruebas y CI) sobre los requisitos verificados a 28/09/2026. Incluye también «Mi panel», plan semanal, registro de fuerza, respiración guiada, alarma inteligente con AlarmKit, Live Activity de entrenamiento, VO₂ máx. sin ejercicio (HUNT), el resumen matinal e informe semanal redactados por la IA y la pestaña **Correr**: cada carrera analizada con todos los datos del Apple Watch y la Fitbit Air (con series detectadas aunque no marques vueltas), forma, riesgo de lesión, récords, segmentos propios, VDOT, carrera objetivo con predicción ajustada al desnivel y al calor, plan de entrenamiento con entrenos que se mandan al Apple Watch y zapatillas (doc. 18). Trae el **historial completo** de las dos fuentes, no solo los últimos 6 meses. Se instala con TestFlight. Pendiente: el *spike* con tus datos reales.
+> Estado: **v0.1 — código completo y compilando en macOS** (app, *widgets*, Live Activity, lógica con 177 pruebas y CI) sobre los requisitos verificados a 28/09/2026. Incluye también «Mi panel», plan semanal, registro de fuerza, respiración guiada, alarma inteligente con AlarmKit, Live Activity de entrenamiento, VO₂ máx. sin ejercicio (HUNT), el resumen matinal e informe semanal redactados por la IA y la pestaña **Correr**: cada carrera analizada con todos los datos del Apple Watch y la Fitbit Air (con series detectadas aunque no marques vueltas), forma, riesgo de lesión, récords, segmentos propios, VDOT, carrera objetivo con predicción ajustada al desnivel y al calor, plan de entrenamiento con entrenos que se mandan al Apple Watch y zapatillas (doc. 18). Trae el **historial completo** de las dos fuentes, no solo los últimos 6 meses. Y tiene **app para el Apple Watch** con tus propias esferas (al estilo del Modular Ultra y del Wayfinder, de recuperación, clásicas…), que diseñas en el iPhone, y complicaciones para las esferas de Apple (doc. 19). Se instala con TestFlight. Pendiente: el *spike* con tus datos reales.
 > Decisiones tomadas: uso **solo personal**, **solo iPhone**, **sin cuotas nuevas**, **estética como prioridad**, **sin Mac** (compilación en GitHub Actions), **TestFlight** (Apple Developer Program), **Coach IA con Claude o Gemini** y **Apple Watch para correr** con sus datos fusionados.
 
 ## Resumen en 10 puntos
@@ -40,6 +40,7 @@ Especificación completa de requisitos para construir una **app personal para iP
 | 16 | [Apple Watch y fusión de datos](docs/16-apple-watch-y-fusion-de-datos.md) | Carreras del Watch vía Salud, reglas para no duplicar nada, sincronización al abrir |
 | 17 | [**Puesta en marcha paso a paso**](docs/17-puesta-en-marcha.md) | Todo lo que hay que hacer para tener la app en tu iPhone con tus datos: Apple, Google Cloud, GitHub y TestFlight |
 | 18 | [**Análisis de carreras**](docs/18-analisis-de-carreras.md) | Pestaña Correr: cada carrera segundo a segundo con los dos dispositivos, fórmulas (VDOT, GAP, TRIMP, rTSS, forma), IA y zapatillas |
+| 19 | [**Esferas del Apple Watch**](docs/19-esferas-apple-watch.md) | Tus esferas (al estilo del Ultra y otras) diseñadas en el iPhone y a pantalla completa en la app del reloj, y complicaciones para las esferas de Apple |
 | — | [Glosario](docs/glosario.md) · [Referencias](docs/referencias.md) | Términos y bibliografía científica |
 
 Plantilla de configuración: [`Config/Secrets.example.xcconfig`](Config/Secrets.example.xcconfig).
@@ -83,12 +84,17 @@ App/                      App SwiftUI (Hoy, detalles, tendencias, plan, fuerza, 
                           y servicios del iPhone (HealthKit, OAuth, avisos, AlarmKit, Live Activity)
 Widgets/                  Widgets de inicio y de pantalla de bloqueo, y la Live Activity de entrenamiento
 Shared/                   Tipos compartidos entre la app y los widgets (atributos de la Live Activity)
+Watch/                    App del Apple Watch: tus esferas a pantalla completa, corona para el modo noche y sensores del reloj
+WatchWidgets/             Complicaciones de Recupera para las esferas de Apple
+WatchShared/              Lo que comparten la app del reloj y sus complicaciones (datos guardados en el App Group)
+FaceUI/                   Dibujo de las esferas, compartido por el editor del iPhone y el reloj
 Packages/RecuperaKit/     Toda la lógica, compilable y probada también en Linux:
   MetricsKit              algoritmos del doc. 05 y fusión Fitbit Air + Apple Watch (doc. 16)
   HealthAPI               cliente de la Google Health API v4 con OAuth PKCE
   Store                   base de datos local (SQLite con GRDB)
   SyncKit                 sincronización de las dos fuentes, avisos y widgets
   RunKit                  análisis de carreras: serie por segundo, parciales, zonas, marcas, VDOT, forma y GPX
+  FaceKit                 esferas del Watch: plantillas, diseños, datos, textos y geometría del bisel (doc. 19)
   Insights                análisis del día, recomendaciones, informes, plan semanal, fuerza, «Mi panel» y respiración
   CoachKit                Coach IA con Claude o Gemini (herramientas, salvaguardas, costes e informes redactados)
 project.yml               proyecto de Xcode generado con XcodeGen

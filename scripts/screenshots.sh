@@ -45,10 +45,56 @@ shoot() {
 # Primero el onboarding (instalación limpia); después cada pantalla con datos de demostración.
 shoot 00-onboarding
 n=1
-for screen in today analysis recovery sleep strain activity health trends runs runs-training runs-workout runs-goal runs-risk runs-performance runs-records runs-segments run run-ai run-charts run-splits run-intervals run-segments run-form coach profile panel plan strength workout breathing alarm vo2 report; do
+for screen in today analysis recovery sleep strain activity health trends runs runs-training runs-workout runs-goal runs-risk runs-performance runs-records runs-segments run run-ai run-charts run-splits run-intervals run-segments run-form coach profile faces face-editor panel plan strength workout breathing alarm vo2 report; do
   shoot "$(printf '%02d' $n)-$screen" -RecuperaScreenshots -RecuperaScreen "$screen"
   n=$((n + 1))
 done
 shoot "$(printf '%02d' $n)-today-claro" -RecuperaScreenshots -RecuperaScreen today -RecuperaTheme light
 xcrun simctl shutdown "$UDID" || true
+
+# Esferas del Apple Watch (doc. 19): la app del reloj en su simulador, cada plantilla con datos de ejemplo a las 10:09:30.
+WATCH_APP="$APP/Watch/RecuperaWatch.app"
+[ -d "$WATCH_APP" ] || WATCH_APP="$(dirname "$APP")/../Debug-watchsimulator/RecuperaWatch.app"
+if [ -d "$WATCH_APP" ]; then
+  WUDID=$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+devices = json.load(sys.stdin)["devices"]
+best = None
+for runtime, items in devices.items():
+    if "watchOS" not in runtime:
+        continue
+    for d in items:
+        name = d["name"]
+        score = (runtime, "Series" in name, "46mm" in name or "45mm" in name)
+        if best is None or score > best[0]:
+            best = (score, d["udid"], name, runtime)
+print(best[1] if best else "")
+if best: print(best[2] + " · " + best[3], file=sys.stderr)
+')
+  if [ -n "$WUDID" ]; then
+    echo "Simulador del reloj: $WUDID"
+    xcrun simctl boot "$WUDID" 2>/dev/null || true
+    xcrun simctl bootstatus "$WUDID" -b
+    xcrun simctl install "$WUDID" "$WATCH_APP"
+    WBUNDLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$WATCH_APP/Info.plist")
+    shoot_watch() {
+      local name="$1"; shift
+      xcrun simctl terminate "$WUDID" "$WBUNDLE" >/dev/null 2>&1 || true
+      xcrun simctl launch "$WUDID" "$WBUNDLE" "$@" >/dev/null || { echo "No se pudo abrir la app del reloj ($name)"; return 0; }
+      sleep "${WATCH_WAIT:-10}"
+      xcrun simctl io "$WUDID" screenshot "$OUT/$name.png" >/dev/null 2>&1 || true
+      echo "Captura: $name"
+    }
+    for face in ultraModular wayfinder recovery analog digital; do
+      shoot_watch "watch-$face" -RecuperaScreenshots -RecuperaFace "$face"
+    done
+    shoot_watch "watch-ultraModular-noche" -RecuperaScreenshots -RecuperaFace ultraModular -RecuperaNight
+    shoot_watch "watch-wayfinder-noche" -RecuperaScreenshots -RecuperaFace wayfinder -RecuperaNight
+    xcrun simctl shutdown "$WUDID" || true
+  else
+    echo "No hay simulador de Apple Watch: sin capturas del reloj."
+  fi
+else
+  echo "No está la app del reloj en $WATCH_APP: sin capturas del reloj."
+fi
 ls -la "$OUT"

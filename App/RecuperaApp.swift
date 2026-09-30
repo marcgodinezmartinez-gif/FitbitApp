@@ -13,6 +13,7 @@ struct RecuperaApp: App {
         _model = State(initialValue: model)
         BackgroundSync.register(model: model)
         NotificationRouter.install(model: model)
+        WatchLink.shared.start()
     }
 
     var body: some Scene {
@@ -22,6 +23,12 @@ struct RecuperaApp: App {
                 .tint(Palette.recoveryHigh)
                 .preferredColorScheme(colorScheme)
                 .task { await model.bootstrap() }
+                .task(id: model.dataVersion) {
+                    // Tus esferas del Watch, con los datos nuevos (un momento después, cuando se ha cargado todo).
+                    try? await Task.sleep(for: .seconds(2))
+                    guard model.phase == .ready, !Task.isCancelled else { return }
+                    WatchLink.shared.push(model: model)
+                }
                 .fullScreenCover(isPresented: $model.showBreathing) {
                     BreathingView()
                         .environment(model)

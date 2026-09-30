@@ -7,6 +7,7 @@ import SyncKit
 /// Pestaña «Perfil»: fuentes, ajustes, Coach, privacidad y cómo se calcula cada métrica (doc. 11 §3).
 struct ProfileView: View {
     @Environment(AppModel.self) private var model
+    @State private var showFaces = false
 
     var body: some View {
         List {
@@ -17,6 +18,13 @@ struct ProfileView: View {
                 NavigationLink { SourcesView() } label: {
                     Label("Fuentes de datos", systemImage: "antenna.radiowaves.left.and.right")
                 }
+            }
+            Section {
+                NavigationLink { FacesView() } label: {
+                    Label("Esferas del Apple Watch", systemImage: "applewatch.watchface")
+                }
+            } footer: {
+                Text("Diseña tus esferas (al estilo del Ultra, de recuperación, clásicas…) y llévalas al reloj.")
             }
             Section {
                 NavigationLink { SettingsView() } label: { Label("Ajustes", systemImage: "gearshape") }
@@ -41,6 +49,10 @@ struct ProfileView: View {
         .scrollContentBackground(.hidden)
         .screenBackground()
         .navigationTitle("Perfil")
+        .navigationDestination(isPresented: $showFaces) { FacesView() }
+        .onAppear {
+            if let screen = AppModel.screenshotScreen, screen == "faces" || screen == "face-editor" { showFaces = true }
+        }
     }
 
     private var version: String {

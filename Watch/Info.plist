@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>es</string>
+	<key>CFBundleDisplayName</key>
+	<string>Recupera</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>WKApplication</key>
+	<true/>
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>$(APP_BUNDLE_ID)</string>
+	<key>WKRunsIndependentlyOfCompanionApp</key>
+	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Tus esferas de Recupera enseñan el pulso, los pasos y los anillos de actividad que mide el reloj. No se guardan ni salen del reloj.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Recupera no escribe nada en Salud.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Para la brújula y el tiempo de tus esferas. La ubicación solo se usa en el momento y no se guarda.</string>
+	<key>RecuperaAppGroup</key>
+	<string>group.$(APP_BUNDLE_ID)</string>
+</dict>
+</plist>
