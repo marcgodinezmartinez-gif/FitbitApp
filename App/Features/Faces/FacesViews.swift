@@ -28,7 +28,8 @@ struct FacesView: View {
                                 WatchPreview(design: design, data: previewData, night: design.startsInNightMode)
                                     .frame(height: 188)
                                 Text(design.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.textPrimary).lineLimit(1)
-                                Text(design.template.name).font(.caption).foregroundStyle(Palette.textSecondary)
+                                Text(design.name == design.template.name ? design.template.summaryShort : design.template.name)
+                                    .font(.caption).foregroundStyle(Palette.textSecondary).lineLimit(1)
                             }
                         }
                         .buttonStyle(.plain)
@@ -158,6 +159,19 @@ private struct FacesHowToCard: View {
 }
 
 // MARK: - Plantillas
+
+extension FaceTemplate {
+    /// Una línea para la galería.
+    var summaryShort: String {
+        switch self {
+        case .ultraModular: return "Estilo Modular Ultra"
+        case .wayfinder: return "Estilo Wayfinder"
+        case .recovery: return "Anillo de recuperación"
+        case .analog: return "Agujas clásicas"
+        case .digital: return "Hora enorme"
+        }
+    }
+}
 
 struct TemplateGallery: View {
     let data: FaceData

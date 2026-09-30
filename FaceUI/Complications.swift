@@ -87,7 +87,7 @@ struct CornerSlot: View {
         VStack(alignment: alignment, spacing: 0) {
             HStack(spacing: 2 * scale) {
                 if let s = value.symbol { Image(systemName: s).font(.system(size: 8.5 * scale, weight: .bold)) }
-                Text(value.title).font(style.labelFont(9 * scale)).lineLimit(1)
+                Text(value.title).font(style.labelFont(9 * scale)).lineLimit(1).minimumScaleFactor(0.7)
             }
             .foregroundStyle(style.tint(value.tint))
             Text(value.textWithUnit).font(style.valueFont(15 * scale)).foregroundStyle(style.primary)

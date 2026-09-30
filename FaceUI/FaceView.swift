@@ -110,10 +110,10 @@ struct WayfinderFace: View {
                 .frame(width: dial, height: dial)
                 .position(x: geo.size.width / 2, y: geo.size.height / 2)
                 // En las esquinas, apartado del borde: la pantalla también es redondeada.
-                corner("topLeft", .leading, l: l).position(x: l.x(44), y: l.y(21))
-                corner("topRight", .trailing, l: l).position(x: l.x(154), y: l.y(21))
-                corner("bottomLeft", .leading, l: l).position(x: l.x(44), y: l.y(221))
-                corner("bottomRight", .trailing, l: l).position(x: l.x(154), y: l.y(221))
+                corner("topLeft", .leading, l: l).position(x: l.x(47), y: l.y(21))
+                corner("topRight", .trailing, l: l).position(x: l.x(151), y: l.y(21))
+                corner("bottomLeft", .leading, l: l).position(x: l.x(47), y: l.y(221))
+                corner("bottomRight", .trailing, l: l).position(x: l.x(151), y: l.y(221))
             }
         }
     }
@@ -127,7 +127,7 @@ struct WayfinderFace: View {
     private func corner(_ id: String, _ alignment: HorizontalAlignment, l: FaceLayout) -> some View {
         SlotView(kind: .corner, complication: design.complication(id), data: data, date: date, style: style, scale: l.s,
                  alignment: alignment, calendar: calendar)
-            .frame(width: 54 * l.s, alignment: alignment == .leading ? .leading : .trailing)
+            .frame(width: 60 * l.s, alignment: alignment == .leading ? .leading : .trailing)
     }
 }
 
