@@ -12,6 +12,7 @@ struct RunsHubView: View {
     @State private var volumeScale: RunVolumeScale = .weeks
     @State private var trendMetric: RunTrendMetric = .efficiency
     @State private var openRun: String?
+    @State private var openSession: PlannedSession?
 
     var body: some View {
         let runs = model.runs
@@ -51,13 +52,20 @@ struct RunsHubView: View {
             .navigationTitle("Correr")
             .detailDestinations()
             .navigationDestination(item: $openRun) { id in RunDetailView(runID: id) }
+            .navigationDestination(item: $openSession) { s in WorkoutDetailView(workout: s.workout, date: s.date) }
             .task(id: model.dataVersion) {
                 await runs.refresh(model: model)
                 guard let screen = AppModel.screenshotScreen else { return }
                 if screen == "run" || screen.hasPrefix("run-"), openRun == nil {
-                    // Para la captura de las series, una carrera de series.
-                    let intervals = screen == "run-intervals" ? runs.summaries.last { $0.intervalLabel != nil && $0.startLat != nil } : nil
-                    openRun = intervals?.id ?? runs.summaries.last { $0.startLat != nil }?.id ?? runs.summaries.last?.id
+                    // Para la captura de las series, una carrera de series; para la de segmentos, una que pase por alguno.
+                    var wanted: RunSummary?
+                    if screen == "run-intervals" { wanted = runs.summaries.last { $0.intervalLabel != nil && $0.startLat != nil } }
+                    if screen == "run-segments" { wanted = runs.summaries.last { !runs.efforts(runID: $0.id, model: model).isEmpty } }
+                    openRun = wanted?.id ?? runs.summaries.last { $0.startLat != nil }?.id ?? runs.summaries.last?.id
+                } else if screen == "runs-workout", openSession == nil, let plan = runs.plan {
+                    // El próximo entreno de calidad del plan, con sus pasos y ritmos.
+                    let upcoming = plan.sessions.filter { $0.date >= runs.today }
+                    openSession = upcoming.first { $0.workout.kind.isQuality && $0.workout.kind != .race } ?? upcoming.first
                 } else if screen.hasPrefix("runs-") {
                     try? await Task.sleep(nanoseconds: 600_000_000)
                     proxy.scrollTo(String(screen.dropFirst(5)), anchor: .top)

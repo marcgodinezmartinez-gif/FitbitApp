@@ -45,7 +45,7 @@ shoot() {
 # Primero el onboarding (instalación limpia); después cada pantalla con datos de demostración.
 shoot 00-onboarding
 n=1
-for screen in today analysis recovery sleep strain activity health trends runs runs-training runs-goal runs-risk runs-performance runs-records runs-segments run run-ai run-charts run-splits run-intervals run-segments run-form coach profile panel plan strength workout breathing alarm vo2 report; do
+for screen in today analysis recovery sleep strain activity health trends runs runs-training runs-workout runs-goal runs-risk runs-performance runs-records runs-segments run run-ai run-charts run-splits run-intervals run-segments run-form coach profile panel plan strength workout breathing alarm vo2 report; do
   shoot "$(printf '%02d' $n)-$screen" -RecuperaScreenshots -RecuperaScreen "$screen"
   n=$((n + 1))
 done

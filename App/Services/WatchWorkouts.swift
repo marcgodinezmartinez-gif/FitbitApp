@@ -58,28 +58,59 @@ enum WatchWorkouts {
         }
     }
 
-    /// Programa el entreno para ese día (a las `hour`): aparece en Entreno › Programados del Watch.
-    static func schedule(_ w: StructuredWorkout, on date: LocalDate, hour: Int = 7) async throws {
+    /// Permiso para programar entrenos (se pide la primera vez).
+    static func authorize() async throws {
         guard isSupported else { throw Failure.notSupported }
         let scheduler = WorkoutScheduler.shared
         var state = await scheduler.authorizationState
         if state != .authorized { state = await scheduler.requestAuthorization() }
         guard state == .authorized else { throw Failure.denied }
-        var components = DateComponents()
-        components.year = date.year
-        components.month = date.month
-        components.day = date.day
-        components.hour = hour
-        components.minute = 0
-        await scheduler.schedule(plan(w), at: components)
     }
 
-    /// Programa todas las sesiones pendientes del plan (el reloj admite un máximo; se mandan las más cercanas).
-    static func schedule(_ sessions: [PlannedSession], hour: Int = 7) async throws -> Int {
-        let limit = WorkoutScheduler.maxAllowedScheduledWorkoutCount
+    static func components(_ date: LocalDate, hour: Int) -> DateComponents {
+        var c = DateComponents()
+        c.year = date.year
+        c.month = date.month
+        c.day = date.day
+        c.hour = hour
+        c.minute = 0
+        return c
+    }
+
+    static func title(_ plan: WorkoutPlan) -> String? {
+        if case .custom(let c) = plan.workout { return c.displayName }
+        return nil
+    }
+
+    /// Quita lo que Recupera tenga programado esos días (con ese nombre, si se da) y lo de días ya pasados: volver a mandar
+    /// sustituye en vez de duplicar.
+    static func clear(days: Set<LocalDate>, before today: LocalDate, title name: String?) async {
+        let scheduler = WorkoutScheduler.shared
+        for item in await scheduler.scheduledWorkouts {
+            guard let y = item.date.year, let m = item.date.month, let d = item.date.day else { continue }
+            let day = LocalDate(year: y, month: m, day: d)
+            let replaced = days.contains(day) && (name == nil || title(item.plan) == name)
+            if replaced || day < today { await scheduler.remove(item.plan, at: item.date) }
+        }
+    }
+
+    /// Programa el entreno para ese día (a las `hour`): aparece en Entreno › Programados del Watch. Si ya estaba, lo sustituye.
+    static func schedule(_ w: StructuredWorkout, on date: LocalDate, today: LocalDate, hour: Int = 7) async throws {
+        try await authorize()
+        await clear(days: [date], before: today, title: w.title)
+        await WorkoutScheduler.shared.schedule(plan(w), at: components(date, hour: hour))
+    }
+
+    /// Programa las sesiones del plan; lo que hubiera esos días se sustituye. El reloj admite un máximo: se mandan las más
+    /// cercanas.
+    static func schedule(_ sessions: [PlannedSession], today: LocalDate, hour: Int = 7) async throws -> Int {
+        try await authorize()
+        let scheduler = WorkoutScheduler.shared
+        await clear(days: Set(sessions.map(\.date)), before: today, title: nil)
+        let free = WorkoutScheduler.maxAllowedScheduledWorkoutCount - (await scheduler.scheduledWorkouts).count
         var sent = 0
-        for s in sessions.sorted(by: { $0.date < $1.date }).prefix(max(0, limit)) {
-            try await schedule(s.workout, on: s.date, hour: hour)
+        for s in sessions.sorted(by: { $0.date < $1.date }).prefix(max(0, free)) {
+            await scheduler.schedule(plan(s.workout), at: components(s.date, hour: hour))
             sent += 1
         }
         return sent

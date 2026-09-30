@@ -611,7 +611,7 @@ struct PlanView: View {
         let today = model.runs.today
         let upcoming = plan.sessions.filter { $0.date >= today && $0.date <= today.adding(days: 13) }
         do {
-            let n = try await WatchWorkouts.schedule(upcoming)
+            let n = try await WatchWorkouts.schedule(upcoming, today: today)
             message = "\(RunFormat.count(n, "sesión mandada", "sesiones mandadas")) al Watch: están en Entreno › Programados."
             Haptics.success()
         } catch {
@@ -718,7 +718,7 @@ struct WorkoutDetailView: View {
         defer { sending = false }
         let day = date.map { max($0, model.runs.today) } ?? model.runs.today
         do {
-            try await WatchWorkouts.schedule(workout, on: day)
+            try await WatchWorkouts.schedule(workout, on: day, today: model.runs.today)
             message = "Listo: en el Watch, en Entreno › Programados (\(day == model.runs.today ? "hoy" : "\(RunFormat.weekday(day)) \(day.day)"))."
             Haptics.success()
         } catch {

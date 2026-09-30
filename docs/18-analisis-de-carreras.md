@@ -239,7 +239,7 @@ La pestaña **Correr** reúne todas tus carreras y abre cada una con **todo lo q
 
 - Calentamiento, bloques que se repiten (trabajo y recuperación) y vuelta a la calma, con objetivo de distancia o de tiempo.
 - Cada paso lleva un rango de ritmo (±5 s/km) de tus ritmos del VDOT o una zona de FC; el ritmo de carrera sale de la predicción o de tu objetivo.
-- **En el Watch (WorkoutKit):** «Mandar al Apple Watch» programa el entreno para su día en Entreno › Programados, con avisos de ritmo (rango de velocidad) o de zona. Desde el plan se mandan las sesiones de las dos próximas semanas. «Vista previa» enseña cómo quedará en el reloj.
+- **En el Watch (WorkoutKit):** «Mandar al Apple Watch» programa el entreno para su día en Entreno › Programados, con avisos de ritmo (rango de velocidad) o de zona. Desde el plan se mandan las sesiones de las dos próximas semanas. Volver a mandar sustituye lo de esos días (y quita lo ya pasado), así que no se duplica aunque rehagas el plan. «Vista previa» enseña cómo quedará en el reloj.
 - También hay entrenos sueltos con tus ritmos: rodajes, tirada larga, tempo, umbral, series, repeticiones, cuestas, fartlek, progresivo y ritmo M.
 
 ## 9. Segmentos propios (`SegmentMatcher`)
