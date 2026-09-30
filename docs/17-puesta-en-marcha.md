@@ -12,7 +12,7 @@ Todo lo que tienes que hacer tú para tener **Recupera en tu iPhone con tus dato
 
 ## Paso 0 · Elige tu identificador
 
-Inventa el identificador de la app (*bundle ID*) y úsalo **igual en todas partes**: `com.<tunombre>.recupera` (solo minúsculas, números, puntos y guiones; p. ej. `com.marcgodinez.recupera`).
+Inventa el identificador de la app (*bundle ID*) y úsalo **igual en todas partes**: `com.<tunombre>.recupera` (solo minúsculas, números, puntos y guiones; p. ej. `com.tunombre.recupera`).
 
 De él salen otros dos:
 
