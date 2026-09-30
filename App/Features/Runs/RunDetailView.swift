@@ -94,6 +94,7 @@ struct RunDetailView: View {
             }
         }
         RunSummaryGrid(analysis: r, run: run)
+        if let spike = spike(run) { RunSpikeBanner(spike: spike) }
         RunAICard(run: run, analysis: r).id("ai")
         RunChartsCard(analysis: r, metric: $chartMetric, byDistance: $byDistance, zones: loaded.input.zones).id("charts")
         if !r.splits.isEmpty { RunSplitsCard(splits: r.splits).id("splits") }
@@ -112,6 +113,12 @@ struct RunDetailView: View {
         RunSourcesCard(run: run, analysis: r)
     }
 
+    /// Si esta carrera fue bastante más larga que la más larga de los 30 días anteriores.
+    private func spike(_ run: FusedActivity) -> SessionSpike? {
+        guard let summary = model.runs.summary(run.id) else { return nil }
+        return InjuryRisk.spikes(runs: model.runs.summaries, since: summary.date).first { $0.runID == run.id && $0.level != .returning }
+    }
+
     /// GPX en un fichero temporal para compartirlo.
     private func gpxFile(_ loaded: LoadedRun) -> URL? {
         let date = LocalDate(loaded.input.activity.start, utcOffsetSeconds: loaded.input.activity.primary.utcOffsetSeconds)
@@ -119,6 +126,27 @@ struct RunDetailView: View {
         let text = GPXWriter.gpx(name: loaded.input.activity.name, route: loaded.input.route, series: loaded.series)
         do { try text.write(to: url, atomically: true, encoding: .utf8) } catch { return nil }
         return url
+    }
+}
+
+/// Aviso de pico de distancia (más de un 10 % sobre la carrera más larga de los 30 días anteriores).
+struct RunSpikeBanner: View {
+    let spike: SessionSpike
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(spike.level == .moderate ? Palette.recoveryMedium : Palette.recoveryLow)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(spike.level.label).font(.subheadline.weight(.semibold))
+                if let pct = spike.increasePct, let previous = spike.previousLongestM {
+                    Text("Un \(Int(pct.rounded())) % más larga que tu carrera más larga de los 30 días anteriores (\(RunFormat.distance(previous))). Los picos de más del 10 % en una sola carrera se asocian a más lesiones: alarga poco a poco.")
+                        .font(.caption).foregroundStyle(Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 

@@ -32,6 +32,7 @@ struct RunsHubView: View {
                         RunWeekHeader(runs: runs)
                         RunVolumeCard(runs: runs, scale: $volumeScale)
                         RunFitnessCard(runs: runs)
+                        if let risk = runs.risk { RunRiskCard(risk: risk, runs: runs).id("risk") }
                         RunPerformanceCard(runs: runs).id("performance")
                         RunVO2Card(runs: runs)
                         RunRecordsCard(runs: runs).id("records")
@@ -215,6 +216,87 @@ struct RunFitnessCard: View {
             Text(name).font(.caption).foregroundStyle(Palette.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Riesgo de lesión
+
+extension LoadRiskLevel {
+    var color: Color {
+        switch self {
+        case .low: return Palette.sleep
+        case .optimal: return Palette.recoveryHigh
+        case .caution: return Palette.recoveryMedium
+        case .high: return Palette.recoveryLow
+        }
+    }
+}
+
+struct RunRiskCard: View {
+    let risk: InjuryRisk
+    let runs: RunsModel
+
+    var body: some View {
+        Card {
+            SectionHeader(title: "Riesgo de lesión", trailing: "carga de todo el día")
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(risk.ratio.map { Format.decimal($0, digits: 2) } ?? "–").font(.metric(34, weight: .bold)).monospacedDigit()
+                    .foregroundStyle(risk.level?.color ?? Palette.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(risk.level?.label ?? "Calculando").font(.subheadline.weight(.semibold)).foregroundStyle(risk.level?.color ?? Palette.textSecondary)
+                    Text("carga de 7 días ÷ carga de 28 días").font(.caption).foregroundStyle(Palette.textSecondary)
+                }
+            }
+            let points = risk.points.filter { $0.ratio != nil }
+            if points.count >= 7, let first = points.first?.date.startDate(utcOffsetSeconds: 0),
+               let last = points.last?.date.startDate(utcOffsetSeconds: 0) {
+                Chart {
+                    RectangleMark(xStart: .value("Inicio", first), xEnd: .value("Fin", last),
+                                  yStart: .value("Desde", 0.8), yEnd: .value("Hasta", 1.3))
+                        .foregroundStyle(Palette.recoveryHigh.opacity(0.12))
+                    RectangleMark(xStart: .value("Inicio", first), xEnd: .value("Fin", last),
+                                  yStart: .value("Desde", 1.3), yEnd: .value("Hasta", 1.5))
+                        .foregroundStyle(Palette.recoveryMedium.opacity(0.12))
+                    ForEach(points) { p in
+                        LineMark(x: .value("Día", p.date.startDate(utcOffsetSeconds: 0)), y: .value("ACWR", min(p.ratio ?? 0, 2)))
+                            .foregroundStyle(Palette.textPrimary)
+                            .interpolationMethod(.monotone)
+                    }
+                }
+                .chartYScale(domain: 0.4...2)
+                .chartYAxis {
+                    AxisMarks(values: [0.8, 1.3, 1.5]) { v in
+                        AxisGridLine().foregroundStyle(Palette.separator)
+                        AxisValueLabel { if let x = v.as(Double.self) { Text(Format.decimal(x, digits: 1)) } }
+                    }
+                }
+                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
+                .frame(height: 140)
+            }
+            if !risk.spikes.isEmpty {
+                Text("Picos de distancia (4 semanas)").font(.subheadline.weight(.semibold)).padding(.top, 2)
+                ForEach(risk.spikes) { spike in
+                    NavigationLink(value: DetailRoute.run(spike.runID)) {
+                        HStack {
+                            Text(spike.level.label).foregroundStyle(spike.level == .moderate ? Palette.recoveryMedium : Palette.recoveryLow)
+                            Spacer()
+                            Text(RunFormat.shortDate(spike.date, today: runs.today)).font(.caption).foregroundStyle(Palette.textSecondary)
+                            Text(RunFormat.distance(spike.distanceM)).monospacedDigit()
+                            if let pct = spike.increasePct {
+                                Text("+\(Int(pct.rounded())) %").monospacedDigit().foregroundStyle(Palette.textSecondary)
+                            }
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Palette.textSecondary)
+                        }
+                        .font(.subheadline)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            if let safe = risk.safeLongRunM {
+                RunRow(name: "Tu próxima tirada, hasta", value: RunFormat.distance(safe), detail: "+10 % sobre la más larga del mes")
+            }
+            Text(risk.advice).font(.caption).foregroundStyle(Palette.textSecondary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

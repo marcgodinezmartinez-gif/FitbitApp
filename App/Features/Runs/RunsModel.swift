@@ -25,6 +25,8 @@ final class RunsModel {
     var isLoading = false
     /// Carreras que fueron récord el día que se corrieron (para marcarlas en la lista).
     var recordIDs: Set<String> = []
+    /// Riesgo de lesión: carga de todo el día (aguda frente a crónica) y picos de distancia.
+    var risk: InjuryRisk?
     /// Todas las carreras (también las del historial completo), para abrir cualquiera.
     @ObservationIgnored private var runsByID: [String: FusedActivity] = [:]
     @ObservationIgnored private var loadedVersion = -1
@@ -65,6 +67,8 @@ final class RunsModel {
             history = RunHistory(summaries: result.0)
             recordIDs = history.recordRunIDs()
             context = history.context(today: today)
+            let loads = Dictionary(output.cycles.map { ($0.date, $0.strain.loadRaw) }, uniquingKeysWith: +)
+            risk = InjuryRisk.assess(dailyLoads: loads, runs: result.0, today: today)
             if !demo, let db {
                 shoes = (try? db.shoes()) ?? []
                 assignments = (try? db.shoeAssignments()) ?? [:]
