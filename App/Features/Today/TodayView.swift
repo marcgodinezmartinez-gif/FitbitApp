@@ -31,6 +31,7 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 DaySwitcher()
+                WeekStrip()
                 SourceHeader()
                 if let p = model.importProgress, model.output != nil {
                     ImportProgressCard(progress: p)
@@ -217,6 +218,57 @@ struct DaySwitcher: View {
     private var label: String {
         guard let d = model.displayedCycle?.date else { return "" }
         return "\(Format.weekdayName(d).capitalized) \(d.day) \(Format.monthName(d.month).prefix(3))"
+    }
+}
+
+/// La semana de un vistazo: siete días con el anillo de su recuperación; al tocar uno se abre ese día.
+struct WeekStrip: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let output = model.output, let today = output.current?.date, let shown = model.displayedCycle?.date {
+            // La ventana acompaña al día que se ve (con tres días por delante si los hay) y nunca pasa de hoy.
+            let ahead = shown.adding(days: 3)
+            let end = ahead <= today ? ahead : today
+            HStack(spacing: 0) {
+                ForEach(0..<7, id: \.self) { i in
+                    let date = end.adding(days: i - 6)
+                    cell(date, cycle: output.cycle(on: date), selected: date == shown, isToday: date == today)
+                }
+            }
+        }
+    }
+
+    private func cell(_ date: LocalDate, cycle: CycleMetrics?, selected: Bool, isToday: Bool) -> some View {
+        let score = cycle?.recovery.score
+        let color = Palette.recovery(score: score)
+        return Button {
+            withAnimation(.snappy) { model.selectedDate = isToday ? nil : date }
+            Haptics.selection()
+        } label: {
+            VStack(spacing: 6) {
+                Text(String(Format.weekdayName(date).prefix(1)).uppercased())
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(isToday ? Palette.textPrimary : Palette.textSecondary)
+                ZStack {
+                    Circle().stroke(color.opacity(score == nil ? 0.1 : 0.2), lineWidth: 3)
+                    Circle().trim(from: 0, to: CGFloat(score ?? 0) / 100)
+                        .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    Text("\(date.day)").font(.caption.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(cycle == nil ? Palette.textSecondary : Palette.textPrimary)
+                }
+                .frame(width: 32, height: 32)
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(selected ? Palette.surfaceElevated : Color.clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(cycle == nil)
+        .accessibilityLabel("\(Format.weekdayName(date)) \(date.day)" + (score.map { ", recuperación \($0) %" } ?? ", sin datos"))
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

@@ -107,7 +107,9 @@ struct RunWeekHeader: View {
 
     var body: some View {
         let today = runs.today
-        let week = runs.history.weeks(count: 1, today: today).last
+        let weeks = runs.history.weeks(count: 2, today: today)
+        let week = weeks.last
+        let previous = weeks.count == 2 ? weeks.first : nil
         let streak = runs.history.weekStreak(today: today)
         let year = runs.history.totals(from: LocalDate(year: today.year, month: 1, day: 1), to: today)
         Card {
@@ -120,6 +122,12 @@ struct RunWeekHeader: View {
                     Text("\(Int((year.distanceM / 1000).rounded())) km").font(.metric(22, weight: .semibold)).monospacedDigit()
                     Text("en \(String(today.year)) · \(RunFormat.count(year.runs, "carrera", "carreras"))").font(.caption).foregroundStyle(Palette.textSecondary)
                 }
+            }
+            // Frente a la semana pasada, para saber de un vistazo si vas por encima o por debajo.
+            if let previous, previous.runs > 0 {
+                let diff = ((week?.distanceM ?? 0) - previous.distanceM) / 1000
+                Text("Semana pasada: \(Format.decimal(previous.distanceM / 1000)) km en \(RunFormat.count(previous.runs, "carrera", "carreras")) (\(Format.signed(diff, digits: 1)) km)")
+                    .font(.caption).foregroundStyle(Palette.textSecondary)
             }
             // Con historial de más de un año: lo de siempre.
             if let first = runs.summaries.first?.date, first.year < today.year {
@@ -684,11 +692,18 @@ struct RunMonthSection: View {
 struct AllRunsView: View {
     @Environment(AppModel.self) private var model
     @State private var year: Int?
+    /// Filtro por distancia (índice en `bands`).
+    @State private var band: Int?
+    static let bands: [(title: String, range: Range<Double>)] = [
+        ("< 5 km", 0..<5000), ("5–10 km", 5000..<10_000), ("10–21 km", 10_000..<21_000), ("> 21 km", 21_000..<Double.infinity),
+    ]
 
     var body: some View {
         let runs = model.runs
         let years = Array(Set(runs.summaries.map(\.date.year))).sorted(by: >)
-        let list = year.map { y in runs.summaries.filter { $0.date.year == y } } ?? runs.summaries
+        let list = runs.summaries.filter { s in
+            (year == nil || s.date.year == year) && (band.map { Self.bands[$0].range.contains(s.distanceM) } ?? true)
+        }
         let totals = RunHistory(summaries: list).totals(from: list.first?.date ?? runs.today, to: list.last?.date ?? runs.today)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16, pinnedViews: []) {
@@ -698,8 +713,18 @@ struct AllRunsView: View {
                         ForEach(years, id: \.self) { y in chip(String(y), selected: year == y) { year = y } }
                     }
                 }
-                Text("\(Format.thousands(totals.distanceM / 1000)) km · \(RunFormat.count(totals.runs, "carrera", "carreras")) · \(Format.duration(minutes: totals.movingS / 60))")
-                    .font(.subheadline).foregroundStyle(Palette.textSecondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        chip("Cualquier distancia", selected: band == nil) { band = nil }
+                        ForEach(Self.bands.indices, id: \.self) { i in chip(Self.bands[i].title, selected: band == i) { band = i } }
+                    }
+                }
+                if list.isEmpty {
+                    Text("Ninguna carrera con ese filtro.").font(.subheadline).foregroundStyle(Palette.textSecondary)
+                } else {
+                    Text("\(Format.thousands(totals.distanceM / 1000)) km · \(RunFormat.count(totals.runs, "carrera", "carreras")) · \(Format.duration(minutes: totals.movingS / 60))")
+                        .font(.subheadline).foregroundStyle(Palette.textSecondary)
+                }
                 ForEach(RunListSection.months(list)) { month in
                     RunMonthSection(month: month, recordIDs: runs.recordIDs)
                 }

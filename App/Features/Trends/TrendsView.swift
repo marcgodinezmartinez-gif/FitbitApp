@@ -67,6 +67,8 @@ struct TrendsView: View {
                             TrendChart(points: points, color: metric.color, band: usualBand(points), showAverage: period > 7,
                                        yDomain: metric.domain, unit: metric.unit)
                                 .frame(height: 220)
+                            PeriodStatsRow(points: points, metric: metric,
+                                           previous: series(model, until: last.adding(days: -period), days: period) { metric.value($0) })
                         } else {
                             Text("Todavía no hay datos suficientes para este periodo.").font(.footnote).foregroundStyle(Palette.textSecondary)
                         }
@@ -149,6 +151,8 @@ struct MetricTrendView: View {
                             TrendChart(points: points, color: metric.color, band: usualBand(points), showAverage: period > 7,
                                        yDomain: metric.domain, unit: metric.unit)
                                 .frame(height: 240)
+                            PeriodStatsRow(points: points, metric: metric,
+                                           previous: series(model, until: last.adding(days: -period), days: period) { metric.value($0) })
                         } else {
                             Text("Todavía no hay datos suficientes para este periodo.").font(.footnote).foregroundStyle(Palette.textSecondary)
                         }
@@ -168,18 +172,69 @@ struct MetricTrendView: View {
     }
 }
 
+/// Bajo la gráfica: mínimo, media y máximo del periodo y cuánto ha cambiado la media frente al periodo anterior.
+struct PeriodStatsRow: View {
+    let points: [DayPoint]
+    let metric: DayMetric
+    /// Los mismos días, justo antes (vacío en «Todo»).
+    let previous: [DayPoint]
+
+    var body: some View {
+        let values = points.map(\.value)
+        if let low = values.min(), let high = values.max() {
+            let mean = values.reduce(0, +) / Double(values.count)
+            HStack(alignment: .top) {
+                stat("Mínimo", Format.decimal(low, digits: metric.digits))
+                stat("Media", Format.decimal(mean, digits: metric.digits))
+                stat("Máximo", Format.decimal(high, digits: metric.digits))
+                if previous.count >= 3 {
+                    let before = previous.map(\.value).reduce(0, +) / Double(previous.count)
+                    stat("vs. anterior", Format.signed(mean - before, digits: metric.digits))
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private func stat(_ name: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).font(.metric(17, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(name).font(.caption2).foregroundStyle(Palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 /// Calendario del mes coloreado por la zona de recuperación (color + forma).
 struct RecoveryCalendar: View {
     let cycles: [CycleMetrics]
     let month: LocalDate
+    /// Meses hacia atrás desde el actual (0 = este mes).
+    @State private var back = 0
 
     var body: some View {
-        let first = LocalDate(year: month.year, month: month.month, day: 1)
+        let index = month.year * 12 + month.month - 1 - back
+        let first = LocalDate(year: index / 12, month: index % 12 + 1, day: 1)
         let lead = first.isoWeekday - 1
-        let daysInMonth = (0..<31).filter { first.adding(days: $0).month == month.month }.count
+        let daysInMonth = (0..<31).filter { first.adding(days: $0).month == first.month }.count
         let byDate = Dictionary(cycles.map { ($0.date, $0) }, uniquingKeysWith: { _, b in b })
+        let hasEarlier = cycles.first.map { $0.date < first } ?? false
         Card {
-            SectionHeader(title: "\(Format.monthName(month.month).capitalized) \(month.year)")
+            HStack(spacing: 4) {
+                Text("\(Format.monthName(first.month).capitalized) \(first.year)").font(.headline).foregroundStyle(Palette.textPrimary)
+                Spacer()
+                Button { withAnimation(.snappy) { back += 1 } } label: {
+                    Image(systemName: "chevron.left").font(.subheadline.weight(.semibold)).frame(width: 32, height: 32)
+                }
+                .disabled(!hasEarlier).opacity(hasEarlier ? 1 : 0.3)
+                .accessibilityLabel("Mes anterior")
+                Button { withAnimation(.snappy) { back -= 1 } } label: {
+                    Image(systemName: "chevron.right").font(.subheadline.weight(.semibold)).frame(width: 32, height: 32)
+                }
+                .disabled(back == 0).opacity(back == 0 ? 0.3 : 1)
+                .accessibilityLabel("Mes siguiente")
+            }
+            .buttonStyle(.plain)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
                 ForEach(["L", "M", "X", "J", "V", "S", "D"], id: \.self) { d in
                     Text(d).font(.caption2.weight(.semibold)).foregroundStyle(Palette.textSecondary)
