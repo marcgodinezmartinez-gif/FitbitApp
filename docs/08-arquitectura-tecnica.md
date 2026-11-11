@@ -172,7 +172,7 @@ flowchart LR
 **Tuberías**
 
 1. **Linux, en cada *push*** (barato y rápido): `swift build` + `swift test` de los paquetes puros (`MetricsKit` y la lógica de `HealthAPI`). También se pueden ejecutar dentro de una sesión de Claude Code.
-2. **macOS (`macos-26`, Xcode 26)** en los PR que tocan la interfaz y en `main`: genera el proyecto con XcodeGen, compila, ejecuta los tests (unitarios, UI e instantáneas en el simulador) y **adjunta las capturas de pantalla** como artefactos del PR. Así se revisa el diseño desde el navegador o el móvil, en lugar de las vistas previas de Xcode.
+2. **macOS (`macos-26`, Xcode 26)** solo a mano o con «[macos]» en el mensaje del commit (tampoco en `main`, para no gastar minutos): genera el proyecto con XcodeGen, compila, ejecuta los tests (unitarios, UI e instantáneas en el simulador) y **adjunta las capturas de pantalla** como artefactos del PR. Así se revisa el diseño desde el navegador o el móvil, en lugar de las vistas previas de Xcode.
 3. **TestFlight** (al hacer *merge* a `main` o a mano): archivo firmado en la nube con una **clave de API de App Store Connect** (firma gestionada por Xcode desde la línea de comandos) y subida a TestFlight; alternativa: fastlane [verificar el método en F0]. El número de *build* sale del número de ejecución.
 4. **Instalación**: tú eres probador interno de tu propia app ⇒ sin revisión de Apple; la *build* aparece en la app TestFlight minutos después de procesarse. Cada *build* dura 90 días.
 5. **Diagnóstico sin Mac**: informes de fallos y capturas enviadas desde TestFlight, métricas de rendimiento de MetricKit en el propio iPhone y registros locales exportables.

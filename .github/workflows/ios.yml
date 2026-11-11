@@ -1,7 +1,7 @@
 name: iOS
 
 # Los minutos de macOS cuentan ×10 en un repositorio privado (≈ 200 al mes): esta compilación solo se lanza a mano,
-# en main o con «[macos]» en el mensaje del commit (doc. 08 §6).
+# o con «[macos]» en el mensaje del commit, también en main (doc. 08 §6).
 on:
   workflow_dispatch:
     inputs:
@@ -32,7 +32,7 @@ env:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[macos]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[macos]')
     runs-on: macos-26
     timeout-minutes: 45
     steps:
