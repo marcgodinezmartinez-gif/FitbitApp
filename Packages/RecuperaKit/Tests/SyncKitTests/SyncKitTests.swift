@@ -377,6 +377,59 @@ struct FakeHistoryWatch: AppleHealthProvider {
     }
 }
 
+/// Transporte que falla siempre: sin red o con un error de Google.
+struct FailingTransport: HTTPTransport {
+    let status: Int?
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        guard let status else { throw HealthAPIError.network("sin conexión") }
+        return (Data("{}".utf8), HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
+    }
+}
+
+@Suite struct HistoryFailureTests {
+    let now = ISO8601DateFormatter().date(from: "2026-09-29T19:00:00Z")!
+
+    func engine(status: Int?) throws -> SyncEngine {
+        let db = try AppDatabase.inMemory()
+        try db.updateConnection {
+            $0.googleStatus = .active
+            $0.connectedAt = self.now
+            $0.backfillCompleted = true
+        }
+        let tokens = InMemoryTokenStore(TokenSet(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, scope: nil))
+        let google = GoogleHealthClient(config: OAuthConfig(clientID: "c", reversedClientID: "r"), transport: FailingTransport(status: status),
+                                        tokens: tokens, sleep: { _ in })
+        return SyncEngine(db: db, google: google, apple: nil, now: { now }, utcOffset: { 7200 })
+    }
+
+    /// Sin red, con Google caído o limitando peticiones, el tramo se reintenta siempre: nunca se salta.
+    @Test(arguments: [nil, 503, 429] as [Int?]) func transientFailuresNeverSkipAChunk(status: Int?) async throws {
+        let engine = try engine(status: status)
+        for _ in 0..<5 {
+            let s = await engine.importHistory()
+            #expect(s.failures == 0 && s.googleDailyUntil == nil && s.googleEmptyChunks == 0 && s.lastError != nil)
+        }
+    }
+
+    /// Un tramo que Google rechaza una y otra vez se salta al tercer intento para no bloquear el resto.
+    @Test func aBrokenChunkIsSkippedAfterThreeFailures() async throws {
+        let engine = try engine(status: 400)
+        #expect(await engine.importHistory().failures == 1)
+        #expect(await engine.importHistory().failures == 2)
+        let s = await engine.importHistory()
+        // Se salta solo ese tramo: la fase sigue abierta desde el anterior.
+        #expect(s.failures == 0 && s.googleEmptyChunks == 1 && !s.googleDailyDone)
+        #expect(s.googleDailyUntil == now.addingTimeInterval(-(175 + 90) * 86_400))
+    }
+
+    @Test func classifiesTransientErrors() {
+        #expect(SyncEngine.isTransient(HealthAPIError.network("x")) && SyncEngine.isTransient(HealthAPIError.rateLimited(retryAfter: nil)))
+        #expect(SyncEngine.isTransient(HealthAPIError.http(status: 502, message: nil)) && SyncEngine.isTransient(CancellationError()))
+        #expect(SyncEngine.isTransient(NSError(domain: "com.apple.healthkit", code: 6)))
+        #expect(!SyncEngine.isTransient(HealthAPIError.http(status: 400, message: nil)) && !SyncEngine.isTransient(HealthAPIError.decoding("x")))
+    }
+}
+
 actor HistoryProgress {
     var items: [HistoryImportState] = []
     func add(_ s: HistoryImportState) { items.append(s) }

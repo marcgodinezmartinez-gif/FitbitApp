@@ -172,34 +172,48 @@ extension SyncEngine {
         return state
     }
 
+    /// Fallos que no dicen nada del tramo (sin red, límite de peticiones, Google caído, sesión caducada, iPhone bloqueado,
+    /// tarea cancelada): se reintenta más tarde sin contarlos, porque saltarse el tramo perdería ese historial.
     static func isTransient(_ error: Error) -> Bool {
+        if error is CancellationError || Task.isCancelled { return true }
         if let e = error as? HealthAPIError {
             switch e {
-            case .reauthorizationRequired, .notConfigured: return true
-            default: break
+            case .reauthorizationRequired, .notConfigured, .notConnected, .noHealthProfile, .network, .rateLimited: return true
+            case .http(let status, _): return status == 408 || status == 429 || status >= 500
+            default: return false
             }
         }
-        return error is URLError || (error as NSError).domain == NSURLErrorDomain
+        let ns = error as NSError
+        // HealthKit con el iPhone bloqueado (HKError.errorDatabaseInaccessible) en la tarea nocturna.
+        if ns.domain == "com.apple.healthkit" && ns.code == 6 { return true }
+        return error is URLError || ns.domain == NSURLErrorDomain
     }
 
-    /// Da por hecho el tramo actual (tras tres fallos seguidos).
+    /// Da por hecho el tramo actual (tras tres fallos seguidos) y sigue con el anterior. Si el que falla es el primero de la
+    /// fase, parte del mismo punto que `historyStep`: un solo tramo roto no da la fase entera por terminada.
     func skipChunk(_ s: inout HistoryImportState) {
         let day: TimeInterval = 86_400
+        let conn = (try? db.connection()) ?? ConnectionState()
         switch s.phase {
         case .apple:
-            s.appleUntil = s.appleUntil.map { $0.addingTimeInterval(-Self.appleChunkDays * day) }
-            if let u = s.appleUntil, let e = s.appleEarliest, u <= e { s.appleDone = true }
-            if s.appleUntil == nil { s.appleDone = true }
+            let start = s.appleStart ?? (conn.healthKitConnectedAt ?? now()).addingTimeInterval(-Self.firstImportDays * day)
+            s.appleStart = start
+            let lower = (s.appleUntil ?? start).addingTimeInterval(-Self.appleChunkDays * day)
+            s.appleUntil = lower
+            if let e = s.appleEarliest, lower <= e { s.appleDone = true }
         case .googleDaily:
-            s.googleDailyUntil = s.googleDailyUntil.map { $0.addingTimeInterval(-Self.googleDailyChunkDays * day) }
+            let upper = s.googleDailyUntil ?? (conn.connectedAt ?? now()).addingTimeInterval(-Self.firstImportDays * day)
+            s.googleDailyUntil = upper.addingTimeInterval(-Self.googleDailyChunkDays * day)
             s.googleEmptyChunks += 1
-            if s.googleDailyUntil == nil || s.googleEmptyChunks >= Self.googleEmptyChunksToStop { s.googleDailyDone = true }
+            if s.googleEmptyChunks >= Self.googleEmptyChunksToStop { s.googleDailyDone = true }
         case .googleMinutes:
-            s.googleMinutesUntil = s.googleMinutesUntil.map { $0.addingTimeInterval(-Self.googleMinuteChunkDays * day) }
-            if s.googleMinutesUntil == nil { s.googleMinutesDone = true }
+            let start = s.googleMinutesStart ?? (conn.connectedAt ?? now()).addingTimeInterval(-Self.firstImportDays * day)
+            s.googleMinutesStart = start
+            s.googleMinutesUntil = (s.googleMinutesUntil ?? start).addingTimeInterval(-Self.googleMinuteChunkDays * day)
         case .metrics:
-            s.metricsUntil = s.metricsUntil.map { $0.addingTimeInterval(-Self.metricsChunkDays * day) }
-            if s.metricsUntil == nil { s.metricsDone = true }
+            let start = s.metricsStart ?? now().addingTimeInterval(-195 * day)
+            s.metricsStart = start
+            s.metricsUntil = (s.metricsUntil ?? start).addingTimeInterval(-Self.metricsChunkDays * day)
         case .done:
             break
         }
