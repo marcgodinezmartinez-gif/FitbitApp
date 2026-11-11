@@ -340,7 +340,7 @@ struct RingsRow: View {
             NavigationLink(value: DetailRoute.sleep(cycle.date)) {
                 ringColumn(title: "SUEÑO", color: Palette.sleep, progress: (cycle.sleep?.performance ?? 0) / 100, size: 96, delay: 0.1,
                            value: cycle.sleep.map { "\(Int($0.performance.rounded()))%" } ?? "—",
-                           caption: cycle.sleep.map { "\(Format.duration(minutes: $0.asleepMin)) de \(Format.duration(minutes: $0.need.totalMin))" })
+                           caption: cycle.sleep.map { "\(Format.duration(minutes: $0.asleepMin))\nde \(Format.duration(minutes: $0.need.totalMin))" })
             }
             NavigationLink(value: DetailRoute.recovery(cycle.date)) {
                 VStack(spacing: 6) {

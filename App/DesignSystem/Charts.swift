@@ -77,7 +77,8 @@ struct TrendChart: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine().foregroundStyle(Palette.separator)
-                AxisValueLabel(format: xFormat, centered: false)
+                // Centradas en su marca: alineadas al inicio, la última se cortaba contra el borde.
+                AxisValueLabel(format: xFormat, anchor: .top)
             }
         }
         .chartYAxis {
@@ -152,10 +153,18 @@ struct HeartRateChart: View {
     var zones: HRZones?
     var compareSources = false
 
+    /// Eje ajustado a lo que hay (de 10 en 10 lpm) en vez de 0–200: en un día tranquilo la curva ocupaba una franja.
+    var domain: ClosedRange<Double> {
+        guard let lo = samples.map(\.bpm).min(), let hi = samples.map(\.bpm).max() else { return 40...180 }
+        let low = max(30, ((lo - 8) / 10).rounded(.down) * 10)
+        return low...max(low + 40, ((hi + 8) / 10).rounded(.up) * 10)
+    }
+
     var body: some View {
+        let range = domain
         Chart {
             if let zones {
-                ForEach(Array(zones.lowerBounds.enumerated()), id: \.offset) { i, lb in
+                ForEach(Array(zones.lowerBounds.enumerated()).filter { range.contains($0.element) }, id: \.offset) { i, lb in
                     RuleMark(y: .value("Zona \(i + 1)", lb))
                         .foregroundStyle(Palette.zones[min(i + 1, Palette.zones.count - 1)].opacity(0.35))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
@@ -169,6 +178,7 @@ struct HeartRateChart: View {
         }
         .chartForegroundStyleScale(["Apple Watch": Palette.recoveryLow, "Fitbit Air": Palette.fitbit, "Manual": Palette.textSecondary])
         .chartLegend(compareSources ? .visible : .hidden)
+        .chartYScale(domain: range)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine().foregroundStyle(Palette.separator)
