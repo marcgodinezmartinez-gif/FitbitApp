@@ -229,4 +229,130 @@ public enum GoogleMapping {
         for p in calories { if let d = date(p) { out[d, default: DailySourceTotals()].caloriesKcal = p.totalCalories?.kcalSum } }
         return out
     }
+    // MARK: Datos ampliados (doc. 03 §4)
+
+    /// La noche a la que pertenece una muestra: la que termina el día local en que cae la muestra más 9 horas
+    /// (lo dormido desde las 15:00 cuenta para el día siguiente).
+    static func nightDate(_ t: SampleTime?) -> (date: LocalDate, time: Date)? {
+        guard let time = GoogleTime.date(t?.physicalTime) else { return nil }
+        return (LocalDate(time.addingTimeInterval(9 * 3600), utcOffsetSeconds: offset(t?.utcOffset)), time)
+    }
+
+    /// Como mucho `limit` muestras por noche, repartidas (la curva se ve igual y ocupa poco).
+    static func thinned(_ samples: [DayExtras.Sample], limit: Int = 400) -> [DayExtras.Sample] {
+        let sorted = samples.sorted { $0.t < $1.t }
+        guard sorted.count > limit else { return sorted }
+        let step = Double(sorted.count) / Double(limit)
+        return (0..<limit).map { sorted[Int(Double($0) * step)] }
+    }
+
+    /// Junta por día todo lo que la pulsera mide además de las puntuaciones. `rollups` son totales diarios (`dailyRollUp`).
+    public static func dayExtras(hrv: [APIDataPoint] = [], spo2: [APIDataPoint] = [], temp: [APIDataPoint] = [],
+                                 respSummary: [APIDataPoint] = [], hrvSamples: [APIDataPoint] = [], spo2Samples: [APIDataPoint] = [],
+                                 zones: [APIDataPoint] = [], rollups: [RollupDataPoint] = []) -> [DayExtras] {
+        var byDate: [LocalDate: DayExtras] = [:]
+        func upd(_ date: LocalDate?, _ f: (inout DayExtras) -> Void) {
+            guard let date else { return }
+            var x = byDate[date] ?? DayExtras(date: date)
+            f(&x)
+            byDate[date] = x
+        }
+        func minutes(_ duration: String?) -> Double? { GoogleTime.seconds(duration).map { $0 / 60 } }
+
+        for p in preferFitbit(hrv) { let x = p.dailyHeartRateVariability
+            if let e = x?.entropy { upd(localDate(x?.date)) { $0.hrvEntropy = e } }
+        }
+        for p in preferFitbit(spo2) { let x = p.dailyOxygenSaturation
+            guard x?.lowerBoundPercentage != nil || x?.upperBoundPercentage != nil || x?.standardDeviationPercentage != nil else { continue }
+            upd(localDate(x?.date)) {
+                $0.spo2Lower = x?.lowerBoundPercentage
+                $0.spo2Upper = x?.upperBoundPercentage
+                $0.spo2Stddev = x?.standardDeviationPercentage
+            }
+        }
+        for p in preferFitbit(temp) { let x = p.dailySleepTemperatureDerivations
+            guard x?.baselineTemperatureCelsius != nil || x?.relativeNightlyStddev30dCelsius != nil else { continue }
+            upd(localDate(x?.date)) {
+                $0.tempBaselineC = x?.baselineTemperatureCelsius
+                $0.tempStddevC = x?.relativeNightlyStddev30dCelsius
+            }
+        }
+        for p in preferFitbit(respSummary) {
+            guard let x = p.respiratoryRateSleepSummary, let night = nightDate(x.sampleTime) else { continue }
+            func rate(_ s: RespiratorySummaryPoint.Stats?) -> Double? { s?.breathsPerMinute.flatMap { $0 > 0 ? $0 : nil } }
+            guard rate(x.lightSleepStats) != nil || rate(x.deepSleepStats) != nil || rate(x.remSleepStats) != nil else { continue }
+            upd(night.date) {
+                $0.respLight = rate(x.lightSleepStats)
+                $0.respDeep = rate(x.deepSleepStats)
+                $0.respRem = rate(x.remSleepStats)
+            }
+        }
+        var hrvByNight: [LocalDate: [DayExtras.Sample]] = [:]
+        for p in hrvSamples where accepted(p) {
+            guard let x = p.heartRateVariability, let night = nightDate(x.sampleTime),
+                  let v = x.rootMeanSquareOfSuccessiveDifferencesMilliseconds, v > 0 else { continue }
+            hrvByNight[night.date, default: []].append(DayExtras.Sample(t: night.time, v: v))
+        }
+        for (d, list) in hrvByNight { upd(d) { $0.hrvSamples = thinned(list) } }
+        var spo2ByNight: [LocalDate: [DayExtras.Sample]] = [:]
+        for p in spo2Samples where accepted(p) {
+            guard let x = p.oxygenSaturation, let night = nightDate(x.sampleTime), let v = x.percentage, v > 50 else { continue }
+            spo2ByNight[night.date, default: []].append(DayExtras.Sample(t: night.time, v: v))
+        }
+        for (d, list) in spo2ByNight { upd(d) { $0.spo2Samples = thinned(list) } }
+        for p in preferFitbit(zones) {
+            guard let x = p.dailyHeartRateZones, let list = x.heartRateZones, !list.isEmpty else { continue }
+            let mapped = list.compactMap { z -> DayExtras.Zone? in
+                guard let name = z.heartRateZoneType, let lo = z.minBeatsPerMinute?.value else { return nil }
+                return DayExtras.Zone(name: name, min: Int(lo), max: Int(z.maxBeatsPerMinute?.value ?? 220))
+            }
+            if !mapped.isEmpty { upd(localDate(x.date)) { $0.hrZones = mapped.sorted { $0.min < $1.min } } }
+        }
+
+        for p in rollups {
+            let date = localDate(p.civilStartTime?.date)
+            if let a = p.activeMinutes?.activeMinutesRollupByActivityLevel {
+                func level(_ name: String) -> Int? { a.first { $0.activityLevel == name }?.activeMinutesSum.map { Int($0.value) } }
+                upd(date) {
+                    $0.activeMinLight = level("LIGHT") ?? 0
+                    $0.activeMinModerate = level("MODERATE") ?? 0
+                    $0.activeMinVigorous = level("VIGOROUS") ?? 0
+                }
+            }
+            if let z = p.activeZoneMinutes {
+                upd(date) {
+                    $0.azmFatBurn = Int(z.sumInFatBurnHeartZone?.value ?? 0)
+                    $0.azmCardio = Int(z.sumInCardioHeartZone?.value ?? 0)
+                    $0.azmPeak = Int(z.sumInPeakHeartZone?.value ?? 0)
+                }
+            }
+            if let z = p.timeInHeartRateZone?.timeInHeartRateZones {
+                var out: [String: Double] = [:]
+                for item in z { if let k = item.heartRateZone, let m = minutes(item.duration) { out[k, default: 0] += m } }
+                if !out.isEmpty { upd(date) { $0.zoneMinutes = out } }
+            }
+            if let z = p.caloriesInHeartRateZone?.caloriesInHeartRateZones {
+                var out: [String: Double] = [:]
+                for item in z { if let k = item.heartRateZone, let kcal = item.kcal { out[k, default: 0] += kcal } }
+                if !out.isEmpty { upd(date) { $0.zoneKcal = out } }
+            }
+            if let m = minutes(p.sedentaryPeriod?.durationSum) { upd(date) { $0.sedentaryMin = m } }
+            if let l = p.activityLevel?.activityLevelRollupsByActivityLevelType {
+                var out: [String: Double] = [:]
+                for item in l { if let k = item.activityLevelType, let m = minutes(item.totalDuration) { out[k, default: 0] += m } }
+                if !out.isEmpty { upd(date) { $0.levelMinutes = out } }
+            }
+            if let kcal = p.activeEnergyBurned?.kcalSum { upd(date) { $0.activeKcal = kcal } }
+            if let f = p.floors?.countSum?.value, f > 0 { upd(date) { $0.floors = Int(f) } }
+            if let g = p.altitude?.gainMillimetersSum?.value, g > 0 { upd(date) { $0.elevationGainM = Double(g) / 1000 } }
+            if let hr = p.heartRate, let avg = hr.beatsPerMinuteAvg, avg > 0 {
+                upd(date) {
+                    $0.hrAvg = avg
+                    $0.hrMin = hr.beatsPerMinuteMin
+                    $0.hrMax = hr.beatsPerMinuteMax
+                }
+            }
+        }
+        return byDate.values.sorted { $0.date < $1.date }
+    }
 }

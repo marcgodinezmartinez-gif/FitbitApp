@@ -18,6 +18,20 @@ public enum HealthDataType: String, CaseIterable, Sendable {
     case totalCalories = "total-calories"
     case dailyVo2Max = "daily-vo2-max"
     case runVo2Max = "run-vo2-max"
+    // Datos ampliados de la pulsera (doc. 03 §4): curvas de la noche y actividad por intensidad.
+    case heartRateVariability = "heart-rate-variability"
+    case oxygenSaturation = "oxygen-saturation"
+    case respiratoryRateSleepSummary = "respiratory-rate-sleep-summary"
+    case dailyHeartRateZones = "daily-heart-rate-zones"
+    case activeMinutes = "active-minutes"
+    case activeZoneMinutes = "active-zone-minutes"
+    case timeInHeartRateZone = "time-in-heart-rate-zone"
+    case caloriesInHeartRateZone = "calories-in-heart-rate-zone"
+    case sedentaryPeriod = "sedentary-period"
+    case activityLevel = "activity-level"
+    case activeEnergyBurned = "active-energy-burned"
+    case floors
+    case altitude
 
     public enum RecordKind: Sendable { case interval, sample, daily, exercise, sleep }
 
@@ -26,12 +40,13 @@ public enum HealthDataType: String, CaseIterable, Sendable {
 
     public var recordKind: RecordKind {
         switch self {
-        case .heartRate, .runVo2Max: return .sample
+        case .heartRate, .runVo2Max, .heartRateVariability, .oxygenSaturation, .respiratoryRateSleepSummary: return .sample
         case .dailyRestingHeartRate, .dailyHeartRateVariability, .dailyOxygenSaturation, .dailyRespiratoryRate,
-             .dailySleepTemperatureDerivations, .dailyVo2Max: return .daily
+             .dailySleepTemperatureDerivations, .dailyVo2Max, .dailyHeartRateZones: return .daily
         case .sleep: return .sleep
         case .exercise: return .exercise
-        case .steps, .distance, .totalCalories: return .interval
+        case .steps, .distance, .totalCalories, .activeMinutes, .activeZoneMinutes, .timeInHeartRateZone, .caloriesInHeartRateZone,
+             .sedentaryPeriod, .activityLevel, .activeEnergyBurned, .floors, .altitude: return .interval
         }
     }
 }

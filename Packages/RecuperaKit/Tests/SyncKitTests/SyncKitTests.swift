@@ -430,6 +430,100 @@ struct FailingTransport: HTTPTransport {
     }
 }
 
+@Suite struct DayExtrasTests {
+    let day = LocalDate(year: 2026, month: 9, day: 29)
+
+    @Test func mapsNightDetailAndActivityByIntensity() throws {
+        let points = """
+        {"dataPoints":[
+         {"dataSource":{"platform":"FITBIT"},"dailyHeartRateVariability":{"date":{"year":2026,"month":9,"day":29},"averageHeartRateVariabilityMilliseconds":52,"entropy":2.9}},
+         {"dataSource":{"platform":"FITBIT"},"dailyOxygenSaturation":{"date":{"year":2026,"month":9,"day":29},"averagePercentage":96,"lowerBoundPercentage":93,"upperBoundPercentage":99,"standardDeviationPercentage":1.1}},
+         {"dataSource":{"platform":"FITBIT"},"dailySleepTemperatureDerivations":{"date":{"year":2026,"month":9,"day":29},"nightlyTemperatureCelsius":33.9,"baselineTemperatureCelsius":33.5,"relativeNightlyStddev30dCelsius":"NaN"}},
+         {"dataSource":{"platform":"FITBIT"},"respiratoryRateSleepSummary":{"sampleTime":{"physicalTime":"2026-09-29T05:00:00Z","utcOffset":"7200s"},"deepSleepStats":{"breathsPerMinute":13.8},"lightSleepStats":{"breathsPerMinute":14.9},"remSleepStats":{"breathsPerMinute":15.6}}},
+         {"dataSource":{"platform":"FITBIT"},"heartRateVariability":{"sampleTime":{"physicalTime":"2026-09-28T22:30:00Z","utcOffset":"7200s"},"rootMeanSquareOfSuccessiveDifferencesMilliseconds":48.5}},
+         {"dataSource":{"platform":"FITBIT"},"heartRateVariability":{"sampleTime":{"physicalTime":"2026-09-29T02:30:00Z","utcOffset":"7200s"},"rootMeanSquareOfSuccessiveDifferencesMilliseconds":61}},
+         {"dataSource":{"platform":"HEALTH_KIT"},"heartRateVariability":{"sampleTime":{"physicalTime":"2026-09-29T03:00:00Z"},"rootMeanSquareOfSuccessiveDifferencesMilliseconds":99}},
+         {"dataSource":{"platform":"FITBIT"},"oxygenSaturation":{"sampleTime":{"physicalTime":"2026-09-29T01:00:00Z","utcOffset":"7200s"},"percentage":95.5}},
+         {"dataSource":{"platform":"FITBIT"},"dailyHeartRateZones":{"date":{"year":2026,"month":9,"day":29},"heartRateZones":[{"heartRateZoneType":"MODERATE","minBeatsPerMinute":"115","maxBeatsPerMinute":"137"},{"heartRateZoneType":"LIGHT","minBeatsPerMinute":"95","maxBeatsPerMinute":"114"}]}}
+        ]}
+        """
+        let rollups = """
+        {"rollupDataPoints":[
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"activeZoneMinutes":{"sumInFatBurnHeartZone":"12","sumInCardioHeartZone":"20","sumInPeakHeartZone":"4"}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"activeMinutes":{"activeMinutesRollupByActivityLevel":[{"activityLevel":"LIGHT","activeMinutesSum":"140"},{"activityLevel":"VIGOROUS","activeMinutesSum":"25"}]}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"timeInHeartRateZone":{"timeInHeartRateZones":[{"heartRateZone":"LIGHT","duration":"5400s"},{"heartRateZone":"PEAK","duration":"120s"}]}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"sedentaryPeriod":{"durationSum":"36000s"}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"activityLevel":{"activityLevelRollupsByActivityLevelType":[{"activityLevelType":"VERY_ACTIVE","totalDuration":"1800s"}]}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"activeEnergyBurned":{"kcalSum":640.5}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"heartRate":{"beatsPerMinuteAvg":71,"beatsPerMinuteMin":48,"beatsPerMinuteMax":172}},
+         {"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"floors":{"countSum":"0"}}
+        ]}
+        """
+        let p = try JSONDecoder().decode(ListDataPointsResponse.self, from: Data(points.utf8)).dataPoints!
+        let r = try JSONDecoder().decode(RollUpResponse.self, from: Data(rollups.utf8)).rollupDataPoints!
+        let out = GoogleMapping.dayExtras(hrv: p, spo2: p, temp: p, respSummary: p, hrvSamples: p, spo2Samples: p, zones: p, rollups: r)
+        #expect(out.count == 1)
+        let x = try #require(out.first)
+        #expect(x.date == day && x.hrvEntropy == 2.9 && x.spo2Lower == 93 && x.spo2Upper == 99 && x.spo2Stddev == 1.1)
+        #expect(x.tempBaselineC == 33.5 && x.tempStddevC == nil && abs((x.tempDeviation(nightlyC: 33.9) ?? 0) - 0.4) < 1e-9)
+        #expect(x.respDeep == 13.8 && x.respLight == 14.9 && x.respRem == 15.6)
+        // Las dos muestras de la noche (una antes de medianoche) van al día en que te levantas; la de HealthKit, fuera.
+        #expect(x.hrvSamples?.map(\.v) == [48.5, 61] && x.spo2Samples?.count == 1)
+        #expect(x.hrZones?.map(\.name) == ["LIGHT", "MODERATE"] && x.hrZones?.first?.max == 114)
+        #expect(x.azmTotal == 36 && x.activeMinLight == 140 && x.activeMinModerate == 0 && x.activeMinTotal == 165)
+        #expect(x.zoneMinutes == ["LIGHT": 90, "PEAK": 2] && x.sedentaryMin == 600 && x.levelMinutes == ["VERY_ACTIVE": 30])
+        #expect(x.activeKcal == 640.5 && x.hrMin == 48 && x.hrAvg == 71 && x.hrMax == 172 && x.floors == nil)
+        #expect(x.hasNight && x.hasDay)
+    }
+
+    @Test func mergingKeepsWhatDoesNotArriveAgain() throws {
+        let db = try AppDatabase.inMemory()
+        var a = DayExtras(date: day)
+        a.azmFatBurn = 10
+        a.hrvSamples = [DayExtras.Sample(t: Date(timeIntervalSince1970: 1_000), v: 50)]
+        try db.mergeDayExtras([a])
+        var b = DayExtras(date: day)
+        b.azmFatBurn = 14
+        b.sedentaryMin = 500
+        try db.mergeDayExtras([b])
+        let x = try #require(try db.dayExtras(on: day))
+        #expect(x.azmFatBurn == 14 && x.sedentaryMin == 500 && x.hrvSamples?.first?.v == 50)
+        #expect(try db.dayExtras(from: day.adding(days: -1), to: day).count == 1)
+        #expect(try db.dayExtras(on: day.adding(days: 1)) == nil)
+    }
+
+    /// La sincronización normal los descarga y guarda; si un tipo falla o viene vacío, lo demás sigue.
+    @Test func syncStoresExtras() async throws {
+        let now = ISO8601DateFormatter().date(from: "2026-09-29T19:00:00Z")!
+        let db = try AppDatabase.inMemory()
+        try db.updateConnection {
+            $0.googleStatus = .active
+            $0.connectedAt = now
+            $0.backfillCompleted = true
+        }
+        let transport = CannedTransport([
+            "dataTypes/active-zone-minutes/dataPoints:dailyRollUp":
+                #"{"rollupDataPoints":[{"civilStartTime":{"date":{"year":2026,"month":9,"day":29}},"activeZoneMinutes":{"sumInFatBurnHeartZone":"7"}}]}"#,
+            "dataTypes/oxygen-saturation/dataPoints":
+                #"{"dataPoints":[{"dataSource":{"platform":"FITBIT"},"oxygenSaturation":{"sampleTime":{"physicalTime":"2026-09-29T01:00:00Z","utcOffset":"7200s"},"percentage":96}}]}"#,
+        ])
+        let tokens = InMemoryTokenStore(TokenSet(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, scope: nil))
+        let google = GoogleHealthClient(config: OAuthConfig(clientID: "c", reversedClientID: "r"), transport: transport, tokens: tokens, sleep: { _ in })
+        let engine = SyncEngine(db: db, google: google, apple: nil, now: { now }, utcOffset: { 7200 })
+        let report = await engine.sync(.pull)
+        #expect(report.google.ok)
+        let x = try #require(try db.dayExtras(on: LocalDate(year: 2026, month: 9, day: 29)))
+        #expect(x.azmFatBurn == 7 && x.azmTotal == 7 && x.spo2Samples?.first?.v == 96)
+    }
+
+    @Test func demoDayIsStableAndComplete() {
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        let a = DayExtras.demo(date: day, sleepStart: start, sleepEnd: start.addingTimeInterval(7 * 3600), hrv: 60, restingHR: 52, strain: 12)
+        let b = DayExtras.demo(date: day, sleepStart: start, sleepEnd: start.addingTimeInterval(7 * 3600), hrv: 60, restingHR: 52, strain: 12)
+        #expect(a == b && a.hasNight && a.hasDay && (a.hrvSamples?.count ?? 0) > 50 && (a.azmTotal ?? 0) > 0)
+    }
+}
+
 actor HistoryProgress {
     var items: [HistoryImportState] = []
     func add(_ s: HistoryImportState) { items.append(s) }

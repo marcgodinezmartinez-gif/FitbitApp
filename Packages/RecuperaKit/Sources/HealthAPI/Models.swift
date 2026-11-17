@@ -200,6 +200,7 @@ public struct DailyOxygenPoint: Codable, Sendable, Hashable {
     @FlexDouble public var averagePercentage: Double?
     @FlexDouble public var lowerBoundPercentage: Double?
     @FlexDouble public var upperBoundPercentage: Double?
+    @FlexDouble public var standardDeviationPercentage: Double?
 }
 
 public struct DailyRespiratoryPoint: Codable, Sendable, Hashable {
@@ -332,6 +333,46 @@ public struct RunVO2Point: Codable, Sendable, Hashable {
 }
 
 /// Punto de datos (`list`) o punto reconciliado (`reconcile`): un campo por tipo.
+/// Muestra de VFC durante el sueño (RMSSD y SDNN).
+public struct HRVSamplePoint: Codable, Sendable, Hashable {
+    public var sampleTime: SampleTime?
+    @FlexDouble public var rootMeanSquareOfSuccessiveDifferencesMilliseconds: Double?
+    @FlexDouble public var standardDeviationMilliseconds: Double?
+}
+
+/// Muestra de SpO₂ durante el sueño.
+public struct OxygenSamplePoint: Codable, Sendable, Hashable {
+    public var sampleTime: SampleTime?
+    @FlexDouble public var percentage: Double?
+}
+
+/// Frecuencia respiratoria de la noche por fase del sueño.
+public struct RespiratorySummaryPoint: Codable, Sendable, Hashable {
+    public struct Stats: Codable, Sendable, Hashable {
+        @FlexDouble public var breathsPerMinute: Double?
+        @FlexDouble public var standardDeviation: Double?
+        @FlexDouble public var signalToNoise: Double?
+    }
+
+    public var sampleTime: SampleTime?
+    public var fullSleepStats: Stats?
+    public var deepSleepStats: Stats?
+    public var lightSleepStats: Stats?
+    public var remSleepStats: Stats?
+}
+
+/// Zonas de FC del día según Google (límites en lpm).
+public struct DailyHRZonesPoint: Codable, Sendable, Hashable {
+    public struct Zone: Codable, Sendable, Hashable {
+        public var heartRateZoneType: String?
+        public var minBeatsPerMinute: FlexInt?
+        public var maxBeatsPerMinute: FlexInt?
+    }
+
+    public var date: APIDate?
+    public var heartRateZones: [Zone]?
+}
+
 public struct APIDataPoint: Codable, Sendable, Hashable {
     public var name: String?
     public var dataPointName: String?
@@ -349,6 +390,10 @@ public struct APIDataPoint: Codable, Sendable, Hashable {
     public var vo2Max: VO2Point?
     public var dailyVo2Max: DailyVO2Point?
     public var runVo2Max: RunVO2Point?
+    public var heartRateVariability: HRVSamplePoint?
+    public var oxygenSaturation: OxygenSamplePoint?
+    public var respiratoryRateSleepSummary: RespiratorySummaryPoint?
+    public var dailyHeartRateZones: DailyHRZonesPoint?
 
     public var identifier: String? { name ?? dataPointName }
 }
@@ -380,6 +425,42 @@ public struct RollupDataPoint: Codable, Sendable, Hashable {
     public struct StepsSum: Codable, Sendable, Hashable { public var countSum: FlexInt? }
     public struct DistanceSum: Codable, Sendable, Hashable { public var millimetersSum: FlexInt? }
     public struct CaloriesSum: Codable, Sendable, Hashable { @FlexDouble public var kcalSum: Double? }
+    public struct ActiveMinutesSum: Codable, Sendable, Hashable {
+        public struct Level: Codable, Sendable, Hashable {
+            public var activityLevel: String?
+            public var activeMinutesSum: FlexInt?
+        }
+        public var activeMinutesRollupByActivityLevel: [Level]?
+    }
+    public struct ZoneMinutesSum: Codable, Sendable, Hashable {
+        public var sumInFatBurnHeartZone: FlexInt?
+        public var sumInCardioHeartZone: FlexInt?
+        public var sumInPeakHeartZone: FlexInt?
+    }
+    public struct ZoneTime: Codable, Sendable, Hashable {
+        public struct Zone: Codable, Sendable, Hashable {
+            public var heartRateZone: String?
+            public var duration: String?
+        }
+        public var timeInHeartRateZones: [Zone]?
+    }
+    public struct ZoneCalories: Codable, Sendable, Hashable {
+        public struct Zone: Codable, Sendable, Hashable {
+            public var heartRateZone: String?
+            @FlexDouble public var kcal: Double?
+        }
+        public var caloriesInHeartRateZones: [Zone]?
+    }
+    public struct SedentarySum: Codable, Sendable, Hashable { public var durationSum: String? }
+    public struct LevelTime: Codable, Sendable, Hashable {
+        public struct Level: Codable, Sendable, Hashable {
+            public var activityLevelType: String?
+            public var totalDuration: String?
+        }
+        public var activityLevelRollupsByActivityLevelType: [Level]?
+    }
+    public struct FloorsSum: Codable, Sendable, Hashable { public var countSum: FlexInt? }
+    public struct AltitudeSum: Codable, Sendable, Hashable { public var gainMillimetersSum: FlexInt? }
 
     public var startTime: String?
     public var endTime: String?
@@ -389,6 +470,15 @@ public struct RollupDataPoint: Codable, Sendable, Hashable {
     public var steps: StepsSum?
     public var distance: DistanceSum?
     public var totalCalories: CaloriesSum?
+    public var activeEnergyBurned: CaloriesSum?
+    public var activeMinutes: ActiveMinutesSum?
+    public var activeZoneMinutes: ZoneMinutesSum?
+    public var timeInHeartRateZone: ZoneTime?
+    public var caloriesInHeartRateZone: ZoneCalories?
+    public var sedentaryPeriod: SedentarySum?
+    public var activityLevel: LevelTime?
+    public var floors: FloorsSum?
+    public var altitude: AltitudeSum?
 }
 
 public struct RollUpResponse: Codable, Sendable {

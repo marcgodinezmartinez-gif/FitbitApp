@@ -281,6 +281,10 @@ public actor SyncEngine {
         return records
     }
 
+    /// Totales diarios que se piden además de pasos, distancia y calorías.
+    static let extraDailyTypes: [HealthDataType] = [.activeMinutes, .activeZoneMinutes, .timeInHeartRateZone, .caloriesInHeartRateZone,
+                                                    .sedentaryPeriod, .activityLevel, .activeEnergyBurned, .floors, .altitude, .heartRate]
+
     /// FC, pasos y distancia por minuto.
     func importGoogleMinutes(_ g: GoogleHealthClient, from: Date, to: Date) async throws -> Int {
         var records = 0
@@ -344,9 +348,11 @@ public actor SyncEngine {
                 return []
             }
         }
-        let vit = GoogleMapping.vitals(hrv: try await daily(.dailyHeartRateVariability), rhr: try await daily(.dailyRestingHeartRate),
-                                       spo2: await secondary(.dailyOxygenSaturation), rr: try await daily(.dailyRespiratoryRate),
-                                       temp: await secondary(.dailySleepTemperatureDerivations))
+        let hrvPoints = try await daily(.dailyHeartRateVariability)
+        let spo2Points = await secondary(.dailyOxygenSaturation)
+        let tempPoints = await secondary(.dailySleepTemperatureDerivations)
+        let vit = GoogleMapping.vitals(hrv: hrvPoints, rhr: try await daily(.dailyRestingHeartRate),
+                                       spo2: spo2Points, rr: try await daily(.dailyRespiratoryRate), temp: tempPoints)
         try db.mergeVitals(vit)
         records += vit.count
         try db.upsertVO2(GoogleMapping.vo2(await secondary(.dailyVo2Max)))
@@ -362,6 +368,29 @@ public actor SyncEngine {
         } catch {
             googleWarnings.append("totales diarios: \(String(describing: error).prefix(160))")
         }
+
+        // Datos ampliados de la pulsera: nada de esto entra en las puntuaciones, así que cada tipo que falle se anota y se sigue.
+        var rollups: [RollupDataPoint] = []
+        for t in Self.extraDailyTypes {
+            do { rollups += try await g.dailyRollUp(t, from: range.0, to: range.1) } catch {
+                googleWarnings.append("\(t.rawValue): \(String(describing: error).prefix(160))")
+            }
+        }
+        func samples(_ t: HealthDataType, from a: Date) async -> [APIDataPoint] {
+            do { return try await g.list(t, filter: HealthFilter.make(t, from: a, to: dTo, utcOffsetSeconds: off), maxPages: 20) } catch {
+                googleWarnings.append("\(t.rawValue): \(String(describing: error).prefix(160))")
+                return []
+            }
+        }
+        // Las curvas de la noche (VFC y SpO₂ muestra a muestra) solo de las dos últimas semanas: son muchas muestras.
+        let recent = to > now().addingTimeInterval(-3 * 86_400)
+        let curvesFrom = max(dFrom, to.addingTimeInterval(-14 * 86_400))
+        let extras = GoogleMapping.dayExtras(hrv: hrvPoints, spo2: spo2Points, temp: tempPoints,
+                                             respSummary: await samples(.respiratoryRateSleepSummary, from: dFrom),
+                                             hrvSamples: recent ? await samples(.heartRateVariability, from: curvesFrom) : [],
+                                             spo2Samples: recent ? await samples(.oxygenSaturation, from: curvesFrom) : [],
+                                             zones: await secondary(.dailyHeartRateZones), rollups: rollups)
+        try db.mergeDayExtras(extras)
         return records
     }
 

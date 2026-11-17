@@ -110,6 +110,10 @@ public final class AppDatabase: Sendable {
             CREATE TABLE segment_scan (segment_id TEXT NOT NULL, activity_id TEXT NOT NULL, PRIMARY KEY (segment_id, activity_id));
             """)
         }
+        // v5 · Datos ampliados de la pulsera por día: curvas de la noche y actividad por intensidad.
+        m.registerMigration("v5") { db in
+            try db.execute(sql: "CREATE TABLE day_extras (date TEXT PRIMARY KEY, json TEXT NOT NULL);")
+        }
         return m
     }
 
