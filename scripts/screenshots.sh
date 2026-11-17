@@ -45,7 +45,9 @@ shoot() {
 # Primero el onboarding (instalación limpia); después cada pantalla con datos de demostración.
 shoot 00-onboarding
 n=1
-for screen in today analysis recovery sleep strain activity health trends runs runs-training runs-workout runs-goal runs-risk runs-performance runs-records runs-segments run run-ai run-charts run-splits run-intervals run-segments run-form coach profile faces face-editor panel plan strength workout breathing alarm vo2 report; do
+# Con SCREENS="today hub vitals" solo se capturan esas pantallas (y no las del reloj): revisar un cambio cuesta minutos, no media hora.
+ALL_SCREENS="today hub vitals day-activity analysis recovery sleep strain activity health trends runs runs-training runs-workout runs-goal runs-risk runs-performance runs-records runs-segments run run-ai run-charts run-splits run-intervals run-segments run-form coach profile faces face-editor panel plan strength workout breathing alarm vo2 report"
+for screen in ${SCREENS:-$ALL_SCREENS}; do
   shoot "$(printf '%02d' $n)-$screen" -RecuperaScreenshots -RecuperaScreen "$screen"
   n=$((n + 1))
 done
@@ -55,7 +57,7 @@ xcrun simctl shutdown "$UDID" || true
 # Esferas del Apple Watch (doc. 19): la app del reloj en su simulador, cada plantilla con datos de ejemplo a las 10:09:30.
 WATCH_APP="$APP/Watch/RecuperaWatch.app"
 [ -d "$WATCH_APP" ] || WATCH_APP="$(dirname "$APP")/../Debug-watchsimulator/RecuperaWatch.app"
-if [ -d "$WATCH_APP" ]; then
+if [ -d "$WATCH_APP" ] && [ -z "${SCREENS:-}" ]; then
   WUDID=$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
 devices = json.load(sys.stdin)["devices"]

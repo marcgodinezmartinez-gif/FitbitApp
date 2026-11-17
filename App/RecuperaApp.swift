@@ -54,7 +54,7 @@ struct RecuperaApp: App {
 }
 
 enum AppTab: Hashable {
-    case today, trends, runs, coach, profile
+    case today, health, trends, runs, coach
 }
 
 struct RootView: View {
@@ -86,6 +86,9 @@ struct MainTabs: View {
             Tab("Hoy", systemImage: "circle.circle", value: AppTab.today) {
                 NavigationStack { TodayView() }
             }
+            Tab("Salud", systemImage: "heart.text.square", value: AppTab.health) {
+                NavigationStack { HealthHubView() }
+            }
             Tab("Tendencias", systemImage: "chart.xyaxis.line", value: AppTab.trends) {
                 NavigationStack { TrendsView() }
             }
@@ -94,9 +97,6 @@ struct MainTabs: View {
             }
             Tab("Coach", systemImage: "sparkles", value: AppTab.coach) {
                 NavigationStack { CoachHomeView() }
-            }
-            Tab("Perfil", systemImage: "person.crop.circle", value: AppTab.profile) {
-                NavigationStack { ProfileView() }
             }
         }
     }
@@ -115,6 +115,8 @@ enum DetailRoute: Hashable {
     case trend(DayMetric)
     case run(String)
     case shoes
+    case vitals(LocalDate)
+    case dayActivity(LocalDate)
 }
 
 struct DetailDestination: View {
@@ -140,7 +142,38 @@ struct DetailDestination: View {
         case .trend(let m): MetricTrendView(metric: m)
         case .run(let id): RunDetailView(runID: id)
         case .shoes: ShoesView()
+        case .vitals(let d): VitalsDetailView(date: d)
+        case .dayActivity(let d): ActivityDayView(date: d)
         }
+    }
+}
+
+/// Botón de perfil en la barra de «Hoy» y «Salud»: el perfil se abre encima en vez de ocupar una pestaña.
+struct ProfileButton: ViewModifier {
+    @State private var show: Bool
+
+    init(opensAtStart: Bool = false) { _show = State(initialValue: opensAtStart) }
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        show = true
+                    } label: {
+                        Image(systemName: "person.crop.circle")
+                    }
+                    .accessibilityLabel("Perfil")
+                }
+            }
+            .sheet(isPresented: $show) {
+                NavigationStack {
+                    ProfileView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) { Button("Hecho") { show = false } }
+                        }
+                }
+            }
     }
 }
 

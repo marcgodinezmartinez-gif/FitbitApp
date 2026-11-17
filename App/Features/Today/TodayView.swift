@@ -116,6 +116,7 @@ struct TodayView: View {
                 .accessibilityLabel("Acciones")
             }
         }
+        .modifier(ProfileButton(opensAtStart: AppModel.opensProfile))
         .detailDestinations()
         .navigationDestination(item: $menuRoute) { route in DetailDestination(route: route) }
         .task(id: model.dataVersion) { openScreenshotScreen() }
@@ -442,7 +443,7 @@ struct VitalsCard: View {
     let cycle: CycleMetrics
 
     var body: some View {
-        NavigationLink(value: DetailRoute.health(cycle.date)) {
+        NavigationLink(value: DetailRoute.vitals(cycle.date)) {
             Card {
                 SectionHeader(title: "Vitales de la noche", trailing: "vs. lo habitual")
                 let v = cycle.vitals

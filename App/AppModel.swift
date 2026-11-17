@@ -112,8 +112,16 @@ final class AppModel {
         case "trends"?, "report"?: return .trends
         case let screen? where screen.hasPrefix("run"): return .runs
         case "coach"?: return .coach
-        case "profile"?, "faces"?, "face-editor"?: return .profile
+        case "hub"?, "vitals"?, "day-activity"?: return .health
         default: return .today
+        }
+    }
+
+    /// En las capturas del perfil y de las esferas, «Hoy» abre el perfil (ya no es una pestaña).
+    static var opensProfile: Bool {
+        switch screenshotScreen {
+        case "profile"?, "faces"?, "face-editor"?: return true
+        default: return false
         }
     }
 
@@ -406,6 +414,17 @@ final class AppModel {
         guard let output else { return nil }
         if let d = selectedDate, let c = output.cycle(on: d) { return c }
         return output.current
+    }
+
+    /// Datos ampliados de la pulsera de un día (en el modo demostración, de ejemplo).
+    func dayExtras(_ date: LocalDate) -> DayExtras? {
+        if settings.demoMode {
+            guard let c = output?.cycle(on: date) else { return nil }
+            return DayExtras.demo(date: date, sleepStart: c.sleepSession?.start, sleepEnd: c.sleepSession?.end,
+                                  hrv: c.vitals?.hrvRmssdAvg, restingHR: c.vitals?.restingHR, strain: c.strain.strain)
+        }
+        guard let db else { return nil }
+        return try? db.dayExtras(on: date)
     }
 
     var isShowingToday: Bool { selectedDate == nil || selectedDate == output?.current?.date }

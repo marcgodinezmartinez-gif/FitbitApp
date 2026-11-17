@@ -13,6 +13,10 @@ on:
         description: "Capturas de pantalla en el simulador (modo demostración)"
         type: boolean
         default: true
+      screens:
+        description: "Solo estas pantallas (separadas por espacios; vacío = todas)"
+        type: string
+        default: ""
   push:
     paths:
       - "App/**"
@@ -75,6 +79,8 @@ jobs:
 
       - name: Capturas de pantalla
         if: (github.event_name == 'workflow_dispatch' && inputs.screenshots) || contains(github.event.head_commit.message, '[capturas]')
+        env:
+          SCREENS: ${{ inputs.screens }}
         run: ./scripts/screenshots.sh build/dd/Build/Products/Debug-iphonesimulator/Recupera.app screenshots
 
       - name: Publicar capturas
